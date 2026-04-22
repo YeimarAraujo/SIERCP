@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Django",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}\\siercp_backend\\manage.py",
+            "args": [
+                "runserver"
+            ],
+            "django": true
+        },
+        {
+            "name": "(Windows) Iniciar",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "Escriba el nombre del programa; por ejemplo, ${workspaceFolder}/a.exe.",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal"
+        }
+    ]
+}
