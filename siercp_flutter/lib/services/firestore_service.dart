@@ -301,6 +301,46 @@ class FirestoreService {
     return snap.docs.map((d) => d.data()).toList();
   }
 
+  Future<List<String>> getStudentEnrolledCourseIds(String studentId) async {
+    final coursesSnap = await _courses.where('isActive', isEqualTo: true).get();
+    final List<String> enrolledIds = [];
+    for (final courseDoc in coursesSnap.docs) {
+      final enrollSnap = await _courses
+          .doc(courseDoc.id)
+          .collection('enrollments')
+          .doc(studentId)
+          .get();
+      if (enrollSnap.exists) {
+        enrolledIds.add(courseDoc.id);
+      }
+    }
+    return enrolledIds;
+  }
+
+  Future<void> updateEnrollmentProgress(
+    String courseId,
+    String studentId,
+    SessionMetrics metrics,
+  ) async {
+    final enrollRef = _courses.doc(courseId).collection('enrollments').doc(studentId);
+    final enrollSnap = await enrollRef.get();
+    if (!enrollSnap.exists) return;
+
+    final data = enrollSnap.data() as Map<String, dynamic>;
+    int currentSessionCount = (data['sessionCount'] as num?)?.toInt() ?? 0;
+    double currentAvgScore = (data['avgScore'] as num?)?.toDouble() ?? 0.0;
+
+    // Calcular nuevo promedio
+    double newAvgScore = ((currentAvgScore * currentSessionCount) + metrics.score) / (currentSessionCount + 1);
+
+    await enrollRef.update({
+      'sessionCount': FieldValue.increment(1),
+      'avgScore': newAvgScore,
+      'lastSessionDate': FieldValue.serverTimestamp(),
+      if (metrics.approved) 'completedModules': FieldValue.increment(1),
+    });
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   //  MANIQUÍES
   // ══════════════════════════════════════════════════════════════════════════

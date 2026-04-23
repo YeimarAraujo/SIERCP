@@ -6,8 +6,9 @@ import '../models/user.dart';
 import '../services/session_service.dart';
 import '../services/device_service.dart';
 import '../services/audio_service.dart';
+import '../core/constants.dart';
 import 'auth_provider.dart';
-import 'guide_provider.dart'; // para selectedDeviceMacProvider
+import 'guide_provider.dart';
 
 final audioServiceProvider = Provider((ref) => AudioService());
 
@@ -19,6 +20,7 @@ class ActiveSessionState {
   final List<AlertModel> alerts;
   final bool isConnected;
   final Duration elapsed;
+  final DeviceInfo? lastDeviceInfo; // Mantiene el último estado completo del sensor
 
   const ActiveSessionState({
     this.session,
@@ -34,6 +36,7 @@ class ActiveSessionState {
     this.alerts = const [],
     this.isConnected = false,
     this.elapsed = Duration.zero,
+    this.lastDeviceInfo,
   });
 
   ActiveSessionState copyWith({
@@ -43,6 +46,7 @@ class ActiveSessionState {
     List<AlertModel>? alerts,
     bool? isConnected,
     Duration? elapsed,
+    DeviceInfo? lastDeviceInfo,
   }) =>
       ActiveSessionState(
         session: session ?? this.session,
@@ -51,23 +55,15 @@ class ActiveSessionState {
         alerts: alerts ?? this.alerts,
         isConnected: isConnected ?? this.isConnected,
         elapsed: elapsed ?? this.elapsed,
+        lastDeviceInfo: lastDeviceInfo ?? this.lastDeviceInfo,
       );
 }
 
 // ─── Active Session Notifier ───────────────────────────────────────────────────
-/// La telemetría del ESP32 llega via Firebase Realtime Database.
-/// El maniquí NO se conecta por Bluetooth a la app — envía directamente a Firebase.
 class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
   Timer? _timer;
-  // Mantenemos dos variables separadas para evitar cast inválido
   StreamSubscription<DeviceInfo?>? _telemetrySub;
   StreamSubscription<List<DeviceInfo>>? _telemetrySubMulti;
-
-  // ── Variables para análisis de compresiones reales ──
-  bool _inCompression = false;
-  double _peakForce = 0.0;
-  final List<int> _compressionTimestamps = [];
-  double _sumDepths = 0.0;
 
   @override
   ActiveSessionState build() => const ActiveSessionState();
@@ -76,6 +72,24 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     final sessionService = ref.read(sessionServiceProvider);
     final user = ref.read(currentUserProvider);
     if (user == null) throw Exception('No hay usuario autenticado.');
+
+    // Verificar si hay dispositivos activos y si sus sensores están OK antes de iniciar
+    final deviceService = ref.read(deviceServiceProvider);
+    final selectedMac = ref.read(selectedDeviceMacProvider);
+    DeviceInfo? activeDevice;
+
+    if (selectedMac != null && selectedMac.isNotEmpty) {
+      activeDevice = await deviceService.streamDevice(selectedMac).first;
+    } else {
+      final devices = await deviceService.getAvailableDevices();
+      if (devices.isNotEmpty) {
+        activeDevice = devices.first;
+      }
+    }
+
+    if (activeDevice != null && !activeDevice.sensorOk) {
+      throw Exception('Sensor de profundidad no disponible en el maniquí. Requerido para sesión válida.');
+    }
 
     final session = await sessionService.startSession(
       studentId: user.id,
@@ -92,11 +106,9 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
 
     // Timer de duración
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      state =
-          state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
+      state = state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
     });
 
-    // ── Escuchar telemetría desde Firebase Realtime Database ──────────────
     _startFirebaseTelemetryListener(audioService);
   }
 
@@ -105,19 +117,16 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     final selectedMac = ref.read(selectedDeviceMacProvider);
 
     if (selectedMac != null && selectedMac.isNotEmpty) {
-      // Escuchar un maniquí específico
       _telemetrySub = deviceService.streamDevice(selectedMac).listen(
         (deviceInfo) {
           if (deviceInfo != null && deviceInfo.isActive) {
             _processFirebaseTelemetry(deviceInfo, audioService);
           }
         },
-        onError: (_) {}, // ignorar errores de red
+        onError: (_) {},
       );
     } else {
-      // Sin maniquí seleccionado: escuchar todos y usar el primer activo
-      _telemetrySubMulti =
-          deviceService.streamAvailableDevices().listen((devices) {
+      _telemetrySubMulti = deviceService.streamAvailableDevices().listen((devices) {
         final active = devices.where((d) => d.isActive).toList();
         if (active.isNotEmpty) {
           _processFirebaseTelemetry(active.first, audioService);
@@ -126,143 +135,60 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     }
   }
 
-  void _processFirebaseTelemetry(
-      DeviceInfo deviceInfo, AudioService audioService) {
-    // Los datos vienen del nodo de telemetría en RTDB
-    final rawForce = deviceInfo.presion; // fuerza/presión del sensor HX711
-    final rawRate = deviceInfo.ritmoCpm.toInt();
-
-    // ── UMBRALES DE DETECCIÓN ───────────────────────────────────────────
-    const double inicioCompresion = 4.0;
-    const double finCompresion = 2.0;
-
-    // ── DETECCIÓN DE CICLO PICO/BAJADA ─────────────────────────────────
-    int count = state.liveData.compressionCount;
-    double depth = state.liveData.depthMm;
-
-    if (rawForce >= inicioCompresion && !_inCompression) {
-      _inCompression = true;
-      _peakForce = rawForce;
-    } else if (rawForce > _peakForce && _inCompression) {
-      _peakForce = rawForce;
-    } else if (rawForce <= finCompresion && _inCompression) {
-      _inCompression = false;
-      count = state.liveData.compressionCount + 1;
-
-      depth = (_peakForce * 1.5).clamp(0.0, 80.0);
-      _sumDepths += depth;
-
-      _compressionTimestamps.add(DateTime.now().millisecondsSinceEpoch);
-
-      // ── FRECUENCIA REAL (CPM) ─────────────────────────────────────────
-      int currentRate = rawRate > 0 ? rawRate : 0;
-      if (_compressionTimestamps.length >= 2) {
-        final span =
-            _compressionTimestamps.last - _compressionTimestamps.first;
-        if (span > 0) {
-          currentRate =
-              ((_compressionTimestamps.length - 1) / (span / 60000.0))
-                  .round();
-        }
-      }
-
-      // Audio Feedback (each 5 compressions)
-      if (count > 0 && count % 5 == 0) {
-        if (depth < 50.0) {
-          audioService.playFeedback('mas_profundo');
-        } else if (currentRate < 100) {
-          audioService.playFeedback('mas_rapido');
-        } else {
-          audioService.playFeedback('bien');
-        }
-      }
-
-      _peakForce = 0.0;
-    }
-
-    // ── FRECUENCIA PARA UI ──────────────────────────────────────────────
-    int rate = rawRate > 0 ? rawRate : 0;
-    if (_compressionTimestamps.length >= 2) {
-      final span =
-          _compressionTimestamps.last - _compressionTimestamps.first;
-      if (span > 0) {
-        rate = ((_compressionTimestamps.length - 1) / (span / 60000.0))
-            .round();
+  void _processFirebaseTelemetry(DeviceInfo deviceInfo, AudioService audioService) {
+    // Si el sensor láser falla en medio de la sesión, generamos una alerta
+    if (!deviceInfo.sensorOk) {
+      if (!state.alerts.any((a) => a.message.contains('Sensor de profundidad'))) {
+        final alert = AlertModel(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          sessionId: state.session?.id ?? '',
+          type: AlertType.error,
+          title: 'Error de Sensor',
+          message: 'El sensor de profundidad láser se ha desconectado. Las métricas serán imprecisas.',
+          timestamp: DateTime.now(),
+        );
+        state = state.copyWith(alerts: [alert, ...state.alerts].take(5).toList());
       }
     }
 
-    // ── DESCOMPRESIÓN COMPLETA ──────────────────────────────────────────
-    final decompressed = !_inCompression && rawForce < finCompresion;
+    // Comprobamos si hubo una nueva compresión
+    bool nuevaCompresion = deviceInfo.compresiones > state.liveData.compressionCount;
 
-    // ── CALIDAD ACUMULADA ───────────────────────────────────────────────
-    final avgDepth = count > 0 ? _sumDepths / count : 0.0;
-    final ok = avgDepth >= 50.0 && avgDepth <= 60.0 ? 1.0 : 0.0;
-    final newPct = count > 0
-        ? ((state.liveData.correctPct * (count - 1) + ok * 100) / count)
-            .clamp(0.0, 100.0)
-        : 0.0;
+    // Audio Feedback de Flutter (opcional, el ESP32 también lo tiene con JQ8900)
+    if (nuevaCompresion && deviceInfo.compresiones > 0 && deviceInfo.compresiones % 5 == 0) {
+      if (deviceInfo.profundidadMm < AppConstants.ahaMinDepthMm) {
+        audioService.playFeedback('mas_profundo');
+      } else if (deviceInfo.frecuenciaCpm < AppConstants.ahaMinRatePerMin) {
+        audioService.playFeedback('mas_rapido');
+      } else {
+        audioService.playFeedback('bien');
+      }
+    }
 
-    _onLiveData(LiveSessionData(
-      depthMm: depth,
-      ratePerMin: rate,
-      forceKg: rawForce,
-      compressionCount: count,
-      correctPct: newPct.toDouble(),
-      decompressedFully: decompressed,
-      oxygen: deviceInfo.oxigeno > 0 ? deviceInfo.oxigeno : 98.0,
-    ));
-  }
+    final data = LiveSessionData(
+      depthMm: deviceInfo.profundidadMm,
+      ratePerMin: deviceInfo.frecuenciaCpm,
+      forceKg: deviceInfo.fuerzaKg,
+      compressionCount: deviceInfo.compresiones,
+      correctCompressionCount: deviceInfo.compresionesCorrectas,
+      correctPct: deviceInfo.calidadPct,
+      decompressedFully: deviceInfo.recoilOk,
+      recoilPct: deviceInfo.recoilPct,
+      oxygen: deviceInfo.oxigeno,
+      pauseCount: deviceInfo.pausas,
+      maxPauseSec: deviceInfo.maxPausaSeg,
+      sensorOk: deviceInfo.sensorOk,
+      calibrated: deviceInfo.calibrado,
+    );
 
-  void _onLiveData(LiveSessionData data) {
     final newHistory = [...state.depthHistory, data.depthMm];
-    final trimmed = newHistory.length > 20
-        ? newHistory.sublist(newHistory.length - 20)
-        : newHistory;
-
-    List<AlertModel> newAlerts = state.alerts;
-    if (data.alertMessage != null) {
-      final alert = AlertModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        sessionId: state.session?.id ?? '',
-        type: _parseAlertType(data.alertType),
-        title: _alertTitle(data.alertType),
-        message: data.alertMessage!,
-        timestamp: DateTime.now(),
-      );
-      newAlerts = [alert, ...state.alerts].take(5).toList();
-    }
+    final trimmed = newHistory.length > 20 ? newHistory.sublist(newHistory.length - 20) : newHistory;
 
     state = state.copyWith(
       liveData: data,
       depthHistory: trimmed,
-      alerts: newAlerts,
+      lastDeviceInfo: deviceInfo, // Guardamos para usar en endSession
     );
-  }
-
-  AlertType _parseAlertType(String? t) {
-    switch (t) {
-      case 'ok':
-        return AlertType.ok;
-      case 'warning':
-        return AlertType.warning;
-      case 'error':
-        return AlertType.error;
-      default:
-        return AlertType.info;
-    }
-  }
-
-  String _alertTitle(String? type) {
-    switch (type) {
-      case 'ok':
-        return 'Técnica correcta';
-      case 'warning':
-        return 'Atención';
-      case 'error':
-        return 'Corrección requerida';
-      default:
-        return 'Información';
-    }
   }
 
   Future<SessionModel> endSession() async {
@@ -272,113 +198,103 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     _telemetrySub = null;
     _telemetrySubMulti = null;
 
-    // Capturar todo lo necesario antes de limpiar el estado
     final currentSession = state.session;
     if (currentSession == null) {
       throw Exception('No hay sesión activa para finalizar.');
     }
     final sessionId = currentSession.id;
-
     final sessionService = ref.read(sessionServiceProvider);
-    final liveData = state.liveData;
-    final elapsed = state.elapsed;
-    final count = liveData.compressionCount;
+    
+    // Tomar métricas finales del último estado reportado por el ESP32
+    final devInfo = state.lastDeviceInfo;
+    final count = devInfo?.compresiones ?? 0;
+    final avgDepth = devInfo?.avgProfundidadMm ?? 0.0;
+    final avgRate = (devInfo?.frecuenciaCpm ?? 0).toDouble();
+    final recoilPct = devInfo?.recoilPct ?? 100.0;
+    final pausas = devInfo?.pausas ?? 0;
+    final correctPct = devInfo?.calidadPct ?? 0.0;
 
-    // ── Profundidad promedio real ──────────────────────────────────────────
-    final avgDepth = count > 0 ? _sumDepths / count : 0.0;
+    // ── Puntaje compuesto AHA 2025 ────────────────────────────────────────
+    // Profundidad (30%)
+    double depthScore = 0.0;
+    if (avgDepth >= AppConstants.ahaMinDepthMm && avgDepth <= AppConstants.ahaMaxDepthMm) {
+      depthScore = 100.0 * AppConstants.ahaDepthWeight;
+    } else if (avgDepth > 0) {
+      depthScore = 50.0 * AppConstants.ahaDepthWeight; // penalización parcial
+    }
 
-    // ── Frecuencia promedio real ───────────────────────────────────────────
-    final avgRate = liveData.ratePerMin.toDouble();
+    // Frecuencia (30%)
+    double rateScore = 0.0;
+    if (avgRate >= AppConstants.ahaMinRatePerMin && avgRate <= AppConstants.ahaMaxRatePerMin) {
+      rateScore = 100.0 * AppConstants.ahaRateWeight;
+    } else if (avgRate > 0) {
+      rateScore = 50.0 * AppConstants.ahaRateWeight;
+    }
 
-    // ── Puntaje compuesto según AHA ────────────────────────────────────────
-    final depthScore =
-        (avgDepth >= 50 && avgDepth <= 60) ? 40.0 : (avgDepth > 0 ? 20.0 : 0.0);
-    final rateScore =
-        (avgRate >= 100 && avgRate <= 120) ? 30.0 : (avgRate > 0 ? 15.0 : 0.0);
-    final qualScore = liveData.correctPct * 0.30;
-    final totalScore = (depthScore + rateScore + qualScore).clamp(0.0, 100.0);
+    // Recoil (20%)
+    double rScore = recoilPct * AppConstants.ahaRecoilWeight;
+
+    // Interrupciones (20%)
+    double iScore = 100.0 * AppConstants.ahaInterruptionWeight;
+    if (pausas > 0) {
+      iScore = (iScore - (pausas * 10)).clamp(0.0, 100.0); // -10 pts por pausa larga
+    }
+
+    final totalScore = (depthScore + rateScore + rScore + iScore).clamp(0.0, 100.0);
 
     // ── Violaciones detectadas ─────────────────────────────────────────────
     final List<AhaViolation> violations = [];
-    if (avgDepth < 50 && count > 0) {
-      violations.add(AhaViolation(
-          type: 'error',
-          message: 'Profundidad insuficiente (< 50 mm)',
-          count: count));
+    if (avgDepth < AppConstants.ahaMinDepthMm && count > 0) {
+      violations.add(AhaViolation(type: 'error', message: 'Profundidad insuficiente (< 50 mm)', count: count));
     }
-    if (avgDepth > 60 && count > 0) {
-      violations.add(AhaViolation(
-          type: 'warning',
-          message: 'Compresión excesiva (> 60 mm)',
-          count: count));
+    if (avgDepth > AppConstants.ahaMaxDepthMm && count > 0) {
+      violations.add(AhaViolation(type: 'warning', message: 'Compresión excesiva (> 60 mm)', count: count));
     }
-    if (avgRate < 100 && count > 0) {
-      violations.add(AhaViolation(
-          type: 'error',
-          message: 'Frecuencia muy lenta (< 100/min)',
-          count: 1));
+    if (avgRate < AppConstants.ahaMinRatePerMin && count > 0) {
+      violations.add(AhaViolation(type: 'error', message: 'Frecuencia muy lenta (< 100/min)', count: 1));
     }
-    if (avgRate > 120 && count > 0) {
-      violations.add(AhaViolation(
-          type: 'warning',
-          message: 'Frecuencia muy rápida (> 120/min)',
-          count: 1));
+    if (avgRate > AppConstants.ahaMaxRatePerMin && count > 0) {
+      violations.add(AhaViolation(type: 'warning', message: 'Frecuencia muy rápida (> 120/min)', count: 1));
     }
     if (count < 10) {
-      violations.add(AhaViolation(
-          type: 'error',
-          message: 'Muy pocas compresiones registradas',
-          count: 1));
+      violations.add(AhaViolation(type: 'error', message: 'Muy pocas compresiones registradas', count: 1));
     }
+    if (pausas > 0) {
+      violations.add(AhaViolation(type: 'warning', message: 'Pausas mayores a 10s detectadas', count: pausas));
+    }
+    if (recoilPct < 80.0) {
+       violations.add(AhaViolation(type: 'warning', message: 'Recoil incompleto frecuente', count: 1));
+    }
+
     final metrics = SessionMetrics(
       totalCompressions: count,
+      correctCompressions: devInfo?.compresionesCorrectas ?? 0,
       averageDepthMm: avgDepth,
       averageRatePerMin: avgRate,
-      correctCompressionsPct: liveData.correctPct,
-      averageForcKg: liveData.forceKg,
-      interruptionCount: 0,
-      maxPauseSeconds: 0.0,
+      correctCompressionsPct: correctPct,
+      averageForcKg: devInfo?.avgFuerzaKg ?? 0.0,
+      recoilPct: recoilPct,
+      interruptionCount: pausas,
+      maxPauseSeconds: devInfo?.maxPausaSeg ?? 0.0,
+      depthScore: depthScore,
+      rateScore: rateScore,
+      recoilScore: rScore,
+      interruptionScore: iScore,
       score: totalScore,
-      approved: totalScore >= 70,
+      approved: totalScore >= AppConstants.ahaPassScore,
       violations: violations,
     );
 
-    // Limpiar contadores internos ya que los capturamos arriba
-    _compressionTimestamps.clear();
-    _sumDepths = 0.0;
-    _inCompression = false;
-    _peakForce = 0.0;
-
-    // Intentar guardar en Firestore; si falla, devolver modelo local
     SessionModel finished;
     try {
-      await sessionService.endSession(sessionId, metrics, elapsed.inSeconds);
+      await sessionService.endSession(sessionId, metrics, state.elapsed.inSeconds);
+      // Actualizar progreso de curso si aplica
+      await sessionService.updateCourseProgressAfterSession(currentSession.studentId, metrics);
+      
       final saved = await sessionService.getSession(sessionId);
-      finished = saved ??
-          SessionModel(
-            id: sessionId,
-            studentId: currentSession.studentId,
-            scenarioId: currentSession.scenarioId,
-            scenarioTitle: currentSession.scenarioTitle,
-            patientType: currentSession.patientType,
-            status: SessionStatus.completed,
-            startedAt: currentSession.startedAt,
-            endedAt: DateTime.now(),
-            metrics: metrics,
-          );
+      finished = saved ?? currentSession.copyWithEnd(metrics: metrics, endedAt: DateTime.now());
     } catch (_) {
-      // Firestore falló — devolvemos el resultado localmente para no bloquear la navegación
-      finished = SessionModel(
-        id: sessionId,
-        studentId: currentSession.studentId,
-        scenarioId: currentSession.scenarioId,
-        scenarioTitle: currentSession.scenarioTitle,
-        patientType: currentSession.patientType,
-        status: SessionStatus.completed,
-        startedAt: currentSession.startedAt,
-        endedAt: DateTime.now(),
-        metrics: metrics,
-      );
+      finished = currentSession.copyWithEnd(metrics: metrics, endedAt: DateTime.now());
     }
 
     state = state.copyWith(session: finished, isConnected: false);
@@ -395,8 +311,25 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
   }
 }
 
-final activeSessionProvider =
-    NotifierProvider<ActiveSessionNotifier, ActiveSessionState>(
+// Extension to help copyWith on SessionModel
+extension SessionModelCopy on SessionModel {
+  SessionModel copyWithEnd({SessionMetrics? metrics, DateTime? endedAt}) {
+    return SessionModel(
+      id: id,
+      studentId: studentId,
+      scenarioId: scenarioId,
+      scenarioTitle: scenarioTitle,
+      patientType: patientType,
+      status: SessionStatus.completed,
+      startedAt: startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      metrics: metrics ?? this.metrics,
+      courseId: courseId,
+    );
+  }
+}
+
+final activeSessionProvider = NotifierProvider<ActiveSessionNotifier, ActiveSessionState>(
   ActiveSessionNotifier.new,
 );
 
@@ -431,34 +364,21 @@ final userStatsProvider = Provider<UserStats?>((ref) {
   if (sessions.isEmpty) return null;
 
   final today = DateTime.now();
-  final todayCount = sessions
-      .where((s) =>
-          s.startedAt.day == today.day &&
-          s.startedAt.month == today.month &&
-          s.startedAt.year == today.year)
-      .length;
+  final todayCount = sessions.where((s) =>
+      s.startedAt.day == today.day &&
+      s.startedAt.month == today.month &&
+      s.startedAt.year == today.year).length;
 
   final withMetrics = sessions.where((s) => s.metrics != null).toList();
   if (withMetrics.isEmpty) {
     return UserStats(sessionsToday: todayCount, totalSessions: sessions.length);
   }
 
-  final avgScore =
-      withMetrics.map((s) => s.metrics!.score).reduce((a, b) => a + b) /
-          withMetrics.length;
-  final bestScore =
-      withMetrics.map((s) => s.metrics!.score).reduce((a, b) => a > b ? a : b);
-  final totalHours =
-      sessions.map((s) => s.duration.inSeconds).reduce((a, b) => a + b) /
-          3600.0;
-  final avgDepth = withMetrics
-          .map((s) => s.metrics!.averageDepthMm)
-          .reduce((a, b) => a + b) /
-      withMetrics.length;
-  final avgRate = withMetrics
-          .map((s) => s.metrics!.averageRatePerMin)
-          .reduce((a, b) => a + b) /
-      withMetrics.length;
+  final avgScore = withMetrics.map((s) => s.metrics!.score).reduce((a, b) => a + b) / withMetrics.length;
+  final bestScore = withMetrics.map((s) => s.metrics!.score).reduce((a, b) => a > b ? a : b);
+  final totalHours = sessions.map((s) => s.duration.inSeconds).reduce((a, b) => a + b) / 3600.0;
+  final avgDepth = withMetrics.map((s) => s.metrics!.averageDepthMm).reduce((a, b) => a + b) / withMetrics.length;
+  final avgRate = withMetrics.map((s) => s.metrics!.averageRatePerMin).reduce((a, b) => a + b) / withMetrics.length;
 
   return UserStats(
     totalSessions: sessions.length,
@@ -472,8 +392,7 @@ final userStatsProvider = Provider<UserStats?>((ref) {
 });
 
 // ─── Course Students ─────────────────────────────────────────────────────────
-final courseStudentsProvider =
-    FutureProvider.family<List, String>((ref, courseId) async {
+final courseStudentsProvider = FutureProvider.family<List, String>((ref, courseId) async {
   try {
     return await ref.read(sessionServiceProvider).getCourseStudents(courseId);
   } catch (_) {

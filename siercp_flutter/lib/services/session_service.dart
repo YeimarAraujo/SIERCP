@@ -50,6 +50,13 @@ class SessionService {
     return doc!;
   }
 
+  Future<void> updateCourseProgressAfterSession(String studentId, SessionMetrics metrics) async {
+    final enrolledCourseIds = await _db.getStudentEnrolledCourseIds(studentId);
+    for (final courseId in enrolledCourseIds) {
+      await _db.updateEnrollmentProgress(courseId, studentId, metrics);
+    }
+  }
+
   Future<List<SessionModel>> getSessions(String studentId, {int limit = 30}) {
     return _db.getStudentSessions(studentId, limit: limit);
   }

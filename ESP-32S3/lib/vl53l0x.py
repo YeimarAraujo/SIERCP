@@ -135,3 +135,39 @@ class VL53L0X:
 
     def read(self):
         return self.ping()
+
+    def calibrate_base(self, samples=30):
+        """
+        Calibra la distancia base (sin compresion) con filtro de outliers.
+        Retorna la distancia base en mm, o None si falla.
+        """
+        readings = []
+        for _ in range(samples):
+            try:
+                d = self.read()
+                if d and 10 < d < 8000:
+                    readings.append(d)
+            except:
+                pass
+            utime.sleep_ms(30)
+
+        if len(readings) < 10:
+            return None
+
+        readings.sort()
+        n = len(readings)
+        q1 = readings[n // 4]
+        q3 = readings[3 * n // 4]
+        iqr = q3 - q1
+        lo = q1 - iqr
+        hi = q3 + iqr
+        filtered = [r for r in readings if lo <= r <= hi]
+
+        if not filtered:
+            filtered = readings
+
+        filtered.sort()
+        base = filtered[len(filtered) // 2]
+        print("[VL53L0X] Base calibrada: {} mm ({} muestras validas)".format(
+            base, len(filtered)))
+        return base
