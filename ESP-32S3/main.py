@@ -8,6 +8,9 @@ from machine import I2C, Pin, UART
 from hx711 import HX711
 
 
+
+# ========================================================
+# CONFIGURACION DE INTERNET Y FIREBASE
 # ============================================================
 # CONFIGURACION
 # ============================================================
@@ -19,7 +22,41 @@ FIREBASE_URL  = "https://siercp-default-rtdb.firebaseio.com"
 # Configurar WiFi
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-DEVICE_MAC = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
+mac_real = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
+print("\n[INFO] MAC Address REAL de este ESP32:", mac_real)
+MANIQUI_UUID = mac_real  # Auto-reemplazamos con la real
+
+def conectar_wifi():
+    led_azul = Pin(2, Pin.OUT) # Asumimos Pin 2 (comun para LED integrado o externo)
+    led_azul.value(0)          # Apagado mientras intenta conectar
+    
+    if not wlan.isconnected():
+        print("\nConectando a Wi-Fi:", WIFI_SSID, "...")
+        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+        t = 10
+        while not wlan.isconnected() and t > 0:
+            utime.sleep(1)
+            t -= 1
+    if wlan.isconnected():
+        led_azul.value(1)      # Encender LED Azul (WiFi OK)
+        print("[WIFI] Conectado! IP:", wlan.ifconfig()[0])
+    else:
+        print("[WIFI] ADVERTENCIA: Fallo al conectar. Funcionara localmente.")
+
+# ============================================================
+# DRIVERS Y RCP
+# ============================================================
+try:
+    from vl53l0x import VL53L0X
+except ImportError:
+    pass
+
+class JQ8900:
+    def __init__(self, uart):
+        self.uart = uart
+        utime.sleep_ms(500)
+        def _cmd(self, cmd, *args):
+         DEVICE_MAC = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
 
 
 def conectar_wifi():
