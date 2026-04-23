@@ -64,9 +64,16 @@ class DeviceInfo {
   });
 
   factory DeviceInfo.fromMap(String mac, Map<dynamic, dynamic> data) {
-    final ts = (data['timestamp'] as num?)?.toInt() ?? 0;
+    int ts = 0;
+    if (data['timestamp'] is num) {
+      ts = (data['timestamp'] as num).toInt();
+    }
+    
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final isActive = ts > 0 && (nowMs - ts) < 5000;
+    // Ventana de 30 segundos para permitir desajustes de reloj y lag de red.
+    // Si ts == 0 (ej. Firebase no evaluó el server-value), lo marcamos activo de todas formas
+    // ya que onValue acaba de dispararse.
+    final isActive = ts == 0 || (nowMs - ts).abs() < 30000;
 
     // Detectar formato nuevo vs legacy
     final isNewFormat = data.containsKey('fuerza_kg');

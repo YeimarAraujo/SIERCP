@@ -86,6 +86,7 @@ class SessionMetrics {
   final double recoilPct;
   final int interruptionCount;
   final double maxPauseSeconds;
+  final double ccfPct; // Chest Compression Fraction (AHA: >= 60%)
   // Score desglosado por componente AHA
   final double depthScore;
   final double rateScore;
@@ -105,6 +106,7 @@ class SessionMetrics {
     this.recoilPct = 100.0,
     required this.interruptionCount,
     required this.maxPauseSeconds,
+    this.ccfPct = 100.0,
     this.depthScore = 0.0,
     this.rateScore = 0.0,
     this.recoilScore = 0.0,
@@ -147,6 +149,7 @@ class SessionMetrics {
     recoilPct:            (m['recoilPct']            ?? 100).toDouble(),
     interruptionCount:    m['interruptionCount']    ?? 0,
     maxPauseSeconds:      (m['maxPauseSeconds']      ?? 0).toDouble(),
+    ccfPct:               (m['ccfPct']               ?? 100).toDouble(),
     depthScore:           (m['depthScore']           ?? 0).toDouble(),
     rateScore:            (m['rateScore']            ?? 0).toDouble(),
     recoilScore:          (m['recoilScore']          ?? 0).toDouble(),

@@ -20,6 +20,7 @@ class ActiveSessionState {
   final List<AlertModel> alerts;
   final bool isConnected;
   final Duration elapsed;
+  final DeviceInfo? initialDeviceInfo; // Guarda el estado cuando la sesión arranca
   final DeviceInfo? lastDeviceInfo; // Mantiene el último estado completo del sensor
 
   const ActiveSessionState({
@@ -36,6 +37,7 @@ class ActiveSessionState {
     this.alerts = const [],
     this.isConnected = false,
     this.elapsed = Duration.zero,
+    this.initialDeviceInfo,
     this.lastDeviceInfo,
   });
 
@@ -46,6 +48,7 @@ class ActiveSessionState {
     List<AlertModel>? alerts,
     bool? isConnected,
     Duration? elapsed,
+    DeviceInfo? initialDeviceInfo,
     DeviceInfo? lastDeviceInfo,
   }) =>
       ActiveSessionState(
@@ -55,6 +58,7 @@ class ActiveSessionState {
         alerts: alerts ?? this.alerts,
         isConnected: isConnected ?? this.isConnected,
         elapsed: elapsed ?? this.elapsed,
+        initialDeviceInfo: initialDeviceInfo ?? this.initialDeviceInfo,
         lastDeviceInfo: lastDeviceInfo ?? this.lastDeviceInfo,
       );
 }
@@ -165,17 +169,38 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       }
     }
 
+    // Guardar el offset inicial si es el primer dato que recibimos en esta sesión
+    if (state.initialDeviceInfo == null) {
+      state = state.copyWith(initialDeviceInfo: deviceInfo);
+    }
+    
+    final initial = state.initialDeviceInfo;
+    final int offsetCompressions = initial?.compresiones ?? 0;
+    final int offsetCorrect = initial?.compresionesCorrectas ?? 0;
+    final int offsetPauses = initial?.pausas ?? 0;
+
+    int currentCompressions = deviceInfo.compresiones - offsetCompressions;
+    if (currentCompressions < 0) currentCompressions = 0;
+
+    int currentCorrect = deviceInfo.compresionesCorrectas - offsetCorrect;
+    if (currentCorrect < 0) currentCorrect = 0;
+
+    double currentPct = 0.0;
+    if (currentCompressions > 0) {
+      currentPct = (currentCorrect / currentCompressions) * 100.0;
+    }
+
     final data = LiveSessionData(
       depthMm: deviceInfo.profundidadMm,
       ratePerMin: deviceInfo.frecuenciaCpm,
       forceKg: deviceInfo.fuerzaKg,
-      compressionCount: deviceInfo.compresiones,
-      correctCompressionCount: deviceInfo.compresionesCorrectas,
-      correctPct: deviceInfo.calidadPct,
+      compressionCount: currentCompressions,
+      correctCompressionCount: currentCorrect,
+      correctPct: currentPct,
       decompressedFully: deviceInfo.recoilOk,
       recoilPct: deviceInfo.recoilPct,
       oxygen: deviceInfo.oxigeno,
-      pauseCount: deviceInfo.pausas,
+      pauseCount: (deviceInfo.pausas - offsetPauses) >= 0 ? (deviceInfo.pausas - offsetPauses) : 0,
       maxPauseSec: deviceInfo.maxPausaSeg,
       sensorOk: deviceInfo.sensorOk,
       calibrated: deviceInfo.calibrado,
@@ -205,14 +230,27 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     final sessionId = currentSession.id;
     final sessionService = ref.read(sessionServiceProvider);
     
-    // Tomar métricas finales del último estado reportado por el ESP32
+    // Tomar métricas finales restando el offset inicial
     final devInfo = state.lastDeviceInfo;
-    final count = devInfo?.compresiones ?? 0;
+    final initial = state.initialDeviceInfo;
+    
+    int count = (devInfo?.compresiones ?? 0) - (initial?.compresiones ?? 0);
+    if (count < 0) count = 0;
+    
+    int correctCount = (devInfo?.compresionesCorrectas ?? 0) - (initial?.compresionesCorrectas ?? 0);
+    if (correctCount < 0) correctCount = 0;
+
     final avgDepth = devInfo?.avgProfundidadMm ?? 0.0;
     final avgRate = (devInfo?.frecuenciaCpm ?? 0).toDouble();
     final recoilPct = devInfo?.recoilPct ?? 100.0;
-    final pausas = devInfo?.pausas ?? 0;
-    final correctPct = devInfo?.calidadPct ?? 0.0;
+    
+    int pausas = (devInfo?.pausas ?? 0) - (initial?.pausas ?? 0);
+    if (pausas < 0) pausas = 0;
+
+    double correctPct = 0.0;
+    if (count > 0) {
+      correctPct = (correctCount / count) * 100.0;
+    }
 
     // ── Puntaje compuesto AHA 2025 ────────────────────────────────────────
     // Profundidad (30%)
@@ -266,6 +304,19 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
        violations.add(AhaViolation(type: 'warning', message: 'Recoil incompleto frecuente', count: 1));
     }
 
+    // ── Calcular CCF (Chest Compression Fraction) ────────────────────────
+    double ccf = 0.0;
+    if (state.elapsed.inSeconds > 0 && avgRate > 0) {
+      // Tiempo activo aprox = (total compresiones / promedio CPM) * 60 segundos
+      final activeSeconds = (count / avgRate) * 60.0;
+      ccf = (activeSeconds / state.elapsed.inSeconds) * 100.0;
+      ccf = ccf.clamp(0.0, 100.0);
+    }
+    
+    if (ccf < 60.0 && count > 0) {
+       violations.add(AhaViolation(type: 'error', message: 'Fracción de compresión (CCF) muy baja (< 60%)', count: 1));
+    }
+
     final metrics = SessionMetrics(
       totalCompressions: count,
       correctCompressions: devInfo?.compresionesCorrectas ?? 0,
@@ -276,6 +327,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       recoilPct: recoilPct,
       interruptionCount: pausas,
       maxPauseSeconds: devInfo?.maxPausaSeg ?? 0.0,
+      ccfPct: ccf,
       depthScore: depthScore,
       rateScore: rateScore,
       recoilScore: rScore,
@@ -298,6 +350,10 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     }
 
     state = state.copyWith(session: finished, isConnected: false);
+    
+    // Forzar la actualización del historial de sesiones para que aparezca la recién finalizada
+    ref.invalidate(sessionsHistoryProvider);
+    
     return finished;
   }
 
