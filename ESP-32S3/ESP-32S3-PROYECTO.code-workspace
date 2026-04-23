@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"name": "ESP-32S3-PROYECTO",
+			"path": "ESP-32S3-PROYECTO"
+		},
+		{
+			"name": "ESP-32S3",
+			"path": "."
+		},
+		{
+			"name": "serial:/COM5",
+			"uri": "serial://com5/"
+		}
+	]
+}

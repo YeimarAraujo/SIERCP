@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "153485090858",
+    "project_id": "siercp",
+    "storage_bucket": "siercp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:153485090858:android:f3a38d0d69a43e9eaba353",
+        "android_client_info": {
+          "package_name": "com.example.siercp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCa-HJ5aUNGmRaJs80fhyYjHykJbR0X5l8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

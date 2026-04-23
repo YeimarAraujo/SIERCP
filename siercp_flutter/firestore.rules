@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function isAuth() { return request.auth != null; }
+    function uid()   { return request.auth.uid; }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+    function role() { return userDoc().role; }
+
+    function isAdmin()      { return isAuth() && role() == 'ADMIN'; }
+    function isInstructor() { return isAuth() && role() == 'INSTRUCTOR'; }
+    function isOwner(id)    { return isAuth() && uid() == id; }
+
+    // ── users ────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isOwner(userId) || isAdmin() || isInstructor();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── manikins ─────────────────────────────────────────────────────────────
+    match /manikins/{id} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── courses ──────────────────────────────────────────────────────────────
+    match /courses/{courseId} {
+      allow read:   if isAuth();
+      allow create: if isInstructor() || isAdmin();
+      allow update: if isAdmin() ||
+        (isInstructor() && resource.data.instructorId == uid());
+      allow delete: if isAdmin();
+
+      match /enrollments/{studentId} {
+        allow read: if isAdmin() ||
+          (isInstructor() &&
+            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid()) ||
+          isOwner(studentId);
+        allow write: if isAdmin() ||
+          (isInstructor() &&
+            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid()) ||
+          isOwner(studentId);
+      }
+    }
+
+    // ── sessions ─────────────────────────────────────────────────────────────
+    match /sessions/{sessionId} {
+      allow read:   if isAdmin() || isOwner(resource.data.studentId) ||
+        (isInstructor() &&
+          exists(/databases/$(database)/documents/courses/$(resource.data.courseId)/enrollments/$(resource.data.studentId)));
+      allow create: if isAuth() && request.resource.data.studentId == uid();
+      allow update: if isAdmin() || isOwner(resource.data.studentId);
+      allow delete: if isAdmin();
+
+      match /compressions/{id} {
+        allow read:         if isAuth();
+        allow create:       if isAuth();
+        allow update, delete: if isAdmin();
+      }
+
+      match /alerts/{id} {
+        allow read, write: if isAuth();
+      }
+    }
+
+    // ── scenarios ─────────────────────────────────────────────────────────────
+    match /scenarios/{id} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+  }
+}
