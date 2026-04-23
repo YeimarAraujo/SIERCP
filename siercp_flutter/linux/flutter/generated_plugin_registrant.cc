@@ -17,6 +17,9 @@ void fl_register_plugins(FlPluginRegistry* registry) {
   g_autoptr(FlPluginRegistrar) printing_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "PrintingPlugin");
   printing_plugin_register_with_registrar(printing_registrar);
+  g_autoptr(FlPluginRegistrar) syncfusion_pdfviewer_linux_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry, "SyncfusionPdfviewerLinuxPlugin");
+  syncfusion_pdfviewer_linux_plugin_register_with_registrar(syncfusion_pdfviewer_linux_registrar);
   g_autoptr(FlPluginRegistrar) url_launcher_linux_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "UrlLauncherPlugin");
   url_launcher_plugin_register_with_registrar(url_launcher_linux_registrar);
