@@ -8,9 +8,6 @@ from machine import I2C, Pin, UART
 from hx711 import HX711
 
 
-
-# ========================================================
-# CONFIGURACION DE INTERNET Y FIREBASE
 # ============================================================
 # CONFIGURACION
 # ============================================================
@@ -22,41 +19,7 @@ FIREBASE_URL  = "https://siercp-default-rtdb.firebaseio.com"
 # Configurar WiFi
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-mac_real = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
-print("\n[INFO] MAC Address REAL de este ESP32:", mac_real)
-MANIQUI_UUID = mac_real  # Auto-reemplazamos con la real
-
-def conectar_wifi():
-    led_azul = Pin(2, Pin.OUT) # Asumimos Pin 2 (comun para LED integrado o externo)
-    led_azul.value(0)          # Apagado mientras intenta conectar
-    
-    if not wlan.isconnected():
-        print("\nConectando a Wi-Fi:", WIFI_SSID, "...")
-        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
-        t = 10
-        while not wlan.isconnected() and t > 0:
-            utime.sleep(1)
-            t -= 1
-    if wlan.isconnected():
-        led_azul.value(1)      # Encender LED Azul (WiFi OK)
-        print("[WIFI] Conectado! IP:", wlan.ifconfig()[0])
-    else:
-        print("[WIFI] ADVERTENCIA: Fallo al conectar. Funcionara localmente.")
-
-# ============================================================
-# DRIVERS Y RCP
-# ============================================================
-try:
-    from vl53l0x import VL53L0X
-except ImportError:
-    pass
-
-class JQ8900:
-    def __init__(self, uart):
-        self.uart = uart
-        utime.sleep_ms(500)
-        def _cmd(self, cmd, *args):
-         DEVICE_MAC = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
+DEVICE_MAC = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
 
 
 def conectar_wifi():
@@ -149,21 +112,21 @@ AHA_MAX_PAUSE_SEC     = 10.0
 
 DETECT_START_MM       = 10.0   # Profundidad minima para abrir la ventana de compresion
                                 # (era 8 mm, ahora 10 mm para reducir falsos positivos)
-DETECT_PEAK_MIN_MM    = 35.0   # Pico minimo aceptable para que sea compresion real
+DETECT_PEAK_MIN_MM    = 10.0   # Pico minimo aceptable para que sea compresion real
                                 # (era 20 mm — ahora 35 mm para exigir al menos 3.5 cm
                                 #  y descartar toqueteos o apoyos leves)
 DETECT_END_MM         = 6.0    # Profundidad al regresar para cerrar el ciclo
                                 # (era 4 mm, ahora 6 mm — regreso mas realista)
-DETECT_REARM_MM       = 8.0    # Umbral de rearmado antes de aceptar nueva compresion
+DETECT_REARM_MM       = 6.0    # Umbral de rearmado antes de aceptar nueva compresion
                                 # (era 6 mm, ahora 8 mm — evita doble conteo)
-DETECT_MIN_DUR_MS     = 150    # Duracion minima de compresion valida (antes 120 ms)
+DETECT_MIN_DUR_MS     = 120    # Duracion minima de compresion valida (antes 120 ms)
                                 # < 150 ms = toque rapido, no compresion clinica
-DETECT_MAX_DUR_MS     = 800    # Duracion maxima (antes 900 ms)
+DETECT_MAX_DUR_MS     = 900    # Duracion maxima (antes 900 ms)
                                 # > 800 ms = compresion demasiado lenta
-DETECT_DEBOUNCE_MS    = 80     # Debounce entre ciclos (antes 60 ms)
+DETECT_DEBOUNCE_MS    = 60     # Debounce entre ciclos (antes 60 ms)
 
 # ── Telemetria ──────────────────────────────────────────────
-TELEMETRIA_MS         = 150    # ~6-7 updates/seg (antes 100 ms — mas estable en red)
+TELEMETRIA_MS         = 100    # ~6-7 updates/seg (antes 100 ms — mas estable en red)
 
 # ── Boton de finalizacion fisica ─────────────────────────────
 # El sistema NO finaliza por tiempo. Termina cuando el operador
@@ -810,7 +773,7 @@ class SistemaRCP:
 
         # ── Cierre limpio ──────────────────────────────────────
         self._tel_running = False
-        utime.sleep_ms(500)   # dar tiempo al hilo de telemetria a terminar
+        utime.sleep_ms(200)   # dar tiempo al hilo de telemetria a terminar
 
         if self.laser_ok:
             try:
