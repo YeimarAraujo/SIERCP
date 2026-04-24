@@ -37,7 +37,12 @@ void main() async {
   // Mantener sincronización activa del nodo de telemetría para lectura rápida
   FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   runApp(const ProviderScope(child: SiercpApp()));
 }
 

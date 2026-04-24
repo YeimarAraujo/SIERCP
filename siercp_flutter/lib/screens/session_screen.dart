@@ -145,6 +145,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final elapsedStr =
         '${elapsed.inMinutes.toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -197,80 +200,159 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                     BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 15)
                   ],
                 ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            // Gauges Row
-                            Row(
+                child: isLandscape 
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Left: Gauges
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Expanded(
-                                  child: _MonitorPanel(
-                                    label: 'PROFUNDIDAD',
-                                    widget: SizedBox(
-                                      height: 130,
-                                      child: DepthGauge(depthMm: live.depthMm),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _MonitorPanel(
+                                        label: 'PROFUNDIDAD',
+                                        widget: SizedBox(
+                                          height: 120,
+                                          child: DepthGauge(depthMm: live.depthMm),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _MonitorPanel(
+                                        label: 'FRECUENCIA',
+                                        widget: SizedBox(
+                                          height: 120,
+                                          child: RateGauge(ratePerMin: live.ratePerMin),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(width: 1, height: double.infinity, color: Colors.white10, margin: const EdgeInsets.symmetric(horizontal: 16)),
+                          // Right: Stats & Wave
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
+                                    _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
+                                    _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                if (history.isNotEmpty)
+                                  Container(
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.03),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: CompressionWave(history: history),
                                     ),
                                   ),
-                                ),
-                                Container(width: 1, height: 100, color: Colors.white10),
-                                Expanded(
-                                  child: _MonitorPanel(
-                                    label: 'FRECUENCIA',
-                                    widget: SizedBox(
-                                      height: 130,
-                                      child: RateGauge(ratePerMin: live.ratePerMin),
-                                    ),
+                                const SizedBox(height: 12),
+                                Theme(
+                                  data: ThemeData.dark(),
+                                  child: AhaStatusBar(
+                                    depthMm: live.depthMm,
+                                    ratePerMin: live.ratePerMin,
+                                    decompressedFully: live.decompressedFully,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            
-                            // Stats Row
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
-                                _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
-                                _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            
-                            // Waveform
-                            if (history.isNotEmpty)
-                              Container(
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.03),
-                                  borderRadius: BorderRadius.circular(12),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              // Gauges Row
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _MonitorPanel(
+                                      label: 'PROFUNDIDAD',
+                                      widget: SizedBox(
+                                        height: 130,
+                                        child: DepthGauge(depthMm: live.depthMm),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(width: 1, height: 100, color: Colors.white10),
+                                  Expanded(
+                                    child: _MonitorPanel(
+                                      label: 'FRECUENCIA',
+                                      widget: SizedBox(
+                                        height: 130,
+                                        child: RateGauge(ratePerMin: live.ratePerMin),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Stats Row
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
+                                  _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
+                                  _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Waveform
+                              if (history.isNotEmpty)
+                                Container(
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.03),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: CompressionWave(history: history),
+                                  ),
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: CompressionWave(history: history),
+                              const SizedBox(height: 12),
+                              
+                              // AHA Status (Themed Dark)
+                              Theme(
+                                data: ThemeData.dark(),
+                                child: AhaStatusBar(
+                                  depthMm: live.depthMm,
+                                  ratePerMin: live.ratePerMin,
+                                  decompressedFully: live.decompressedFully,
                                 ),
                               ),
-                            const SizedBox(height: 12),
-                            
-                            // AHA Status (Themed Dark)
-                            Theme(
-                              data: ThemeData.dark(),
-                              child: AhaStatusBar(
-                                depthMm: live.depthMm,
-                                ratePerMin: live.ratePerMin,
-                                decompressedFully: live.decompressedFully,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ),
             ),
 

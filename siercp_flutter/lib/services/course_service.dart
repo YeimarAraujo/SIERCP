@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/course_module.dart';
 
+final courseModulesProvider = FutureProvider.family<List<CourseModule>, String>(
+  (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
+);
+
 final courseServiceProvider = Provider((ref) => CourseService());
 
 class CourseService {
@@ -36,6 +40,11 @@ class CourseService {
       'config': config,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Actualizar totalModules en el curso padre
+    await _db.collection('courses').doc(courseId).update({
+      'totalModules': existing.length + 1,
+    });
   }
 
   // ── Actualizar módulo ──────────────────────────────────────────────────────
@@ -63,6 +72,11 @@ class CourseService {
       batch.update(_modulesRef(courseId).doc(remaining[i].id), {'order': i});
     }
     await batch.commit();
+
+    // Actualizar totalModules en el curso padre
+    await _db.collection('courses').doc(courseId).update({
+      'totalModules': remaining.length,
+    });
   }
 
   // ── Reordenar módulos (drag & drop) ───────────────────────────────────────

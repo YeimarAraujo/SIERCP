@@ -15,10 +15,7 @@ import '../../../models/course_module.dart';
 import '../../../services/course_service.dart';
 import '../../../core/theme.dart';
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-final courseModulesProvider = FutureProvider.family<List<CourseModule>, String>(
-  (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
-);
+import '../../../core/theme.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class CourseEditorScreen extends ConsumerStatefulWidget {
@@ -125,11 +122,13 @@ class _CourseEditorScreenState extends ConsumerState<CourseEditorScreen> {
         ],
       ),
     );
-    if (confirm == true) {
+    if (confirm == true && mounted) {
       await ref
           .read(courseServiceProvider)
           .deleteModule(widget.courseId, moduleId);
-      ref.invalidate(courseModulesProvider(widget.courseId));
+      if (mounted) {
+        ref.invalidate(courseModulesProvider(widget.courseId));
+      }
     }
   }
 
@@ -441,8 +440,10 @@ class _AddModuleSheetState extends ConsumerState<_AddModuleSheet> {
 
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('El título no puede estar vacío')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('El título no puede estar vacío')));
+      }
       return;
     }
     setState(() => _saving = true);
@@ -489,7 +490,9 @@ class _AddModuleSheetState extends ConsumerState<_AddModuleSheet> {
       widget.onSaved();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Error: $e'),
@@ -628,7 +631,9 @@ class _TeoriaConfigState extends State<TeoriaConfig> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       widget.pdfUrlCtrl.text = downloadUrl;
-      setState(() => _uploadingPdf = false);
+      if (mounted) {
+        setState(() => _uploadingPdf = false);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -641,7 +646,9 @@ class _TeoriaConfigState extends State<TeoriaConfig> {
         ));
       }
     } catch (e) {
-      setState(() => _uploadingPdf = false);
+      if (mounted) {
+        setState(() => _uploadingPdf = false);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error al subir PDF: $e'),

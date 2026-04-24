@@ -136,13 +136,15 @@ class HomeScreen extends ConsumerWidget {
                     child: Consumer(
                       builder: (context, ref, child) {
                         final stats = ref.watch(userStatsProvider);
+                        final isLandscape = MediaQuery.of(context).orientation ==
+                            Orientation.landscape;
                         return GridView.count(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
+                          crossAxisCount: isLandscape ? 4 : 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
-                          childAspectRatio: 1.6,
+                          childAspectRatio: isLandscape ? 1.4 : 1.6,
                           children: [
                             MetricCard(
                               label: 'Sesiones hoy',
@@ -257,13 +259,15 @@ class _AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return SliverPadding(
       padding: const EdgeInsets.all(20),
       sliver: SliverGrid.count(
-        crossAxisCount: 2,
+        crossAxisCount: isLandscape ? 4 : 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 1.1,
+        childAspectRatio: isLandscape ? 1.0 : 1.1,
         children: [
           _AdminTile(
             icon: Icons.people_alt_outlined,
@@ -676,8 +680,18 @@ class _StudentCourseHero extends ConsumerWidget {
     final progress  = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
     final isComplete = approved >= required;
 
+    final user = ref.read(currentUserProvider);
+
     return GestureDetector(
-      onTap: () => context.push('/student-course/${course.id}'),
+      onTap: () => context.push(
+        '/student/course-detail',
+        extra: {
+          'courseId': course.id,
+          'studentId': user?.id ?? '',
+          'courseTitle': course.title,
+          'instructorName': course.instructorName,
+        },
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
