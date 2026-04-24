@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
@@ -311,7 +312,11 @@ class LocalStorageService {
         'enrollments',
         {
           'courseId': courseId,
-          'studentsJson': jsonEncode(students),
+          'studentsJson': jsonEncode(students, toEncodable: (item) {
+            if (item is Timestamp) return item.toDate().toIso8601String();
+            if (item is DateTime) return item.toIso8601String();
+            return item.toString();
+          }),
           'savedAt': DateTime.now().toIso8601String(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace);

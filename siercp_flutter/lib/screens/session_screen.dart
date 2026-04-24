@@ -10,7 +10,8 @@ import '../widgets/aha_status_bar.dart';
 
 class SessionScreen extends ConsumerStatefulWidget {
   final String? scenarioId;
-  const SessionScreen({super.key, this.scenarioId});
+  final String? courseId;
+  const SessionScreen({super.key, this.scenarioId, this.courseId});
 
   @override
   ConsumerState<SessionScreen> createState() => _SessionScreenState();
@@ -30,6 +31,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     try {
       await ref.read(activeSessionProvider.notifier).startSession(
             widget.scenarioId ?? 'default',
+            courseId: widget.courseId,
           );
     } catch (e) {
       if (mounted) setState(() => _error = 'Error al iniciar la sesión: $e');

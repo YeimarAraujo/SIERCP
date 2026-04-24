@@ -30,6 +30,9 @@ import '../models/course_module.dart';
 import '../screens/Courses/Teacher/course_editor_screen.dart';
 import '../screens/Courses/Student/student_course_detail_screen.dart';
 import '../screens/Courses/Student/student_module_viewer_screen.dart';
+import '../screens/Courses/Student/module_practica_screen.dart';
+import '../screens/Courses/Student/module_quiz_screen.dart';
+import '../screens/Courses/Student/module_certificacion_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -62,6 +65,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/session',
             builder: (_, state) => SessionScreen(
               scenarioId: state.uri.queryParameters['scenario'],
+              courseId: state.uri.queryParameters['courseId'],
             ),
           ),
 
@@ -126,6 +130,43 @@ final routerProvider = Provider<GoRouter>((ref) {
                 courseId: extra['courseId'] as String,
                 studentId: extra['studentId'] as String,
                 isCompleted: extra['isCompleted'] as bool? ?? false,
+              );
+            },
+          ),
+
+          // ── Práctica guiada (Entrenamiento) ──────────────────────────────
+          GoRoute(
+            path: '/student/practica',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return ModulePracticaScreen(
+                module: extra['module'] as CourseModule,
+                courseId: extra['courseId'] as String,
+              );
+            },
+          ),
+
+          // ── Evaluación teórica (Quiz) ───────────────────────────────────
+          GoRoute(
+            path: '/student/quiz',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return ModuleQuizScreen(
+                module: extra['module'] as CourseModule,
+                courseId: extra['courseId'] as String,
+                studentId: extra['studentId'] as String,
+              );
+            },
+          ),
+
+          // ── Certificación ───────────────────────────────────────────────
+          GoRoute(
+            path: '/student/certificacion',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return ModuleCertificacionScreen(
+                courseId: extra['courseId'] as String,
+                studentId: extra['studentId'] as String,
               );
             },
           ),

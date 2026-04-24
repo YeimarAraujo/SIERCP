@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import '../core/theme.dart';
 import '../models/session.dart';
 import '../models/alert_course.dart';
@@ -145,7 +146,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       if (type == 'course' && courseId != null) {
         // Reporte consolidado de curso
         final students = await firestoreSvc.getCourseStudents(courseId);
-        localSvc.saveCourseEnrollments(courseId, students);
+        await localSvc.saveCourseEnrollments(courseId, students);
 
         final studentSessionsMap = <String, List<SessionModel>>{};
         for (final st in students) {
@@ -155,7 +156,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             final courseSessions =
                 sessions.where((s) => s.courseId == courseId).toList();
             studentSessionsMap[sid] = courseSessions;
-            localSvc.saveSessions(courseSessions);
+            await localSvc.saveSessions(courseSessions);
           }
         }
 
@@ -178,7 +179,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         final sessions = await firestoreSvc.getStudentSessions(studentId);
         final courseSessions =
             sessions.where((s) => s.courseId == courseId).toList();
-        localSvc.saveSessions(courseSessions);
+        await localSvc.saveSessions(courseSessions);
 
         record = await reportSvc.generateStudentCourseReport(
           studentId: studentId,
@@ -195,7 +196,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         _tabCtrl.animateTo(1);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Reporte generado: ${record.title}'),
+            content: Text('Reporte generado: ${record.title}'),
             backgroundColor: AppColors.green,
             action: SnackBarAction(
               label: 'Abrir',
@@ -501,7 +502,8 @@ class _SavedReportsTab extends ConsumerWidget {
               style: TextStyle(color: textS, fontSize: 13)),
           const SizedBox(height: 4),
           Text('Genera uno desde la pestaña anterior',
-              style: TextStyle(color: textS.withValues(alpha: 0.6), fontSize: 11)),
+              style:
+                  TextStyle(color: textS.withValues(alpha: 0.6), fontSize: 11)),
         ]),
       );
     }
@@ -522,7 +524,8 @@ class _SavedReportsTab extends ConsumerWidget {
             const SizedBox(height: 20),
           ],
           if (studentReports.isNotEmpty) ...[
-            _buildSectionHeader('ESTUDIANTES (INDIVIDUAL)', Icons.person_rounded),
+            _buildSectionHeader(
+                'ESTUDIANTES (INDIVIDUAL)', Icons.person_rounded),
             ...studentReports.map((r) => _ReportTile(report: r)),
           ],
         ],
@@ -566,11 +569,12 @@ class _ReportTile extends ConsumerWidget {
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.dividerTheme.color ?? AppColors.cardBorder;
-    
+
     final localSvc = ref.read(localStorageServiceProvider);
     final exists = File(report.filePath).existsSync();
     final color = report.type == 'course' ? AppColors.brand : AppColors.cyan;
-    final icon = report.type == 'course' ? Icons.groups_outlined : Icons.person_outline;
+    final icon =
+        report.type == 'course' ? Icons.groups_outlined : Icons.person_outline;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -592,7 +596,8 @@ class _ReportTile extends ConsumerWidget {
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(report.title,
-            style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
+            style: TextStyle(
+                color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
         subtitle: Text(
           '${DateFormat('dd MMM yyyy · HH:mm').format(report.generatedAt)} · ${report.sessionCount} sesiones',
           style: TextStyle(color: textS, fontSize: 10),
@@ -602,12 +607,17 @@ class _ReportTile extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: (report.averageScore! >= 70 ? AppColors.green : AppColors.red).withValues(alpha: 0.12),
+                color: (report.averageScore! >= 70
+                        ? AppColors.green
+                        : AppColors.red)
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text('${report.averageScore!.toStringAsFixed(0)}%',
                   style: TextStyle(
-                      color: report.averageScore! >= 70 ? AppColors.green : AppColors.red,
+                      color: report.averageScore! >= 70
+                          ? AppColors.green
+                          : AppColors.red,
                       fontSize: 11,
                       fontWeight: FontWeight.w700)),
             ),
@@ -618,8 +628,46 @@ class _ReportTile extends ConsumerWidget {
               if (v == 'open' && exists) {
                 await OpenFilex.open(report.filePath);
               } else if (v == 'share' && exists) {
-                await Share.shareXFiles([XFile(report.filePath, mimeType: 'application/pdf')],
+                await Share.shareXFiles(
+                    [XFile(report.filePath, mimeType: 'application/pdf')],
                     subject: report.title);
+              } else if (v == 'download' && exists) {
+                try {
+                  String destPath;
+                  final fileName = '${report.title.replaceAll(' ', '_').replaceAll('/', '-')}.pdf';
+                  
+                  if (Platform.isAndroid) {
+                    final dir = Directory('/storage/emulated/0/Download');
+                    if (!await dir.exists()) await dir.create(recursive: true);
+                    destPath = '${dir.path}/$fileName';
+                  } else {
+                    final dir = await getApplicationDocumentsDirectory();
+                    destPath = '${dir.path}/$fileName';
+                  }
+                  
+                  await File(report.filePath).copy(destPath);
+                  
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Guardado en Descargas: $fileName'),
+                        backgroundColor: AppColors.green,
+                        duration: const Duration(seconds: 4),
+                        action: SnackBarAction(
+                          label: 'Abrir',
+                          textColor: Colors.white,
+                          onPressed: () => OpenFilex.open(destPath),
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('No se pudo guardar: $e'), backgroundColor: AppColors.red),
+                    );
+                  }
+                }
               } else if (v == 'delete') {
                 await localSvc.deleteReport(report.id);
                 if (exists) {
@@ -627,8 +675,6 @@ class _ReportTile extends ConsumerWidget {
                     await File(report.filePath).delete();
                   } catch (_) {}
                 }
-                // Refrescar UI - Esto asume que el widget padre se reconstruirá
-                // En una app real usaríamos un StateNotifierProvider para el historial de reportes.
               }
             },
             itemBuilder: (_) => [
@@ -644,9 +690,19 @@ class _ReportTile extends ConsumerWidget {
                 const PopupMenuItem(
                     value: 'share',
                     child: Row(children: [
-                      Icon(Icons.share_outlined, size: 16, color: AppColors.cyan),
+                      Icon(Icons.share_outlined,
+                          size: 16, color: AppColors.cyan),
                       SizedBox(width: 8),
                       Text('Compartir'),
+                    ])),
+              if (exists)
+                const PopupMenuItem(
+                    value: 'download',
+                    child: Row(children: [
+                      Icon(Icons.download_rounded,
+                          size: 16, color: AppColors.green),
+                      SizedBox(width: 8),
+                      Text('Descargar PDF'),
                     ])),
               const PopupMenuItem(
                   value: 'delete',

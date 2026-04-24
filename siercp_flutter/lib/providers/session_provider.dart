@@ -75,7 +75,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
   @override
   ActiveSessionState build() => const ActiveSessionState();
 
-  Future<void> startSession(String scenarioId) async {
+  Future<void> startSession(String scenarioId, {String? courseId}) async {
     final sessionService = ref.read(sessionServiceProvider);
     final user = ref.read(currentUserProvider);
     if (user == null) throw Exception('No hay usuario autenticado.');
@@ -103,6 +103,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       studentId: user.id,
       studentName: user.fullName,
       scenarioId: scenarioId,
+      courseId: courseId,
     );
 
     // Audio de inicio del escenario
