@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import '../models/session.dart';
+import '../models/alert_course.dart';
 
 final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
@@ -378,30 +379,33 @@ class ExportService {
     }).toList();
   }
   // ─── Exportar notas de estudiantes de un curso como CSV ───────────────────
-  Future<void> exportCourseGradesCSV(dynamic course) async {
+  Future<void> exportCourseGradesCSV(
+    CourseModel course,
+    List<Map<String, dynamic>> students,
+  ) async {
     final buffer = StringBuffer();
     buffer.writeln('SIERCP — Notas del Curso: ${course.title}');
-    buffer.writeln('Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    buffer.writeln(
+        'Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
     buffer.writeln();
-    buffer.writeln('Estudiante,Identificación,Email,Sesiones,Promedio (%),Última sesión,Aprobado');
+    buffer.writeln(
+        'Estudiante,Identificación,Email,Sesiones,Promedio (%),Aprobado');
 
-    // course.students is List<Map<String,dynamic>> if available, else empty
-    final students = (course.students as List? ?? []);
     for (final s in students) {
-      final name  = '"${s['full_name'] ?? s['nombre'] ?? 'Estudiante'}"';
+      final name = '"${s['studentName'] ?? 'Estudiante'}"';
       final cedula = s['identificacion'] ?? '';
-      final email  = s['email'] ?? '';
-      final sessions = s['session_count'] ?? 0;
-      final avg   = s['avg_score']?.toStringAsFixed(1) ?? '0.0';
-      final last  = s['last_session'] ?? '';
-      final approved = (s['avg_score'] ?? 0) >= 85 ? 'Sí' : 'No';
-      buffer.writeln('$name,$cedula,$email,$sessions,$avg,$last,$approved');
+      final email = s['studentEmail'] ?? '';
+      final sessions = s['sessionCount'] ?? 0;
+      final avg = (s['avgScore'] as num?)?.toDouble() ?? 0.0;
+      final approved = avg >= 85 ? 'Sí' : 'No';
+
+      buffer.writeln('$name,$cedula,$email,$sessions,${avg.toStringAsFixed(1)},$approved');
     }
 
     final dir = await getTemporaryDirectory();
     final safe = course.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final now  = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final file = File('${dir.path}/SIERCP_Curso_${safe}_$now.csv');
+    final now = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final file = File('${dir.path}/SIERCP_Notas_${safe}_$now.csv');
     await file.writeAsString(buffer.toString());
 
     await Share.shareXFiles(

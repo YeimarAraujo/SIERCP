@@ -14,8 +14,10 @@ class CourseService {
   CollectionReference _modulesRef(String courseId) =>
       _db.collection('courses').doc(courseId).collection('modules');
 
+  // Usamos la subcolección 'enrollments' porque los estudiantes tienen permiso
+  // para escribir en su propio documento de inscripción cuando se unen al curso.
   CollectionReference _progressRef(String courseId) =>
-      _db.collection('courses').doc(courseId).collection('progress');
+      _db.collection('courses').doc(courseId).collection('enrollments');
 
   // ── Leer módulos ordenados ─────────────────────────────────────────────────
   Future<List<CourseModule>> getModules(String courseId) async {
@@ -112,7 +114,9 @@ class CourseService {
     if (!doc.exists) return {};
 
     final data = doc.data()! as Map<String, dynamic>;
-    final completed = List<String>.from(data['completedModules'] ?? []);
+    // Usamos 'completedModuleIds' para la lista de IDs para evitar conflicto
+    // con el campo 'completedModules' que es un entero en FirestoreService.
+    final completed = List<String>.from(data['completedModuleIds'] ?? []);
     return completed.toSet();
   }
 
@@ -126,17 +130,15 @@ class CourseService {
     required String moduleId,
     required String studentId,
   }) async {
-    final progressRef = _progressRef(courseId).doc(studentId);
+    final enrollRef = _progressRef(courseId).doc(studentId);
 
-    await progressRef.set(
-      {
-        'completedModules': FieldValue.arrayUnion([moduleId]),
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'studentId': studentId,
-        'courseId': courseId,
-      },
-      SetOptions(merge: true),
-    );
+    // Actualizamos la lista de IDs y también incrementamos el contador entero
+    // para mantener consistencia con FirestoreService.
+    await enrollRef.update({
+      'completedModuleIds': FieldValue.arrayUnion([moduleId]),
+      'completedModules': FieldValue.increment(1),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
   }
 }
 

@@ -533,18 +533,21 @@ class _QuickActionTile extends StatelessWidget {
 }
 
 // ─── Instructor course mini-card ──────────────────────────────────────────────
-class _InstructorCourseCard extends StatelessWidget {
+class _InstructorCourseCard extends ConsumerWidget {
   final dynamic course;
   const _InstructorCourseCard({required this.course});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
     final border  = theme.colorScheme.outline;
+
+    final studentsAsync = ref.watch(courseStudentsProvider(course.id));
+    final count = studentsAsync.value?.length ?? course.studentCount ?? 0;
 
     return GestureDetector(
       onTap: () => context.go('/courses'),
@@ -580,8 +583,17 @@ class _InstructorCourseCard extends StatelessWidget {
                     children: [
                       Icon(Icons.people_outline, size: 11, color: textS),
                       const SizedBox(width: 4),
-                      Text('${course.studentCount ?? 0} estudiantes',
-                          style: TextStyle(color: textS, fontSize: 11)),
+                      studentsAsync.when(
+                        loading: () => const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: AppColors.brand)),
+                        error: (_, __) => Text('${course.studentCount ?? 0}',
+                            style: TextStyle(color: textS, fontSize: 11)),
+                        data: (list) => Text('${list.length} estudiantes',
+                            style: TextStyle(color: textS, fontSize: 11)),
+                      ),
                     ],
                   ),
                 ],
