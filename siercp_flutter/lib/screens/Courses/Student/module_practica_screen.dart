@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
+import '../../../models/session.dart';
 import '../../../models/course_module.dart';
 import '../../../providers/session_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -42,7 +43,7 @@ class ModulePracticaScreen extends ConsumerWidget {
         data: (sessions) {
           // Filtrar sesiones completadas de este curso y este alumno
           final courseSessions = sessions
-              .where((s) => s.courseId == courseId && s.status.name == 'completed')
+              .where((s) => s.courseId == courseId && s.status == SessionStatus.completed)
               .toList();
 
           return SingleChildScrollView(
@@ -89,7 +90,7 @@ class ModulePracticaScreen extends ConsumerWidget {
                   // Contar cuántas sesiones de este escenario han sido aprobadas
                   final approvedCount = courseSessions.where((s) {
                     final isScenario = s.scenarioId == req.scenarioId;
-                    final score = s.metrics?.overallScore ?? 0;
+                    final score = s.metrics?.score ?? 0;
                     return isScenario && score >= req.minScore;
                   }).length;
 
@@ -269,7 +270,7 @@ class _FinalizeButton extends StatelessWidget {
     for (final req in module.requiredSessions) {
       final approvedCount = courseSessions.where((s) {
         final isScenario = s.scenarioId == req.scenarioId;
-        final score = s.metrics?.overallScore ?? 0;
+        final score = s.metrics?.score ?? 0;
         return isScenario && score >= req.minScore;
       }).length;
       if (approvedCount < req.count) {
