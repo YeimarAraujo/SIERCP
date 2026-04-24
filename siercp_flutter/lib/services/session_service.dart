@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/session.dart';
 import '../models/alert_course.dart';
 import 'firestore_service.dart';
+import 'package:flutter/foundation.dart'; // ← agregar esta línea
 
 final sessionServiceProvider = Provider<SessionService>((ref) {
   return SessionService(ref.read(firestoreServiceProvider));
@@ -21,19 +22,19 @@ class SessionService {
   }) async {
     // Obtener título del escenario
     final scenarios = await _db.getScenarios();
-    final scenario  = scenarios.firstWhere(
+    final scenario = scenarios.firstWhere(
       (s) => s.id == scenarioId,
       orElse: () => scenarios.first,
     );
 
     final sessionId = await _db.createSession(
-      studentId:     studentId,
-      studentName:   studentName,
-      scenarioId:    scenarioId,
+      studentId: studentId,
+      studentName: studentName,
+      scenarioId: scenarioId,
       scenarioTitle: scenario.title,
-      patientType:   patientType,
-      courseId:      courseId,
-      manikinId:     manikinId,
+      patientType: patientType,
+      courseId: courseId,
+      manikinId: manikinId,
     );
 
     final doc = await _db.getSession(sessionId);
@@ -50,7 +51,8 @@ class SessionService {
     return doc!;
   }
 
-  Future<void> updateCourseProgressAfterSession(String studentId, SessionMetrics metrics) async {
+  Future<void> updateCourseProgressAfterSession(
+      String studentId, SessionMetrics metrics) async {
     final enrolledCourseIds = await _db.getStudentEnrolledCourseIds(studentId);
     for (final courseId in enrolledCourseIds) {
       await _db.updateEnrollmentProgress(courseId, studentId, metrics);
@@ -89,31 +91,41 @@ class SessionService {
     // Generar código de invitación único de 6 caracteres
     final code = _generateCode();
     return _db.createCourse(
-      title:          name,
-      description:    description,
-      instructorId:   instructorId,
+      title: name,
+      description: description,
+      instructorId: instructorId,
       instructorName: instructorName,
-      inviteCode:     code,
-      certification:  'BLS AHA 2020',
+      inviteCode: code,
+      certification: 'BLS AHA 2020',
     );
   }
 
-  Future<CourseModel?> joinCourse(String code, {
+  Future<CourseModel?> joinCourse(
+    String code, {
     required String studentId,
     required String studentName,
     required String studentEmail,
     String? identificacion,
   }) async {
+    debugPrint('🔍 Buscando curso con código: "$code"');
+
     final course = await _db.getCourseByInviteCode(code);
+
+    debugPrint('📦 Curso encontrado: ${course?.id} - ${course?.title}');
+
     if (course == null) throw Exception('Código de curso no válido.');
 
+    debugPrint('👤 Inscribiendo estudiante: $studentId en curso: ${course.id}');
+
     await _db.enrollStudent(
-      courseId:       course.id,
-      studentId:      studentId,
-      studentName:    studentName,
-      studentEmail:   studentEmail,
+      courseId: course.id,
+      studentId: studentId,
+      studentName: studentName,
+      studentEmail: studentEmail,
       identificacion: identificacion,
     );
+
+    debugPrint('✅ Inscripción completada');
     return course;
   }
 
@@ -128,7 +140,7 @@ class SessionService {
       final active = manikins.first;
       return DeviceStatusData(
         isConnected: active.status == 'en_uso' || active.status == 'disponible',
-        deviceName:  active.name,
+        deviceName: active.name,
       );
     } catch (_) {
       return const DeviceStatusData(isConnected: false);
