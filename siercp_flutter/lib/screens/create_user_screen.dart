@@ -15,19 +15,19 @@ class CreateUserScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
-  final _formKey       = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl  = TextEditingController();
-  final _emailCtrl     = TextEditingController();
-  final _idCtrl        = TextEditingController();
-  final _passCtrl      = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _idCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
 
   String _selectedRole = AppConstants.roleStudent;
-  bool   _obscure      = true;
-  bool   _loading      = false;
+  bool _obscure = true;
+  bool _loading = false;
   String? _error;
-  bool   _success      = false;
-  String _createdName  = '';
+  bool _success = false;
+  String _createdName = '';
 
   @override
   void dispose() {
@@ -41,24 +41,29 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
 
   Future<void> _create() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; _success = false; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _success = false;
+    });
 
     try {
       final svc = ref.read(adminServiceProvider);
       final user = await svc.adminCreateUser(
-        email:          _emailCtrl.text.trim(),
-        password:       _passCtrl.text,
-        firstName:      _firstNameCtrl.text.trim(),
-        lastName:       _lastNameCtrl.text.trim(),
-        role:           _selectedRole,
-        identificacion: _idCtrl.text.trim().isEmpty ? null : _idCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+        firstName: _firstNameCtrl.text.trim(),
+        lastName: _lastNameCtrl.text.trim(),
+        role: _selectedRole,
+        identificacion:
+            _idCtrl.text.trim().isEmpty ? null : _idCtrl.text.trim(),
       );
 
       // Invalidar lista de usuarios para refrescar
       ref.invalidate(allUsersProvider);
 
       setState(() {
-        _success     = true;
+        _success = true;
         _createdName = user.fullName;
       });
 
@@ -77,11 +82,11 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final bg     = theme.scaffoldBackgroundColor;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final bg = theme.scaffoldBackgroundColor;
 
     return Scaffold(
       backgroundColor: bg,
@@ -124,8 +129,9 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                           labelText: 'Nombre',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Requerido'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -137,8 +143,9 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                           labelText: 'Apellido',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Requerido'
+                            : null,
                       ),
                     ),
                   ],
@@ -197,8 +204,9 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                       ),
                     ),
                   ),
-                  validator: (v) =>
-                      (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
+                  validator: (v) => (v == null || v.length < 6)
+                      ? 'Mínimo 6 caracteres'
+                      : null,
                 ),
                 const SizedBox(height: 28),
 
@@ -227,9 +235,11 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
                   onPressed: _loading ? null : _create,
                   icon: _loading
                       ? const SizedBox(
-                          height: 18, width: 18,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white,
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
                       : const Icon(Icons.person_add_outlined),
@@ -253,15 +263,12 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _HeaderBanner extends StatelessWidget {
   final bool isDark;
   final Color textP;
   final Color textS;
-  const _HeaderBanner({required this.isDark, required this.textP, required this.textS});
+  const _HeaderBanner(
+      {required this.isDark, required this.textP, required this.textS});
 
   @override
   Widget build(BuildContext context) {
@@ -373,9 +380,9 @@ class _RoleSelector extends StatelessWidget {
 
 class _RoleTab extends StatelessWidget {
   final IconData icon;
-  final String   label;
-  final Color    color;
-  final bool     isSelected;
+  final String label;
+  final Color color;
+  final bool isSelected;
   final VoidCallback onTap;
 
   const _RoleTab({
@@ -444,7 +451,7 @@ class _FeedbackBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isSuccess ? AppColors.green : AppColors.red;
     final bgColor = isSuccess ? AppColors.greenBg : AppColors.redBg;
-    final icon  = isSuccess ? Icons.check_circle_outline : Icons.error_outline;
+    final icon = isSuccess ? Icons.check_circle_outline : Icons.error_outline;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -458,7 +465,9 @@ class _FeedbackBanner extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: TextStyle(color: color, fontSize: 13))),
+          Expanded(
+              child:
+                  Text(message, style: TextStyle(color: color, fontSize: 13))),
           GestureDetector(
             onTap: onDismiss,
             child: Icon(Icons.close, color: color, size: 16),
@@ -468,4 +477,3 @@ class _FeedbackBanner extends StatelessWidget {
     );
   }
 }
-

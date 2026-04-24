@@ -13,7 +13,6 @@ import '../services/session_service.dart';
 import '../widgets/section_label.dart';
 import '../models/session.dart';
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
 class CoursesScreen extends ConsumerStatefulWidget {
   const CoursesScreen({super.key});
 
@@ -1074,7 +1073,6 @@ class _CourseCard extends ConsumerWidget {
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
-    // Logic from my branch: dynamic progress based on sessions
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     final allSessions = sessionsAsync.value ?? [];
     final courseSessions = allSessions
@@ -1479,7 +1477,7 @@ class _StudentTile extends ConsumerWidget {
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
 
-    final score = student.avgScore as double? ?? 0.0;
+    final score = student['avgScore'] as double? ?? 0.0;
     final scoreColor = score >= 85
         ? AppColors.green
         : score >= 70
@@ -1499,7 +1497,11 @@ class _StudentTile extends ConsumerWidget {
             radius: 20,
             backgroundColor: AppColors.brand.withValues(alpha: 0.15),
             child: Text(
-              student.initials ?? 'E',
+              (student['studentName'] as String?)?.isNotEmpty == true
+                  ? (student['studentName'] as String)
+                      .substring(0, 1)
+                      .toUpperCase()
+                  : 'E',
               style: const TextStyle(
                 color: AppColors.brand,
                 fontSize: 13,
@@ -1513,7 +1515,7 @@ class _StudentTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student.fullName ?? 'Estudiante',
+                  student['studentName'] ?? 'Estudiante',
                   style: TextStyle(
                       color: textP, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
@@ -1521,12 +1523,12 @@ class _StudentTile extends ConsumerWidget {
                   children: [
                     Icon(Icons.badge_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text(student.identificacion ?? '—',
+                    Text(student['identificacion'] ?? '—',
                         style: TextStyle(color: textS, fontSize: 10)),
                     const SizedBox(width: 8),
                     Icon(Icons.history_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text('${student.sessionCount ?? 0} sesiones',
+                    Text('${student['sessionCount'] ?? 0} sesiones',
                         style: TextStyle(color: textS, fontSize: 10)),
                   ],
                 ),

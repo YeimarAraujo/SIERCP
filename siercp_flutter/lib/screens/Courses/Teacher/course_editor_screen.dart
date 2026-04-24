@@ -1207,6 +1207,17 @@ class _SessionRowState extends State<_SessionRow> {
   void initState() {
     super.initState();
     _scenario = widget.session.scenarioId;
+    // Migración de datos viejos
+    const valid = [
+      'paroCardiaco',
+      'accidenteTransito',
+      'ahogamiento',
+      'descargaElectrica'
+    ];
+    if (!valid.contains(_scenario)) {
+      _scenario = 'paroCardiaco';
+    }
+
     _count = widget.session.count;
     _minScore = widget.session.minScore;
   }
@@ -1217,74 +1228,166 @@ class _SessionRowState extends State<_SessionRow> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    const scenarios = <String>[
+      'paroCardiaco',
+      'accidenteTransito',
+      'ahogamiento',
+      'descargaElectrica'
+    ];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.red.withValues(alpha: 0.05),
-        border:
-            Border.all(color: AppColors.red.withValues(alpha: 0.2), width: 0.5),
+        border: Border.all(
+          color: AppColors.red.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Column(children: [
-        Row(children: [
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              value: _scenario,
-              decoration:
-                  const InputDecoration(labelText: 'Escenario', isDense: true),
-              items: const [
-                DropdownMenuItem(value: 'adulto', child: Text('🧑 Adulto')),
-                DropdownMenuItem(value: 'nino', child: Text('👦 Niño')),
-                DropdownMenuItem(value: 'lactante', child: Text('👶 Lactante')),
-              ],
-              onChanged: (v) {
-                setState(() => _scenario = v!);
-                _notify();
-              },
-            ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _scenario,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Escenario',
+                    isDense: true,
+                  ),
+                  items: scenarios.map((scenario) {
+                    final color = _scenarioColor(scenario);
+                    final icon = _scenarioIcon(scenario);
+
+                    return DropdownMenuItem<String>(
+                      value: scenario,
+                      child: Row(
+                        children: [
+                          Icon(icon, size: 18, color: color),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _scenarioLabel(scenario),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _scenario = v);
+                    _notify();
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 70,
+                child: TextFormField(
+                  initialValue: _count.toString(),
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'Cant.', isDense: true),
+                  onChanged: (v) {
+                    setState(() => _count = int.tryParse(v) ?? 1);
+                    _notify();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                color: AppColors.red,
+                onPressed: widget.onDelete,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 80,
-            child: TextFormField(
-              initialValue: _count.toString(),
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: 'Cant.', isDense: true),
-              onChanged: (v) {
-                setState(() => _count = int.tryParse(v) ?? 1);
-                _notify();
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              color: AppColors.red,
-              onPressed: widget.onDelete),
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-              child: Text('Puntaje mínimo: $_minScore%',
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Puntaje mínimo: $_minScore%',
                   style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color, fontSize: 12))),
-        ]),
-        Slider(
-          value: _minScore.toDouble(),
-          min: 50,
-          max: 100,
-          divisions: 10,
-          activeColor: AppColors.red,
-          label: '$_minScore%',
-          onChanged: (v) {
-            setState(() => _minScore = v.toInt());
-            _notify();
-          },
-        ),
-      ]),
+                    color: theme.textTheme.bodyMedium?.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: _minScore.toDouble(),
+            min: 50,
+            max: 100,
+            divisions: 10,
+            activeColor: AppColors.red,
+            label: '$_minScore%',
+            onChanged: (v) {
+              setState(() => _minScore = v.toInt());
+              _notify();
+            },
+          ),
+        ],
+      ),
     );
+  }
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Color según escenario
+  Color _scenarioColor(String scenario) {
+    switch (scenario) {
+      case 'paroCardiaco':
+        return AppColors.red;
+      case 'accidenteTransito':
+        return AppColors.amber;
+      case 'ahogamiento':
+        return AppColors.cyan;
+      case 'descargaElectrica':
+        return const Color(0xFFFFC107);
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  /// Icono según escenario
+  IconData _scenarioIcon(String scenario) {
+    switch (scenario) {
+      case 'paroCardiaco':
+        return Icons.heart_broken_rounded;
+      case 'accidenteTransito':
+        return Icons.local_hospital_rounded;
+      case 'ahogamiento':
+        return Icons.water_damage_rounded;
+      case 'descargaElectrica':
+        return Icons.bolt_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  /// Etiqueta legible del escenario
+  String _scenarioLabel(String scenario) {
+    switch (scenario) {
+      case 'paroCardiaco':
+        return 'Paro cardíaco';
+      case 'accidenteTransito':
+        return 'Accidente de tránsito';
+      case 'ahogamiento':
+        return 'Ahogamiento';
+      case 'descargaElectrica':
+        return 'Descarga eléctrica';
+      default:
+        return scenario[0].toUpperCase() + scenario.substring(1);
+    }
   }
 }
 
