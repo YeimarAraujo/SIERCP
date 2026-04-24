@@ -15,10 +15,7 @@ import '../../../models/course_module.dart';
 import '../../../services/course_service.dart';
 import '../../../core/theme.dart';
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-final courseModulesProvider = FutureProvider.family<List<CourseModule>, String>(
-  (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
-);
+import '../../../core/theme.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class CourseEditorScreen extends ConsumerStatefulWidget {
@@ -441,8 +438,10 @@ class _AddModuleSheetState extends ConsumerState<_AddModuleSheet> {
 
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('El título no puede estar vacío')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('El título no puede estar vacío')));
+      }
       return;
     }
     setState(() => _saving = true);
@@ -628,7 +627,9 @@ class _TeoriaConfigState extends State<TeoriaConfig> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       widget.pdfUrlCtrl.text = downloadUrl;
-      setState(() => _uploadingPdf = false);
+      if (mounted) {
+        setState(() => _uploadingPdf = false);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

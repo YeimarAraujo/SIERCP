@@ -105,6 +105,30 @@ final routerProvider = Provider<GoRouter>((ref) {
               courseId: state.pathParameters['courseId']!,
             ),
           ),
+          GoRoute(
+            path: '/student-course/:courseId',
+            builder: (context, state) {
+              final user = ref.read(currentUserProvider);
+              return StudentCourseDetailScreen(
+                courseId: state.pathParameters['courseId']!,
+                studentId: user?.id ?? '',
+                courseTitle: 'Detalle del Curso',
+                instructorName: '',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/students-course/:courseId',
+            builder: (context, state) {
+              final user = ref.read(currentUserProvider);
+              return StudentCourseDetailScreen(
+                courseId: state.pathParameters['courseId']!,
+                studentId: user?.id ?? '',
+                courseTitle: 'Detalle del Curso',
+                instructorName: '',
+              );
+            },
+          ),
 
           // ── Vista de detalle del ALUMNO (lista de módulos) ────────────────
           GoRoute(

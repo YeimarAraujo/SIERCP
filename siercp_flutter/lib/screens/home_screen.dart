@@ -676,8 +676,18 @@ class _StudentCourseHero extends ConsumerWidget {
     final progress  = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
     final isComplete = approved >= required;
 
+    final user = ref.read(currentUserProvider);
+
     return GestureDetector(
-      onTap: () => context.push('/student-course/${course.id}'),
+      onTap: () => context.push(
+        '/student/course-detail',
+        extra: {
+          'courseId': course.id,
+          'studentId': user?.id ?? '',
+          'courseTitle': course.title,
+          'instructorName': course.instructorName,
+        },
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),

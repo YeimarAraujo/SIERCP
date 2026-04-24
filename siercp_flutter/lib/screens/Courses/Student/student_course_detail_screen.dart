@@ -12,10 +12,7 @@ import '../../../services/course_service.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 // Reutilizamos el mismo provider del editor
-final studentModulesProvider =
-    FutureProvider.family<List<CourseModule>, String>(
-  (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
-);
+// (Ahora importado de course_service.dart)
 
 // Provider del progreso del alumno en un curso.
 // Retorna un Set<String> de IDs de módulos completados.
@@ -58,8 +55,8 @@ class StudentCourseDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     debugPrint('📚 courseId: "$courseId" | studentId: "$studentId"');
-
-    final modulesAsync = ref.watch(studentModulesProvider(courseId));
+    
+    final modulesAsync = ref.watch(courseModulesProvider(courseId));
     final progressAsync = ref.watch(
         studentModuleProgressProvider(_ProgressKey(courseId, studentId)));
 
