@@ -10,13 +10,16 @@ class CourseService {
   CollectionReference _modulesRef(String courseId) =>
       _db.collection('courses').doc(courseId).collection('modules');
 
-  // ── Leer módulos ordenados ────────────────────────────────────────────────
+  CollectionReference _progressRef(String courseId) =>
+      _db.collection('courses').doc(courseId).collection('progress');
+
+  // ── Leer módulos ordenados ─────────────────────────────────────────────────
   Future<List<CourseModule>> getModules(String courseId) async {
     final snap = await _modulesRef(courseId).orderBy('order').get();
     return snap.docs.map(CourseModule.fromDoc).toList();
   }
 
-  // ── Crear módulo ──────────────────────────────────────────────────────────
+  // ── Crear módulo ───────────────────────────────────────────────────────────
   Future<void> createModule({
     required String courseId,
     required String title,
@@ -35,7 +38,7 @@ class CourseService {
     });
   }
 
-  // ── Actualizar módulo ─────────────────────────────────────────────────────
+  // ── Actualizar módulo ──────────────────────────────────────────────────────
   Future<void> updateModule(
     String courseId,
     String moduleId, {
@@ -50,7 +53,7 @@ class CourseService {
     });
   }
 
-  // ── Eliminar módulo ───────────────────────────────────────────────────────
+  // ── Eliminar módulo ────────────────────────────────────────────────────────
   Future<void> deleteModule(String courseId, String moduleId) async {
     await _modulesRef(courseId).doc(moduleId).delete();
     // Re-ordenar los restantes
@@ -75,4 +78,71 @@ class CourseService {
         .doc(courseId)
         .update({'totalModules': orderedIds.length});
   }
+
+  // ── Obtener progreso del alumno ────────────────────────────────────────────
+  //
+  // Retorna el Set de IDs de módulos que el alumno ya completó.
+  // Si no existe el documento (alumno sin progreso), retorna Set vacío.
+  //
+  // Estructura Firestore:
+  //   courses/{courseId}/progress/{studentId}
+  //     ├── studentId:        String
+  //     ├── courseId:         String
+  //     ├── completedModules: List<String>  ← IDs de módulos completados
+  //     └── lastUpdated:      Timestamp
+  //
+  Future<Set<String>> getStudentProgress(
+      String courseId, String studentId) async {
+    final doc = await _progressRef(courseId).doc(studentId).get();
+
+    if (!doc.exists) return {};
+
+    final data = doc.data()! as Map<String, dynamic>;
+    final completed = List<String>.from(data['completedModules'] ?? []);
+    return completed.toSet();
+  }
+
+  // ── Marcar módulo como completado ─────────────────────────────────────────
+  //
+  // Usa arrayUnion para evitar duplicados y merge:true para no pisar datos
+  // existentes si el alumno ya tiene otros módulos completados.
+  //
+  Future<void> markModuleComplete({
+    required String courseId,
+    required String moduleId,
+    required String studentId,
+  }) async {
+    final progressRef = _progressRef(courseId).doc(studentId);
+
+    await progressRef.set(
+      {
+        'completedModules': FieldValue.arrayUnion([moduleId]),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'studentId': studentId,
+        'courseId': courseId,
+      },
+      SetOptions(merge: true),
+    );
+  }
 }
+
+// ─── Estructura de Firestore ──────────────────────────────────────────────────
+//
+//  courses/{courseId}/
+//    ├── modules/{moduleId}
+//    │     ├── title:             String
+//    │     ├── type:              String  (teoria | evaluacion_teorica |
+//    │     │                               practica_guiada | certificacion)
+//    │     ├── pdfUrl:            String?   ← URL de Firebase Storage
+//    │     ├── videoUrl:          String?   ← URL de YouTube
+//    │     ├── textContent:       String?
+//    │     ├── passingScore:      int
+//    │     ├── questions:         List<Map>
+//    │     ├── requiredSessions:  List<Map>
+//    │     └── order:             int
+//    │
+//    └── progress/{studentId}
+//          ├── studentId:         String
+//          ├── courseId:          String
+//          ├── completedModules:  List<String>  ← IDs de módulos completados
+//          └── lastUpdated:       Timestamp

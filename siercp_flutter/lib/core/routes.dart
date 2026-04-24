@@ -24,6 +24,10 @@ import '../screens/device_status_screen.dart';
 import '../screens/create_user_screen.dart';
 import '../screens/device_selection_screen.dart';
 import '../models/guide.dart';
+import '../models/course_module.dart';
+import '../screens/Courses/Teacher/course_editor_screen.dart';
+import '../screens/Courses/Student/student_course_detail_screen.dart';
+import '../screens/Courses/Student/student_module_viewer_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -31,9 +35,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      final isAuth    = authState.value?.isAuthenticated ?? false;
+      final isAuth = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
-      final location  = state.matchedLocation;
+      final location = state.matchedLocation;
 
       if (isLoading) return location == '/splash' ? null : '/splash';
       if (location == '/splash') return isAuth ? '/home' : '/login';
@@ -44,32 +48,52 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/splash',   builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
-          GoRoute(path: '/home',    builder: (_, __) => const HomeScreen()),
+          GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+
           GoRoute(
             path: '/session',
             builder: (_, state) => SessionScreen(
               scenarioId: state.uri.queryParameters['scenario'],
             ),
           ),
+
           GoRoute(
             path: '/session-result/:id',
             builder: (_, state) => SessionResultScreen(
               sessionId: state.pathParameters['id']!,
             ),
           ),
-          GoRoute(path: '/history',   builder: (_, __) => const HistoryScreen()),
-          GoRoute(path: '/courses',   builder: (_, __) => const CoursesScreen()),
-          GoRoute(path: '/scenarios', builder: (_, __) => const ScenarioSelectScreen()),
-          GoRoute(path: '/profile',   builder: (_, __) => const ProfileScreen()),
 
-          // ── Course Detail ────────────────────────────────────────────────
+          GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
+          GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
+          GoRoute(
+              path: '/scenarios',
+              builder: (_, __) => const ScenarioSelectScreen()),
+          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+
+          // ── Editor de curso (Instructor/Admin) ───────────────────────────
+          GoRoute(
+            path: '/course-editor/:courseId',
+            builder: (_, state) => CourseEditorScreen(
+              courseId: state.pathParameters['courseId']!,
+            ),
+          ),
+
+          // ── Course Detail (ruta legacy — mantiene compatibilidad) ─────────
+          GoRoute(
+            path: '/course-detail/:courseId',
+            builder: (_, state) => CourseDetailScreen(
+              courseId: state.pathParameters['courseId']!,
+            ),
+          ),
+
+          // ── Course Detail (ruta con ID por path — alias legacy) ───────────
           GoRoute(
             path: '/courses/:id',
             builder: (_, state) => CourseDetailScreen(
@@ -77,12 +101,60 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
 
+          // ── Vista de detalle del ALUMNO (lista de módulos) ────────────────
+
+          // Uso desde CoursesScreen (tap del alumno):
+          //
+          //   context.push('/student/course-detail', extra: {
+          //     'courseId':      course.id,
+          //     'studentId':     currentUser.id,
+          //     'courseTitle':   course.title,
+          //     'instructorName': course.instructorName,
+          //   });
+          //
+          GoRoute(
+            path: '/student/course-detail',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return StudentCourseDetailScreen(
+                courseId: extra['courseId'] as String,
+                studentId: extra['studentId'] as String,
+                courseTitle: extra['courseTitle'] as String,
+                instructorName: extra['instructorName'] as String,
+              );
+            },
+          ),
+
+          // ── Visor de módulo del ALUMNO (PDF inline + YouTube integrado) ───
+          //
+          // Uso desde StudentCourseDetailScreen (tap en un módulo):
+          //
+          //   context.push('/student/module-viewer', extra: {
+          //     'module':      module,          // CourseModule
+          //     'courseId':    courseId,
+          //     'studentId':   studentId,
+          //     'isCompleted': isCompleted,     // bool, opcional
+          //   });
+          //
+          GoRoute(
+            path: '/student/module-viewer',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>;
+              return StudentModuleViewerScreen(
+                module: extra['module'] as CourseModule,
+                courseId: extra['courseId'] as String,
+                studentId: extra['studentId'] as String,
+                isCompleted: extra['isCompleted'] as bool? ?? false,
+              );
+            },
+          ),
+
           // ── Guías ────────────────────────────────────────────────────────
           GoRoute(
             path: '/courses/:courseId/guides',
             builder: (_, state) => GuideListScreen(
               courseId: state.pathParameters['courseId']!,
-              canEdit:  state.uri.queryParameters['edit'] == 'true',
+              canEdit: state.uri.queryParameters['edit'] == 'true',
             ),
           ),
           GoRoute(
@@ -104,7 +176,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // ── Selección de dispositivo ─────────────────────────────────────
+          // ── Selección de dispositivo ──────────────────────────────────────
           GoRoute(
             path: '/session/device-select',
             builder: (_, __) => const DeviceSelectionScreen(),
@@ -118,16 +190,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
 
-          // ── Admin routes ──────────────────────────────────────────────────
-          GoRoute(path: '/admin/users',       builder: (_, __) => const ManageUsersScreen()),
+          // ── Admin ─────────────────────────────────────────────────────────
+          GoRoute(
+              path: '/admin/users',
+              builder: (_, __) => const ManageUsersScreen()),
           GoRoute(
             path: '/admin/users/:id',
             builder: (_, state) => UserDetailScreen(
               userId: state.pathParameters['id']!,
             ),
           ),
-          GoRoute(path: '/admin/devices',     builder: (_, __) => const DeviceStatusScreen()),
-          GoRoute(path: '/admin/create-user', builder: (_, __) => const CreateUserScreen()),
+          GoRoute(
+              path: '/admin/devices',
+              builder: (_, __) => const DeviceStatusScreen()),
+          GoRoute(
+              path: '/admin/create-user',
+              builder: (_, __) => const CreateUserScreen()),
         ],
       ),
     ],
@@ -138,8 +216,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
-            Text('Ruta no encontrada: ${state.uri}',
-                style: const TextStyle(color: Colors.grey)),
+            Text(
+              'Ruta no encontrada: \${state.uri}',
+              style: const TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ),

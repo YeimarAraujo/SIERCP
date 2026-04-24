@@ -4,60 +4,66 @@ publish_to: none
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Navegación
+  # ── Navegación ────────────────────────────────────────────────────────────
   go_router: ^13.0.0
 
-  # Estado
+  # ── Estado ────────────────────────────────────────────────────────────────
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
 
-  # Firebase
+  # ── Firebase ──────────────────────────────────────────────────────────────
   firebase_core: ^3.15.2
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.5.4
-  firebase_storage: ^12.3.4
+  firebase_storage: ^12.3.7 # ← actualizado de ^12.3.4 (sube PDFs desde el celular)
   firebase_messaging: ^15.1.4
+  firebase_database: ^11.3.10
 
-  # Gráficas
+  # ── Gráficas ──────────────────────────────────────────────────────────────
   fl_chart: ^0.68.0
 
-  # UI
+  # ── UI ───────────────────────────────────────────────────────────────────
   cupertino_icons: ^1.0.6
   google_fonts: ^6.2.1
   shimmer: ^3.0.0
   lottie: ^3.1.0
+  syncfusion_flutter_gauges: ^33.1.45
+  syncfusion_flutter_pdfviewer: ^33.2.3
 
-  # Utilitarios
+  # ── PDF viewer inline ─────────────────────────────────────────────────────
+  # Muestra PDFs dentro de la app sin abrir visor externo (alumno)
+  flutter_pdfview: ^1.3.2
+
+  # ── YouTube player integrado ──────────────────────────────────────────────
+  # Reproduce videos de YouTube dentro de la app sin redirigir
+  youtube_player_flutter: ^8.1.2
+
+  # ── Archivos ──────────────────────────────────────────────────────────────
+  # File picker para que el profesor elija PDFs desde el celular
+  file_picker: ^8.1.7
+
+  # ── Utilitarios ───────────────────────────────────────────────────────────
   intl: ^0.19.0
   uuid: ^4.4.0
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
-  http: ^1.6.0
+  http: ^1.6.0 # ya tenías ^1.6.0, es compatible con lo requerido
   shared_preferences: ^2.5.5
+  path_provider: ^2.1.4 # ← actualizado de ^2.1.2 (path_provider para PDF temp)
 
-  # Exportación PDF / CSV
+  # ── Exportación PDF / CSV ─────────────────────────────────────────────────
   pdf: ^3.10.8
   share_plus: ^7.2.2
-  path_provider: ^2.1.2
   printing: ^5.13.1
-  syncfusion_flutter_gauges: ^33.1.45
-<<<<<<< HEAD
-  firebase_database: ^11.3.10
-  flutter_blue_plus: ^2.2.1
-  audioplayers: ^6.6.0
-=======
-  syncfusion_flutter_pdfviewer: ^33.2.3
-  firebase_database: ^11.3.10
-  audioplayers: ^6.6.0
-  file_picker: ^8.1.7
->>>>>>> origin/main
 
+  # ── Audio ─────────────────────────────────────────────────────────────────
+  audioplayers: ^6.6.0
 
 dev_dependencies:
   flutter_test:
