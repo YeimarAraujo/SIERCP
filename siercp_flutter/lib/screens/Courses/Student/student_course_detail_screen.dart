@@ -65,7 +65,6 @@ class StudentCourseDetailScreen extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

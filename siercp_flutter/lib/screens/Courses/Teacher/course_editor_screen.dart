@@ -34,8 +34,6 @@ class _CourseEditorScreenState extends ConsumerState<CourseEditorScreen> {
   Widget build(BuildContext context) {
     final modulesAsync = ref.watch(courseModulesProvider(widget.courseId));
     final theme = Theme.of(context);
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final border = theme.colorScheme.outline;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -1160,8 +1158,6 @@ class _PracticaConfigState extends State<_PracticaConfig> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _SectionTitle(
           'Sesiones requeridas', Icons.favorite_outline, AppColors.red),
@@ -1221,7 +1217,6 @@ class _SessionRowState extends State<_SessionRow> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final border = theme.colorScheme.outline;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),

@@ -11,6 +11,7 @@ import '../services/admin_service.dart';
 import '../services/export_service.dart';
 import '../services/session_service.dart';
 import '../widgets/section_label.dart';
+import '../models/session.dart';
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 class CoursesScreen extends ConsumerStatefulWidget {
@@ -1077,12 +1078,14 @@ class _CourseCard extends ConsumerWidget {
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     final allSessions = sessionsAsync.value ?? [];
     final courseSessions = allSessions
-        .where((s) => s.courseId == course.id && s.status == SessionStatus.completed)
+        .where((s) =>
+            s.courseId == course.id && s.status == SessionStatus.completed)
         .toList();
-    final totalDone = courseSessions.length;
-    final approved = courseSessions.where((s) => s.metrics?.approved == true).length;
+    final approved =
+        courseSessions.where((s) => s.metrics?.approved == true).length;
     final requiredCount = course.totalModules > 0 ? course.totalModules : 4;
-    final progress = requiredCount > 0 ? (approved / requiredCount).clamp(0.0, 1.0) : 0.0;
+    final progress =
+        requiredCount > 0 ? (approved / requiredCount).clamp(0.0, 1.0) : 0.0;
     final isComplete = approved >= requiredCount;
     final remaining = (requiredCount - approved).clamp(0, requiredCount);
     final progressColor = isComplete ? AppColors.green : AppColors.brand;
@@ -1116,7 +1119,9 @@ class _CourseCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Icon(
-                        isComplete ? Icons.emoji_events_rounded : Icons.menu_book_outlined,
+                        isComplete
+                            ? Icons.emoji_events_rounded
+                            : Icons.menu_book_outlined,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -1210,7 +1215,10 @@ class _CourseCard extends ConsumerWidget {
                         ],
                       )
                     else
-                      Text(isComplete ? 'Completado' : 'Faltan $remaining sesiones',
+                      Text(
+                          isComplete
+                              ? 'Completado'
+                              : 'Faltan $remaining sesiones',
                           style: TextStyle(color: textT, fontSize: 10)),
                   ],
                 ),

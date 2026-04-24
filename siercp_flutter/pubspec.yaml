@@ -55,6 +55,7 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   path_provider: ^2.1.4
+  path: ^1.9.0
 
   # ── Exportación PDF / CSV ────────────────────────────────────────────────
   pdf: ^3.10.8

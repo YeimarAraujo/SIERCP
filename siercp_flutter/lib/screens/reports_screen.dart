@@ -489,11 +489,7 @@ class _SavedReportsTab extends ConsumerWidget {
     final localSvc = ref.read(localStorageServiceProvider);
     final reports = localSvc.getAllReports();
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final surface = theme.colorScheme.surface;
-    final border = theme.colorScheme.outline;
 
     if (reports.isEmpty) {
       return Center(
@@ -662,19 +658,6 @@ class _ReportTile extends ConsumerWidget {
             ],
           ),
         ]),
-      ),
-    );
-  }
-}
-                    SizedBox(width: 8),
-                          Text('Eliminar'),
-                        ])),
-                  ],
-                ),
-              ]),
-            ),
-          );
-        },
       ),
     );
   }
