@@ -12,16 +12,11 @@ final firestoreServiceProvider = Provider<FirestoreService>((ref) {
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ── Refs ───────────────────────────────────────────────────────────────────
-  CollectionReference get _users     => _db.collection('users');
-  CollectionReference get _sessions  => _db.collection('sessions');
-  CollectionReference get _courses   => _db.collection('courses');
-  CollectionReference get _manikins  => _db.collection('manikins');
+  CollectionReference get _users => _db.collection('users');
+  CollectionReference get _sessions => _db.collection('sessions');
+  CollectionReference get _courses => _db.collection('courses');
+  CollectionReference get _manikins => _db.collection('manikins');
   CollectionReference get _scenarios => _db.collection('scenarios');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  USUARIOS
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> createUser(UserModel user) async {
     await _users.doc(user.id).set(user.toFirestore());
@@ -54,10 +49,8 @@ class FirestoreService {
   }
 
   Future<UserModel?> getUserByIdentificacion(String cedula) async {
-    final snap = await _users
-        .where('identificacion', isEqualTo: cedula)
-        .limit(1)
-        .get();
+    final snap =
+        await _users.where('identificacion', isEqualTo: cedula).limit(1).get();
     if (snap.docs.isEmpty) return null;
     return UserModel.fromFirestore(snap.docs.first);
   }
@@ -90,10 +83,6 @@ class FirestoreService {
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  SESIONES
-  // ══════════════════════════════════════════════════════════════════════════
-
   Future<String> createSession({
     required String studentId,
     required String studentName,
@@ -105,21 +94,21 @@ class FirestoreService {
   }) async {
     final ref = _sessions.doc();
     await ref.set({
-      'id':            ref.id,
-      'studentId':     studentId,
-      'studentName':   studentName,
-      'courseId':      courseId,
-      'manikinId':     manikinId,
-      'scenarioId':    scenarioId,
+      'id': ref.id,
+      'studentId': studentId,
+      'studentName': studentName,
+      'courseId': courseId,
+      'manikinId': manikinId,
+      'scenarioId': scenarioId,
       'scenarioTitle': scenarioTitle,
-      'patientType':   patientType,
-      'status':        'active',
-      'startedAt':     FieldValue.serverTimestamp(),
-      'endedAt':       null,
-      'duration':      0,
-      'metrics':       null,
-      'createdAt':     FieldValue.serverTimestamp(),
-      'updatedAt':     FieldValue.serverTimestamp(),
+      'patientType': patientType,
+      'status': 'active',
+      'startedAt': FieldValue.serverTimestamp(),
+      'endedAt': null,
+      'duration': 0,
+      'metrics': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
     return ref.id;
   }
@@ -130,18 +119,18 @@ class FirestoreService {
     int durationSeconds,
   ) async {
     await _sessions.doc(sessionId).update({
-      'status':    'completed',
-      'endedAt':   FieldValue.serverTimestamp(),
-      'duration':  durationSeconds,
-      'metrics':   metrics.toMap(),
+      'status': 'completed',
+      'endedAt': FieldValue.serverTimestamp(),
+      'duration': durationSeconds,
+      'metrics': metrics.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
   Future<void> abortSession(String sessionId) async {
     await _sessions.doc(sessionId).update({
-      'status':    'aborted',
-      'endedAt':   FieldValue.serverTimestamp(),
+      'status': 'aborted',
+      'endedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -152,7 +141,8 @@ class FirestoreService {
     return SessionModel.fromFirestore(doc);
   }
 
-  Future<List<SessionModel>> getStudentSessions(String studentId, {int limit = 30}) async {
+  Future<List<SessionModel>> getStudentSessions(String studentId,
+      {int limit = 30}) async {
     final snap = await _sessions
         .where('studentId', isEqualTo: studentId)
         .orderBy('startedAt', descending: true)
@@ -161,7 +151,8 @@ class FirestoreService {
     return snap.docs.map(SessionModel.fromFirestore).toList();
   }
 
-  Future<List<SessionModel>> getCourseSessions(String courseId, {int limit = 50}) async {
+  Future<List<SessionModel>> getCourseSessions(String courseId,
+      {int limit = 50}) async {
     final snap = await _sessions
         .where('courseId', isEqualTo: courseId)
         .orderBy('startedAt', descending: true)
@@ -172,17 +163,20 @@ class FirestoreService {
 
   Future<void> addCompression(String sessionId, LiveSessionData data) async {
     await _sessions.doc(sessionId).collection('compressions').add({
-      'timestamp':       FieldValue.serverTimestamp(),
-      'depthMm':         data.depthMm,
-      'forceKg':         data.forceKg,
-      'ratePerMin':      data.ratePerMin,
+      'timestamp': FieldValue.serverTimestamp(),
+      'depthMm': data.depthMm,
+      'forceKg': data.forceKg,
+      'ratePerMin': data.ratePerMin,
       'decompressedFully': data.decompressedFully,
-      'correct':         data.correctPct >= 80,
+      'correct': data.correctPct >= 80,
     });
   }
 
   Future<void> addSessionAlert(String sessionId, AlertModel alert) async {
-    await _sessions.doc(sessionId).collection('alerts').add(alert.toFirestore());
+    await _sessions
+        .doc(sessionId)
+        .collection('alerts')
+        .add(alert.toFirestore());
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -200,22 +194,22 @@ class FirestoreService {
   }) async {
     final ref = _courses.doc();
     await ref.set({
-      'id':             ref.id,
-      'title':          title,
-      'description':    description ?? '',
-      'instructorId':   instructorId,
+      'id': ref.id,
+      'title': title,
+      'description': description ?? '',
+      'instructorId': instructorId,
       'instructorName': instructorName,
-      'inviteCode':     inviteCode.toUpperCase(),
-      'requiredScore':  requiredScore,
-      'certification':  certification,
-      'isActive':       true,
-      'studentCount':   0,
-      'totalModules':   0,
+      'inviteCode': inviteCode.toUpperCase(),
+      'requiredScore': requiredScore,
+      'certification': certification,
+      'isActive': true,
+      'studentCount': 0,
+      'totalModules': 0,
       'completedModules': 0,
-      'nextDeadline':   null,
+      'nextDeadline': null,
       'nextDeadlineTitle': null,
-      'createdAt':      FieldValue.serverTimestamp(),
-      'updatedAt':      FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
     return ref.id;
   }
@@ -233,10 +227,8 @@ class FirestoreService {
     final coursesSnap = await _courses.where('isActive', isEqualTo: true).get();
     final result = <CourseModel>[];
     for (final courseDoc in coursesSnap.docs) {
-      final enrollRef = _courses
-          .doc(courseDoc.id)
-          .collection('enrollments')
-          .doc(studentId);
+      final enrollRef =
+          _courses.doc(courseDoc.id).collection('enrollments').doc(studentId);
       final enroll = await enrollRef.get();
       if (enroll.exists) {
         result.add(CourseModel.fromFirestore(courseDoc));
@@ -269,35 +261,30 @@ class FirestoreService {
   }) async {
     final batch = _db.batch();
 
-    final enrollRef = _courses
-        .doc(courseId)
-        .collection('enrollments')
-        .doc(studentId);
+    final enrollRef =
+        _courses.doc(courseId).collection('enrollments').doc(studentId);
     batch.set(enrollRef, {
-      'studentId':     studentId,
-      'studentName':   studentName,
-      'studentEmail':  studentEmail,
+      'studentId': studentId,
+      'studentName': studentName,
+      'studentEmail': studentEmail,
       'identificacion': identificacion,
-      'enrolledAt':    FieldValue.serverTimestamp(),
+      'enrolledAt': FieldValue.serverTimestamp(),
       'completedModules': 0,
-      'avgScore':      0.0,
-      'sessionCount':  0,
-      'status':        'active',
+      'avgScore': 0.0,
+      'sessionCount': 0,
+      'status': 'active',
     });
 
     batch.update(_courses.doc(courseId), {
       'studentCount': FieldValue.increment(1),
-      'updatedAt':    FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
 
     await batch.commit();
   }
 
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) async {
-    final snap = await _courses
-        .doc(courseId)
-        .collection('enrollments')
-        .get();
+    final snap = await _courses.doc(courseId).collection('enrollments').get();
     return snap.docs.map((d) => d.data()).toList();
   }
 
@@ -322,7 +309,8 @@ class FirestoreService {
     String studentId,
     SessionMetrics metrics,
   ) async {
-    final enrollRef = _courses.doc(courseId).collection('enrollments').doc(studentId);
+    final enrollRef =
+        _courses.doc(courseId).collection('enrollments').doc(studentId);
     final enrollSnap = await enrollRef.get();
     if (!enrollSnap.exists) return;
 
@@ -331,7 +319,9 @@ class FirestoreService {
     double currentAvgScore = (data['avgScore'] as num?)?.toDouble() ?? 0.0;
 
     // Calcular nuevo promedio
-    double newAvgScore = ((currentAvgScore * currentSessionCount) + metrics.score) / (currentSessionCount + 1);
+    double newAvgScore =
+        ((currentAvgScore * currentSessionCount) + metrics.score) /
+            (currentSessionCount + 1);
 
     await enrollRef.update({
       'sessionCount': FieldValue.increment(1),
@@ -352,8 +342,8 @@ class FirestoreService {
 
   Stream<List<ManiquiModel>> watchManikins() {
     return _manikins.snapshots().map(
-      (snap) => snap.docs.map(ManiquiModel.fromFirestore).toList(),
-    );
+          (snap) => snap.docs.map(ManiquiModel.fromFirestore).toList(),
+        );
   }
 
   Future<void> updateManikinStatus(
@@ -363,11 +353,11 @@ class FirestoreService {
     String? currentSessionId,
   }) async {
     await _manikins.doc(manikinId).update({
-      'status':           status,
-      'assignedTo':       assignedTo,
+      'status': status,
+      'assignedTo': assignedTo,
       'currentSessionId': currentSessionId,
-      'lastConnection':   FieldValue.serverTimestamp(),
-      'updatedAt':        FieldValue.serverTimestamp(),
+      'lastConnection': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -385,91 +375,105 @@ class FirestoreService {
   }
 
   List<ScenarioModel> _localScenarios() => [
-    const ScenarioModel(
-      id: 'paroCardiaco',
-      title: '🏠 Paro cardíaco en casa',
-      description: 'Familiar inconsciente en el suelo. Sin pulso ni respiración.',
-      audioIntroText: 'Adulto de 52 años. Sin pulso. Inicie RCP de inmediato.',
-      patientAge: 'Adulto (52 años)',
-      patientType: 'adult',
-      category: ScenarioCategory.paroCardiaco,
-      difficulty: 'medium',
-      relatedGuideId: 'guide_001',
-    ),
-    const ScenarioModel(
-      id: 'accidenteTransito',
-      title: '🚗 Accidente de tránsito',
-      description: 'Víctima en la vía, sin respuesta. Múltiples traumas.',
-      audioIntroText: 'Adulto de 35 años. Accidente vial. Sin respuesta. Evalúa la escena.',
-      patientAge: 'Adulto (35 años)',
-      patientType: 'adult',
-      category: ScenarioCategory.accidenteTransito,
-      difficulty: 'hard',
-    ),
-    const ScenarioModel(
-      id: 'ahogamiento',
-      title: '🌊 Ahogamiento en piscina',
-      description: 'Rescatado del agua. Protocolo especial: ventilaciones primero.',
-      audioIntroText: 'Adulto rescatado de la piscina. Sin respiración. Ventile primero.',
-      patientAge: 'Adulto',
-      patientType: 'adult',
-      category: ScenarioCategory.ahogamiento,
-      difficulty: 'hard',
-      relatedGuideId: 'guide_005',
-      isNew: true,
-    ),
-    const ScenarioModel(
-      id: 'colapsoEjercicio',
-      title: '🏋️ Colapso durante ejercicio',
-      description: 'Atleta en el gimnasio. Posible fibrilación ventricular.',
-      audioIntroText: 'Adulto de 28 años. Colapso en gimnasio. Usa el DEA disponible.',
-      patientAge: 'Adulto (28 años)',
-      patientType: 'adult',
-      category: ScenarioCategory.colapsoEjercicio,
-      difficulty: 'medium',
-      relatedGuideId: 'guide_003',
-      isNew: true,
-    ),
-    const ScenarioModel(
-      id: 'atragantamiento',
-      title: '🍽️ Atragantamiento severo',
-      description: 'Obstrucción de vía aérea. Heimlich + RCP si pierde el conocimiento.',
-      audioIntroText: 'Adulto. Atragantamiento durante cena. Aplica Heimlich primero.',
-      patientAge: 'Adulto',
-      patientType: 'adult',
-      category: ScenarioCategory.atragantamiento,
-      difficulty: 'medium',
-    ),
-    const ScenarioModel(
-      id: 'descargaElectrica',
-      title: '⚡ Descarga eléctrica',
-      description: 'Accidente laboral. Asegurar escena antes de actuar.',
-      audioIntroText: 'Adulto electrocutado. Asegura la escena. Sin pulso ni respiración.',
-      patientAge: 'Adulto',
-      patientType: 'adult',
-      category: ScenarioCategory.descargaElectrica,
-      difficulty: 'hard',
-    ),
-    const ScenarioModel(
-      id: 'sobredosis',
-      title: '🛏️ Sobredosis por opioides',
-      description: 'Intoxicación con respiración lenta. Naloxona + RCP si hay paro.',
-      audioIntroText: 'Adulto con sobredosis. Respiración muy lenta. Administra Naloxona si disponible.',
-      patientAge: 'Adulto',
-      patientType: 'adult',
-      category: ScenarioCategory.sobredosis,
-      difficulty: 'hard',
-    ),
-    const ScenarioModel(
-      id: 'infarto',
-      title: '🚨 Infarto que evoluciona a paro',
-      description: 'Dolor torácico que evoluciona a paro cardíaco. Actúa rápido.',
-      audioIntroText: 'Adulto de 60 años. Dolor torácico severo. Ahora pierde el conocimiento.',
-      patientAge: 'Adulto (60 años)',
-      patientType: 'adult',
-      category: ScenarioCategory.infarto,
-      difficulty: 'hard',
-      relatedGuideId: 'guide_002',
-    ),
-  ];
+        const ScenarioModel(
+          id: 'paroCardiaco',
+          title: 'Paro cardíaco en casa',
+          description:
+              'Familiar inconsciente en el suelo. Sin pulso ni respiración.',
+          audioIntroText:
+              'Adulto de 52 años. Sin pulso. Inicie RCP de inmediato.',
+          patientAge: 'Adulto (52 años)',
+          patientType: 'adult',
+          category: ScenarioCategory.paroCardiaco,
+          difficulty: 'medium',
+          relatedGuideId: 'guide_001',
+        ),
+        const ScenarioModel(
+          id: 'accidenteTransito',
+          title: 'Accidente de tránsito',
+          description: 'Víctima en la vía, sin respuesta. Múltiples traumas.',
+          audioIntroText:
+              'Adulto de 35 años. Accidente vial. Sin respuesta. Evalúa la escena.',
+          patientAge: 'Adulto (35 años)',
+          patientType: 'adult',
+          category: ScenarioCategory.accidenteTransito,
+          difficulty: 'hard',
+        ),
+        const ScenarioModel(
+          id: 'ahogamiento',
+          title: 'Ahogamiento en piscina',
+          description:
+              'Rescatado del agua. Protocolo especial: ventilaciones primero.',
+          audioIntroText:
+              'Adulto rescatado de la piscina. Sin respiración. Ventile primero.',
+          patientAge: 'Adulto',
+          patientType: 'adult',
+          category: ScenarioCategory.ahogamiento,
+          difficulty: 'hard',
+          relatedGuideId: 'guide_005',
+          isNew: true,
+        ),
+        const ScenarioModel(
+          id: 'colapsoEjercicio',
+          title: 'Colapso durante ejercicio',
+          description:
+              'Atleta en el gimnasio. Posible fibrilación ventricular.',
+          audioIntroText:
+              'Adulto de 28 años. Colapso en gimnasio. Usa el DEA disponible.',
+          patientAge: 'Adulto (28 años)',
+          patientType: 'adult',
+          category: ScenarioCategory.colapsoEjercicio,
+          difficulty: 'medium',
+          relatedGuideId: 'guide_003',
+          isNew: true,
+        ),
+        const ScenarioModel(
+          id: 'atragantamiento',
+          title: 'Atragantamiento severo',
+          description:
+              'Obstrucción de vía aérea. Heimlich + RCP si pierde el conocimiento.',
+          audioIntroText:
+              'Adulto. Atragantamiento durante cena. Aplica Heimlich primero.',
+          patientAge: 'Adulto',
+          patientType: 'adult',
+          category: ScenarioCategory.atragantamiento,
+          difficulty: 'medium',
+        ),
+        const ScenarioModel(
+          id: 'descargaElectrica',
+          title: '⚡ Descarga eléctrica',
+          description: 'Accidente laboral. Asegurar escena antes de actuar.',
+          audioIntroText:
+              'Adulto electrocutado. Asegura la escena. Sin pulso ni respiración.',
+          patientAge: 'Adulto',
+          patientType: 'adult',
+          category: ScenarioCategory.descargaElectrica,
+          difficulty: 'hard',
+        ),
+        const ScenarioModel(
+          id: 'sobredosis',
+          title: 'Sobredosis por opioides',
+          description:
+              'Intoxicación con respiración lenta. Naloxona + RCP si hay paro.',
+          audioIntroText:
+              'Adulto con sobredosis. Respiración muy lenta. Administra Naloxona si disponible.',
+          patientAge: 'Adulto',
+          patientType: 'adult',
+          category: ScenarioCategory.sobredosis,
+          difficulty: 'hard',
+        ),
+        const ScenarioModel(
+          id: 'infarto',
+          title: 'Infarto que evoluciona a paro',
+          description:
+              'Dolor torácico que evoluciona a paro cardíaco. Actúa rápido.',
+          audioIntroText:
+              'Adulto de 60 años. Dolor torácico severo. Ahora pierde el conocimiento.',
+          patientAge: 'Adulto (60 años)',
+          patientType: 'adult',
+          category: ScenarioCategory.infarto,
+          difficulty: 'hard',
+          relatedGuideId: 'guide_002',
+        ),
+      ];
 }

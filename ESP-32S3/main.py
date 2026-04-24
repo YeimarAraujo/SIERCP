@@ -8,9 +8,6 @@ from machine import I2C, Pin, UART
 from hx711 import HX711
 
 
-# ============================================================
-# CONFIGURACION
-# ============================================================
 WIFI_SSID     = "YeimarAraujo"
 WIFI_PASSWORD = "09122005"
 FIREBASE_URL  = "https://siercp-default-rtdb.firebaseio.com"
@@ -70,10 +67,6 @@ class JQ8900:
         """Reproduce pista especifica (1-255)"""
         self._cmd(0x07, 0x00, track)
 
-
-# ============================================================
-# CONSTANTES AHA 2025 — MEJORADAS
-# ============================================================
 
 # ── Profundidad ──────────────────────────────────────────────
 # AHA 2025: 5–6 cm (adulto). Usamos margen interior para retroalimentacion.
