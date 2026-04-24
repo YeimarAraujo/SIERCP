@@ -122,11 +122,13 @@ class _CourseEditorScreenState extends ConsumerState<CourseEditorScreen> {
         ],
       ),
     );
-    if (confirm == true) {
+    if (confirm == true && mounted) {
       await ref
           .read(courseServiceProvider)
           .deleteModule(widget.courseId, moduleId);
-      ref.invalidate(courseModulesProvider(widget.courseId));
+      if (mounted) {
+        ref.invalidate(courseModulesProvider(widget.courseId));
+      }
     }
   }
 
