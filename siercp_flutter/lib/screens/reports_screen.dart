@@ -358,8 +358,17 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
                             color: widget.textP,
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
-                    Text('${widget.course.studentCount ?? 0} estudiantes',
-                        style: TextStyle(color: widget.textS, fontSize: 11)),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final studentsAsync =
+                            ref.watch(courseStudentsProvider(widget.course.id));
+                        final count = studentsAsync.value?.length ??
+                            widget.course.studentCount ??
+                            0;
+                        return Text('$count estudiantes',
+                            style: TextStyle(color: widget.textS, fontSize: 11));
+                      },
+                    ),
                   ],
                 )),
                 if (widget.canGenerate)

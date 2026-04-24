@@ -222,25 +222,29 @@ class MainShell extends ConsumerWidget {
               decoration: BoxDecoration(
                 border: Border(right: BorderSide(color: borderColor, width: 0.5)),
               ),
-              child: NavigationRail(
-                selectedIndex: index,
-                onDestinationSelected: (i) => _onDestinationSelected(
-                    i, context, ref, isAdmin, isInstructor),
-                labelType: NavigationRailLabelType.all,
-                backgroundColor: navBgColor,
-                selectedLabelTextStyle: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              child: SingleChildScrollView(
+                child: IntrinsicHeight(
+                  child: NavigationRail(
+                    selectedIndex: index,
+                    onDestinationSelected: (i) => _onDestinationSelected(
+                        i, context, ref, isAdmin, isInstructor),
+                    labelType: NavigationRailLabelType.all,
+                    backgroundColor: navBgColor,
+                    selectedLabelTextStyle: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelTextStyle: const TextStyle(fontSize: 11),
+                    destinations: navDestinations
+                        .map((d) => NavigationRailDestination(
+                              icon: d.icon,
+                              selectedIcon: d.selectedIcon,
+                              label: Text(d.label),
+                            ))
+                        .toList(),
+                  ),
                 ),
-                unselectedLabelTextStyle: const TextStyle(fontSize: 11),
-                destinations: navDestinations
-                    .map((d) => NavigationRailDestination(
-                          icon: d.icon,
-                          selectedIcon: d.selectedIcon,
-                          label: Text(d.label),
-                        ))
-                    .toList(),
               ),
             ),
           Expanded(child: child),

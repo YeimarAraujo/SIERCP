@@ -12,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../services/admin_service.dart';
 import '../services/export_service.dart';
 import '../services/session_service.dart';
+import '../services/firestore_service.dart';
 import '../widgets/section_label.dart';
 import '../models/session.dart';
 
@@ -91,7 +92,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       instructorId: user?.id ?? '',
                       instructorName: user?.fullName ?? '',
                     );
-                if (context.mounted) {
+                if (mounted) {
                   Navigator.pop(ctx);
                   ref.invalidate(coursesProvider);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +107,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   );
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error: $e'),
@@ -186,7 +187,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                               cedula: cedulaCtrl.text.trim(),
                               instructorId: user?.id ?? '',
                             );
-                        if (context.mounted) {
+                        if (mounted) {
                           Navigator.pop(ctx);
                           ref.invalidate(coursesProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -202,7 +203,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         }
                       } catch (e) {
                         setSt(() => loading = false);
-                        if (context.mounted) {
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error: $e'),
@@ -456,7 +457,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             studentEmail: user?.email ?? '',
             identificacion: user?.identificacion,
           );
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pop(ctx);
         ref.invalidate(coursesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -473,7 +474,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     } catch (e) {
       debugPrint('❌ ERROR joinCourse: $e');
       setSt(() => setLoading(false));
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: Verifica el código ($e)'),
@@ -1288,13 +1289,32 @@ class _CourseCard extends ConsumerWidget {
                     Text('${(progress * 100).toInt()}% completado',
                         style: TextStyle(color: textT, fontSize: 10)),
                     if (canManage)
-                      Row(
-                        children: [
-                          Icon(Icons.people_outline, size: 11, color: textT),
-                          const SizedBox(width: 4),
-                          Text('${course.studentCount ?? 0} estudiantes',
-                              style: TextStyle(color: textT, fontSize: 10)),
-                        ],
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final studentsAsync =
+                              ref.watch(courseStudentsProvider(course.id));
+                          return Row(
+                            children: [
+                              Icon(Icons.people_outline, size: 11, color: textT),
+                              const SizedBox(width: 4),
+                              studentsAsync.when(
+                                loading: () => const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 1.2,
+                                        color: AppColors.brand)),
+                                error: (_, __) => Text(
+                                    '${course.studentCount ?? 0}',
+                                    style:
+                                        TextStyle(color: textT, fontSize: 10)),
+                                data: (list) => Text('${list.length} est.',
+                                    style:
+                                        TextStyle(color: textT, fontSize: 10)),
+                              ),
+                            ],
+                          );
+                        },
                       )
                     else
                       Text(
@@ -1392,8 +1412,13 @@ class _CourseCard extends ConsumerWidget {
     CourseModel course,
   ) async {
     try {
-      final exportSvc = ref.read(exportServiceProvider);
-      await exportSvc.exportCourseGradesCSV(course);
+      final firestoreSvc = ref.read(firestoreServiceProvider);
+      final exportSvc    = ref.read(exportServiceProvider);
+
+      // Obtener lista fresca de estudiantes
+      final students = await firestoreSvc.getCourseStudents(course.id);
+
+      await exportSvc.exportCourseGradesCSV(course, students);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -153,35 +153,35 @@ class ScenarioSelectScreen extends ConsumerWidget {
                 builder: (context, ref, child) {
                   final isLandscape = MediaQuery.of(context).orientation ==
                       Orientation.landscape;
-                  return scenariosAsync.when(
-                    loading: () => const Center(
-                        child: CircularProgressIndicator(color: AppColors.brand)),
-                    error: (_, __) => const _OfflineScenarios(),
-                    data: (scenarios) => scenarios.isEmpty
-                        ? const _OfflineScenarios()
-                        : isLandscape
-                            ? GridView.builder(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 0,
-                                  childAspectRatio: 2.8,
+                    return scenariosAsync.when(
+                      loading: () => const Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.brand)),
+                      error: (_, __) => const _OfflineScenarios(),
+                      data: (scenarios) => scenarios.isEmpty
+                          ? const _OfflineScenarios()
+                          : isLandscape
+                              ? GridView.builder(
+                                  padding: const EdgeInsets.all(20),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 400,
+                                    mainAxisExtent: 95,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 0,
+                                  ),
+                                  itemCount: scenarios.length,
+                                  itemBuilder: (ctx, i) =>
+                                      _ScenarioCard(scenario: scenarios[i]),
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  itemCount: scenarios.length,
+                                  itemBuilder: (ctx, i) =>
+                                      _ScenarioCard(scenario: scenarios[i]),
                                 ),
-                                itemCount: scenarios.length,
-                                itemBuilder: (ctx, i) =>
-                                    _ScenarioCard(scenario: scenarios[i]),
-                              )
-                            : ListView.builder(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
-                                itemCount: scenarios.length,
-                                itemBuilder: (ctx, i) =>
-                                    _ScenarioCard(scenario: scenarios[i]),
-                              ),
-                  );
+                    );
                 },
               ),
             ),

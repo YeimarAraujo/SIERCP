@@ -184,7 +184,29 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                       ),
                     ],
                   ),
-                  _LiveBadge(),
+                  Row(
+                    children: [
+                      if (isLandscape)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            height: 36,
+                            child: ElevatedButton.icon(
+                              onPressed: _endSession,
+                              icon: const Icon(Icons.stop_circle_outlined, size: 14),
+                              label: const Text('Finalizar', style: TextStyle(fontSize: 12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.red.withValues(alpha: 0.1),
+                                foregroundColor: AppColors.red,
+                                side: const BorderSide(color: AppColors.red, width: 0.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      _LiveBadge(),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -357,27 +379,30 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             ),
 
             // Alerts & Button Area (App Theme)
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Column(
-                children: [
-                  if (alerts.isNotEmpty)
-                    _AlertBanner(alert: alerts.first),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: _endSession,
-                    icon: const Icon(Icons.stop_circle_outlined, size: 18),
-                    label: const Text('Finalizar sesión'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.red.withValues(alpha: 0.1),
-                      foregroundColor: AppColors.red,
-                      minimumSize: const Size(double.infinity, 50),
-                      side: const BorderSide(color: AppColors.red, width: 0.5),
-                    ),
-                  ),
-                ],
+            if (!isLandscape || alerts.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Column(
+                  children: [
+                    if (alerts.isNotEmpty)
+                      _AlertBanner(alert: alerts.first),
+                    if (!isLandscape) ...[
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: _endSession,
+                        icon: const Icon(Icons.stop_circle_outlined, size: 18),
+                        label: const Text('Finalizar sesión'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.red.withValues(alpha: 0.1),
+                          foregroundColor: AppColors.red,
+                          minimumSize: const Size(double.infinity, 50),
+                          side: const BorderSide(color: AppColors.red, width: 0.5),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

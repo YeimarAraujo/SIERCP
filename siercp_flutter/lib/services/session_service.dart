@@ -133,6 +133,10 @@ class SessionService {
     return _db.getCourseStudents(courseId);
   }
 
+  Stream<List<Map<String, dynamic>>> watchCourseStudents(String courseId) {
+    return _db.watchCourseStudents(courseId);
+  }
+
   Future<DeviceStatusData> getDeviceStatus() async {
     try {
       final manikins = await _db.getManikins();

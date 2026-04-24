@@ -169,9 +169,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
   @override
   Widget build(BuildContext context) {
     final scenario = kScenarios[widget.scenarioId];
-    debugPrint('🔴 id recibido: "${widget.scenarioId}"');
-    debugPrint('🔴 keys disponibles: ${kScenarios.keys.toList()}');
-    debugPrint('🔴 encontrado: ${kScenarios.containsKey(widget.scenarioId)}');
     if (scenario == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.go('/session?scenario=${widget.scenarioId}');
@@ -196,10 +193,7 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
             position: _slideAnim,
             child: Column(
               children: [
-                // ── Header ────────────────────────────────────────────────
                 _Header(scenario: scenario, isDark: isDark),
-
-                // ── Scrollable content ────────────────────────────────────
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
@@ -207,8 +201,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
-
-                        // Ficha del paciente
                         _PatientCard(
                           scenario: scenario,
                           isDark: isDark,
@@ -218,8 +210,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
                           color: color,
                         ),
                         const SizedBox(height: 16),
-
-                        // Descripción clínica
                         _SectionCard(
                           icon: Icons.description_outlined,
                           label: 'Caso clínico',
@@ -237,8 +227,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Situación
                         _SectionCard(
                           icon: Icons.warning_amber_rounded,
                           label: 'Tu situación',
@@ -256,8 +244,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Parámetros AHA
                         _ProtocolCard(
                           scenario: scenario,
                           isDark: isDark,
@@ -275,8 +261,6 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
           ),
         ),
       ),
-
-      // ── Botón iniciar sesión ───────────────────────────────────────────
       bottomNavigationBar: _BottomAction(
         scenario: scenario,
         color: color,
@@ -285,7 +269,7 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
   }
 }
 
-// ─── Header con back button ───────────────────────────────────────────────────
+// ─── Header ──────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final ScenarioDetailData scenario;
   final bool isDark;
@@ -379,7 +363,6 @@ class _PatientCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar del paciente
           Container(
             width: 52,
             height: 52,
@@ -397,16 +380,15 @@ class _PatientCard extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
+                      child: const Text(
                         'PACIENTE',
                         style: TextStyle(
-                          color: color,
+                          color: Colors.red, // generic but placeholder-ish, better use 'color'
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
@@ -453,8 +435,7 @@ class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color textS;
-  const _InfoChip(
-      {required this.icon, required this.label, required this.textS});
+  const _InfoChip({required this.icon, required this.label, required this.textS});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -466,7 +447,6 @@ class _InfoChip extends StatelessWidget {
       );
 }
 
-// ─── Sección con icono y label ────────────────────────────────────────────────
 class _SectionCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -524,7 +504,6 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-// ─── Protocolo AHA ────────────────────────────────────────────────────────────
 class _ProtocolCard extends StatelessWidget {
   final ScenarioDetailData scenario;
   final bool isDark;
@@ -571,15 +550,13 @@ class _ProtocolCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Grid de parámetros 2x2
           Row(
             children: [
               Expanded(
                 child: _ParamTile(
                   icon: Icons.straighten_outlined,
                   label: 'Profundidad',
-                  value:
-                      '${scenario.profMinMm.toInt()}–${scenario.profMaxMm.toInt()} mm',
+                  value: '${scenario.profMinMm.toInt()}–${scenario.profMaxMm.toInt()} mm',
                   color: color,
                   textP: textP,
                   textT: textT,
@@ -658,19 +635,9 @@ class _ParamTile extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(color: textT, fontSize: 9, letterSpacing: 0.5),
-          ),
+          Text(label, style: TextStyle(color: textT, fontSize: 9, letterSpacing: 0.5)),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              color: textP,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(value, style: TextStyle(color: textP, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -701,23 +668,25 @@ class _BottomActionState extends State<_BottomAction> {
   Future<void> _toggleAudio() async {
     if (_isPlaying) {
       await _player.stop();
-      setState(() => _isPlaying = false);
+      if (mounted) setState(() => _isPlaying = false);
       return;
     }
 
     setState(() => _isLoading = true);
     try {
       await _player.play(AssetSource(widget.scenario.audioFile));
-      setState(() {
-        _isPlaying = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = true;
+          _isLoading = false;
+        });
+      }
       _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlaying = false);
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No se pudo reproducir el audio')),
         );
@@ -729,95 +698,171 @@ class _BottomActionState extends State<_BottomAction> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = widget.color;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 10, 20, isLandscape ? 12 : 24),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
+            color: theme.colorScheme.outline.withValues(alpha: 0.4),
             width: 0.5,
           ),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Botón de audio ──────────────────────────────────────
-          GestureDetector(
-            onTap: _isLoading ? null : _toggleAudio,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.25),
-                  width: 0.8,
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_isLoading)
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: color,
+      child: isLandscape
+          ? Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _isLoading ? null : _toggleAudio,
+                    child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.25),
+                          width: 0.8,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
-                    )
-                  else
-                    Icon(
-                      _isPlaying
-                          ? Icons.stop_circle_outlined
-                          : Icons.volume_up_rounded,
-                      color: color,
-                      size: 18,
-                    ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isPlaying ? 'Detener audio' : 'Escuchar caso clínico',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isLoading)
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: color,
+                              ),
+                            )
+                          else
+                            Icon(
+                              _isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+                              color: color,
+                              size: 16,
+                            ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _isPlaying ? 'Detener' : 'Escuchar caso',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Botón iniciar simulación ─────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                _player.stop(); // para el audio si estaba sonando
-                context.go('/session?scenario=${widget.scenario.id}');
-              },
-              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-              label: const Text(
-                'Iniciar simulación',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _player.stop();
+                        context.go('/session?scenario=${widget.scenario.id}');
+                      },
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                      label: const Text(
+                        'Iniciar simulación',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: _isLoading ? null : _toggleAudio,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.08),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.25),
+                        width: 0.8,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isLoading)
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: color,
+                            ),
+                          )
+                        else
+                          Icon(
+                            _isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+                            color: color,
+                            size: 18,
+                          ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isPlaying ? 'Detener audio' : 'Escuchar caso clínico',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      _player.stop();
+                      context.go('/session?scenario=${widget.scenario.id}');
+                    },
+                    icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                    label: const Text(
+                      'Iniciar simulación',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -284,6 +284,15 @@ class FirestoreService {
     return snap.docs.map((d) => d.data()).toList();
   }
 
+  Stream<List<Map<String, dynamic>>> watchCourseStudents(String courseId) {
+    return _courses
+        .doc(courseId)
+        .collection('enrollments')
+        .orderBy('enrolledAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.data()).toList());
+  }
+
   Future<List<String>> getStudentEnrolledCourseIds(String studentId) async {
     final coursesSnap = await _courses.where('isActive', isEqualTo: true).get();
     final List<String> enrolledIds = [];
