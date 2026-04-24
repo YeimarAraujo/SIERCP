@@ -24,13 +24,14 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final estudiantesCtrl = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.add_circle_outline_rounded, color: AppColors.brand, size: 20),
+            Icon(Icons.add_circle_outline_rounded,
+                color: AppColors.brand, size: 20),
             SizedBox(width: 10),
             Text('Crear nuevo curso'),
           ],
@@ -40,38 +41,40 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-              controller: nameCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Nombre del curso',
-                prefixIcon: Icon(Icons.menu_book_outlined),
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del curso',
+                  prefixIcon: Icon(Icons.menu_book_outlined),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              maxLines: 2,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Descripción',
-                prefixIcon: Icon(Icons.description_outlined),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descCtrl,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: estudiantesCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Estudiantes (cédulas)',
-                hintText: 'Ej: 1234567, 9876543...',
-                prefixIcon: Icon(Icons.people_alt_outlined),
+              const SizedBox(height: 12),
+              TextField(
+                controller: estudiantesCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Estudiantes (cédulas)',
+                  hintText: 'Ej: 1234567, 9876543...',
+                  prefixIcon: Icon(Icons.people_alt_outlined),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ), // End of SingleChildScrollView
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
           ElevatedButton.icon(
             icon: const Icon(Icons.check_rounded, size: 16),
             label: const Text('Crear'),
@@ -79,24 +82,25 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               try {
                 final user = ref.read(currentUserProvider);
                 await ref.read(sessionServiceProvider).createCourse(
-                  name:           nameCtrl.text.trim(),
-                  description:    descCtrl.text.trim(),
-                  instructorId:   user?.id ?? '',
-                  instructorName: user?.fullName ?? '',
-                );
-                  if (context.mounted) {
-                    Navigator.pop(ctx);
-                    ref.invalidate(coursesProvider);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Row(children: [
-                          Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-                          SizedBox(width: 8),
-                          Text('Curso creado con éxito'),
-                        ]),
-                      ),
+                      name: nameCtrl.text.trim(),
+                      description: descCtrl.text.trim(),
+                      instructorId: user?.id ?? '',
+                      instructorName: user?.fullName ?? '',
                     );
-                  }
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ref.invalidate(coursesProvider);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Row(children: [
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text('Curso creado con éxito'),
+                      ]),
+                    ),
+                  );
+                }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -152,13 +156,16 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar')),
             ElevatedButton.icon(
               icon: loading
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.person_add_rounded, size: 16),
               label: const Text('Inscribir'),
@@ -166,20 +173,23 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   ? null
                   : () async {
                       setSt(() => loading = true);
-                        try {
-                          final user = ref.read(currentUserProvider);
-                          await ref.read(adminServiceProvider).enrollStudentByCedula(
-                            courseId:     courseId,
-                            cedula:       cedulaCtrl.text.trim(),
-                            instructorId: user?.id ?? '',
-                          );
+                      try {
+                        final user = ref.read(currentUserProvider);
+                        await ref
+                            .read(adminServiceProvider)
+                            .enrollStudentByCedula(
+                              courseId: courseId,
+                              cedula: cedulaCtrl.text.trim(),
+                              instructorId: user?.id ?? '',
+                            );
                         if (context.mounted) {
                           Navigator.pop(ctx);
                           ref.invalidate(coursesProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Row(children: [
-                                Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                                Icon(Icons.check_circle_outline,
+                                    color: Colors.white, size: 16),
                                 SizedBox(width: 8),
                                 Text('Estudiante inscrito con éxito'),
                               ]),
@@ -192,7 +202,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error: $e'),
-                              backgroundColor: AppColors.red.withValues(alpha: 0.9),
+                              backgroundColor:
+                                  AppColors.red.withValues(alpha: 0.9),
                             ),
                           );
                         }
@@ -215,7 +226,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
         builder: (ctx, setSt) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.sensor_door_outlined, color: AppColors.brand, size: 20),
+              Icon(Icons.sensor_door_outlined,
+                  color: AppColors.brand, size: 20),
               SizedBox(width: 10),
               Text('Unirse a un curso'),
             ],
@@ -239,7 +251,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.login_rounded, size: 16),
               label: const Text('Unirse'),
@@ -251,19 +264,20 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       try {
                         final user = ref.read(currentUserProvider);
                         await ref.read(sessionServiceProvider).joinCourse(
-                          codeCtrl.text.trim().toUpperCase(),
-                          studentId:      user?.id ?? '',
-                          studentName:    user?.fullName ?? '',
-                          studentEmail:   user?.email ?? '',
-                          identificacion: user?.identificacion,
-                        );
+                              codeCtrl.text.trim().toUpperCase(),
+                              studentId: user?.id ?? '',
+                              studentName: user?.fullName ?? '',
+                              studentEmail: user?.email ?? '',
+                              identificacion: user?.identificacion,
+                            );
                         if (context.mounted) {
                           Navigator.pop(ctx);
                           ref.invalidate(coursesProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Row(children: [
-                                Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                                Icon(Icons.check_circle_outline,
+                                    color: Colors.white, size: 16),
                                 SizedBox(width: 8),
                                 Text('Te has unido al curso con éxito'),
                               ]),
@@ -277,7 +291,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error: Verifica el código ($e)'),
-                              backgroundColor: AppColors.red.withValues(alpha: 0.9),
+                              backgroundColor:
+                                  AppColors.red.withValues(alpha: 0.9),
                             ),
                           );
                         }
@@ -292,15 +307,15 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final coursesAsync  = ref.watch(coursesProvider);
-    final currentUser   = ref.watch(currentUserProvider);
-    final isInstructor  = currentUser?.isInstructor ?? false;
-    final isAdmin       = currentUser?.isAdmin ?? false;
-    final canManage     = isInstructor || isAdmin;
+    final coursesAsync = ref.watch(coursesProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isInstructor = currentUser?.isInstructor ?? false;
+    final isAdmin = currentUser?.isAdmin ?? false;
+    final canManage = isInstructor || isAdmin;
 
-    final theme  = Theme.of(context);
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -364,7 +379,9 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 child: coursesAsync.when(
                   loading: () => const SizedBox(
                     height: 80,
-                    child: Center(child: CircularProgressIndicator(color: AppColors.brand)),
+                    child: Center(
+                        child:
+                            CircularProgressIndicator(color: AppColors.brand)),
                   ),
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
@@ -376,17 +393,18 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   data: (courses) => courses.isEmpty
                       ? _EmptyCoursesState(
                           canManage: canManage,
-                          onCreate: canManage ? _showCreateDialog : _showJoinDialog,
+                          onCreate:
+                              canManage ? _showCreateDialog : _showJoinDialog,
                         )
-                       : Padding(
-                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                           child: Column(
-                             children: courses
-                                 .map((c) => _CourseCard(
-                                       course: c,
-                                       canManage: canManage,
-                                       onEnroll: () => _showEnrollDialog(c.id),
-                                     ))
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: courses
+                                .map((c) => _CourseCard(
+                                      course: c,
+                                      canManage: canManage,
+                                      onEnroll: () => _showEnrollDialog(c.id),
+                                    ))
                                 .toList(),
                           ),
                         ),
@@ -420,20 +438,22 @@ class _EmptyCoursesState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 40),
       child: Column(
         children: [
-          Icon(Icons.school_outlined, size: 52, color: textT.withValues(alpha: 0.5)),
+          Icon(Icons.school_outlined,
+              size: 52, color: textT.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             canManage
                 ? 'Aún no has creado ningún curso'
                 : 'No estás inscrito en ningún curso',
             textAlign: TextAlign.center,
-            style: TextStyle(color: textS, fontSize: 14, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                color: textS, fontSize: 14, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 6),
           Text(
@@ -454,7 +474,8 @@ class _EmptyCoursesState extends StatelessWidget {
           ] else ...[
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: onCreate, // onCreate para estudiantes será igual The Dialog para unirse o lo llamamos directo
+              onPressed:
+                  onCreate, // onCreate para estudiantes será igual The Dialog para unirse o lo llamamos directo
               icon: const Icon(Icons.sensor_door_outlined, size: 16),
               label: const Text('Unirse con código'),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
@@ -479,15 +500,16 @@ class _CourseCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT  = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
-    return Container(
+    // ✅ CAMBIO: Container guardado en variable 'card'
+    final card = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: surface,
@@ -542,12 +564,14 @@ class _CourseCard extends ConsumerWidget {
                     // Código de invitación (solo si existe y es instructor/admin)
                     if (course.inviteCode != null && canManage)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.brand.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: AppColors.brand.withValues(alpha: 0.25), width: 0.5),
+                              color: AppColors.brand.withValues(alpha: 0.25),
+                              width: 0.5),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -612,27 +636,32 @@ class _CourseCard extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  // Ver detalle completo
                   _ActionButton(
-                    icon: Icons.open_in_new_rounded,
-                    label: 'Detalle',
+                    icon: Icons.layers_outlined,
+                    label: 'Módulos',
                     color: AppColors.accent,
-                    onTap: () => context.push('/courses/${course.id}'),
+                    onTap: () => context.push('/course-editor/${course.id}'),
                   ),
-                  // Inscribir student
                   _ActionButton(
                     icon: Icons.person_add_outlined,
                     label: 'Inscribir',
                     onTap: onEnroll,
                   ),
-                  // Exportar notas
+                  _ActionButton(
+                    icon: Icons.groups_2_outlined,
+                    label: 'Alumnos',
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => _StudentsBottomSheet(courseId: course.id),
+                    ),
+                  ),
                   _ActionButton(
                     icon: Icons.download_outlined,
                     label: 'Exportar',
                     color: AppColors.green,
                     onTap: () => _exportStudentGrades(context, ref, course),
                   ),
-                  // Monitoreo en vivo
                   _ActionButton(
                     icon: Icons.monitor_heart_outlined,
                     label: 'En Vivo',
@@ -646,6 +675,28 @@ class _CourseCard extends ConsumerWidget {
         ],
       ),
     );
+
+    // ✅ CAMBIO CLAVE: alumno → toda la tarjeta navega al detalle del curso
+    if (!canManage) {
+      return GestureDetector(
+        onTap: () {
+          final user = ref.read(currentUserProvider);
+          context.push(
+            '/student/course-detail',
+            extra: {
+              'courseId': course.id,
+              'studentId': user?.id ?? '',
+              'courseTitle': course.title,
+              'instructorName': course.instructorName,
+            },
+          );
+        },
+        child: card,
+      );
+    }
+
+    // Instructor/Admin → usa los botones internos, no tap global
+    return card;
   }
 
   Future<void> _exportStudentGrades(
@@ -686,7 +737,11 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final Color? color;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.label, required this.onTap, this.color});
+  const _ActionButton(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -724,10 +779,10 @@ class _StudentsBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(courseStudentsProvider(courseId));
-    final theme  = Theme.of(context);
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final bg     = theme.colorScheme.surface;
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final bg = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
     return DraggableScrollableSheet(
@@ -738,7 +793,8 @@ class _StudentsBottomSheet extends ConsumerWidget {
       builder: (_, controller) => Container(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         child: Column(
           children: [
@@ -756,11 +812,14 @@ class _StudentsBottomSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.groups_2_outlined, color: AppColors.brand, size: 20),
+                  const Icon(Icons.groups_2_outlined,
+                      color: AppColors.brand, size: 20),
                   const SizedBox(width: 10),
                   Text('Estudiantes del curso',
                       style: TextStyle(
-                          color: textP, fontSize: 16, fontWeight: FontWeight.w700)),
+                          color: textP,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
@@ -778,7 +837,8 @@ class _StudentsBottomSheet extends ConsumerWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.person_off_outlined, size: 40, color: textS),
+                            Icon(Icons.person_off_outlined,
+                                size: 40, color: textS),
                             const SizedBox(height: 12),
                             Text('Sin estudiantes inscritos',
                                 style: TextStyle(color: textS, fontSize: 13)),
@@ -790,7 +850,8 @@ class _StudentsBottomSheet extends ConsumerWidget {
                         padding: const EdgeInsets.all(16),
                         itemCount: students.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (_, i) => _StudentTile(student: students[i]),
+                        itemBuilder: (_, i) =>
+                            _StudentTile(student: students[i]),
                       ),
               ),
             ),
@@ -808,12 +869,12 @@ class _StudentTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     // Score color
     final score = student.avgScore as double? ?? 0.0;
@@ -826,9 +887,7 @@ class _StudentTile extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkCard
-            : AppColors.lightSurface2,
+        color: isDark ? AppColors.darkCard : AppColors.lightSurface2,
         border: Border.all(color: border, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
@@ -895,4 +954,3 @@ class _StudentTile extends ConsumerWidget {
     );
   }
 }
-

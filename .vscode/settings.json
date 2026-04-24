@@ -1,4 +1,5 @@
 {
     "idf.currentSetup": "C:\\esp\\v6.0\\esp-idf",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "cmake.ignoreCMakeListsMissing": true
 }
