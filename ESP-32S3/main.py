@@ -1,503 +1,795 @@
+
 import network
 import ujson
 import utime
 import ubinascii
+import _thread
 from machine import I2C, Pin, UART
 from hx711 import HX711
 
-# ============================================================
-<<<<<<< HEAD
-# CONFIGURACION DE INTERNET Y FIREBASE
-# ============================================================
+
 WIFI_SSID     = "YeimarAraujo"
-WIFI_PASSWORD = "09122005" 
-FIREBASE_URL  = "https://siercp-default-rtdb.firebaseio.com/"  # <-- URL DE TU FIREBASE REALTIME DATABASE
-MANIQUI_UUID  = "AA:BB:CC:DD:EE:FF"          # <-- MAC REAL (se auto-detectara abajo)
-=======
-# CONFIGURACION
-# ============================================================
-WIFI_SSID     = "YeimarAraujo"
-WIFI_PASSWORD = "09122005" 
+WIFI_PASSWORD = "09122005"
 FIREBASE_URL  = "https://siercp-default-rtdb.firebaseio.com"
->>>>>>> origin/main
+
 
 # Configurar WiFi
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-<<<<<<< HEAD
-mac_real = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
-print("\n[INFO] MAC Address REAL de este ESP32:", mac_real)
-MANIQUI_UUID = mac_real  # Auto-reemplazamos con la real
-
-def conectar_wifi():
-    led_azul = Pin(2, Pin.OUT) # Asumimos Pin 2 (comun para LED integrado o externo)
-    led_azul.value(0)          # Apagado mientras intenta conectar
-    
-    if not wlan.isconnected():
-        print("\nConectando a Wi-Fi:", WIFI_SSID, "...")
-        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
-        t = 10
-        while not wlan.isconnected() and t > 0:
-            utime.sleep(1)
-            t -= 1
-    if wlan.isconnected():
-        led_azul.value(1)      # Encender LED Azul (WiFi OK)
-        print("[WIFI] Conectado! IP:", wlan.ifconfig()[0])
-    else:
-        print("[WIFI] ADVERTENCIA: Fallo al conectar. Funcionara localmente.")
-
-# ============================================================
-# DRIVERS Y RCP
-# ============================================================
-try:
-    from vl53l0x import VL53L0X
-except ImportError:
-    pass
-
-class JQ8900:
-    def __init__(self, uart):
-        self.uart = uart
-        utime.sleep_ms(500)
-    def _cmd(self, cmd, *args):
-=======
 DEVICE_MAC = ubinascii.hexlify(wlan.config('mac'), ':').decode().upper()
 
+
 def conectar_wifi():
-    """Conecta a WiFi y enciende LED azul cuando está conectado"""
+    """Conecta a WiFi y enciende LED azul cuando esta conectado"""
     led_azul = Pin(2, Pin.OUT)
     led_azul.value(0)
-    
+
     if not wlan.isconnected():
-        print(f"\n[WiFi] Conectando a: {WIFI_SSID}...")
+        print("\n[WiFi] Conectando a: {}...".format(WIFI_SSID))
         wlan.connect(WIFI_SSID, WIFI_PASSWORD)
-        timeout = 15
-        
+        timeout = 20
+
         while not wlan.isconnected() and timeout > 0:
             utime.sleep(1)
             timeout -= 1
             print(".", end="")
-    
+
     if wlan.isconnected():
         led_azul.value(1)
-        print(f"\n[WiFi] ✓ Conectado | IP: {wlan.ifconfig()[0]}")
-        print(f"[WiFi] MAC: {DEVICE_MAC}")
+        print("\n[WiFi] OK Conectado | IP: {}".format(wlan.ifconfig()[0]))
+        print("[WiFi] MAC: {}".format(DEVICE_MAC))
         return True
     else:
-        print("\n[WiFi] ✗ Error: No se pudo conectar")
+        print("\n[WiFi] ERROR: No se pudo conectar")
         return False
+
 
 # ============================================================
 # DRIVER DE AUDIO JQ8900
 # ============================================================
 class JQ8900:
-    """Driver para módulo de audio JQ8900"""
+    """Driver para modulo de audio JQ8900"""
     def __init__(self, uart):
         self.uart = uart
         utime.sleep_ms(500)
         self._cmd(0x09, 0x01)  # Seleccionar tarjeta SD
         utime.sleep_ms(200)
-        self._cmd(0x13, 30)    # Volumen máximo (30)
-    
+        self._cmd(0x13, 30)    # Volumen maximo (30)
+
     def _cmd(self, cmd, *args):
-        """Envía comando al JQ8900"""
->>>>>>> origin/main
+        """Envia comando al JQ8900"""
         buf = bytearray([0xAA, cmd, len(args)] + list(args))
         buf.append(sum(buf) & 0xFF)
         self.uart.write(bytes(buf))
         utime.sleep_ms(50)
-<<<<<<< HEAD
+
     def play(self, track):
+        """Reproduce pista especifica (1-255)"""
         self._cmd(0x07, 0x00, track)
 
-class SistemaRCP:
-    def __init__(self):
-        print("\nInicializando Sensores...")
-        
-        # Audio
-        uart = UART(2, baudrate=9600, tx=Pin(16), rx=Pin(15))
-        self.audio = JQ8900(uart)
-        # Cambio a Tarjeta SD y volumen al maximo
-        self.audio._cmd(0x09, 0x01) # Seleccionar SD (por si tu modulo es solo-SD)
-        utime.sleep_ms(200)
-        self.audio._cmd(0x13, 30)   # Volumen maximo (30)
-        print("JQ8900 (Audio) -> OK")
 
-        # Fuerza (HX711 en pines 4 y 5 seguros para S3)
+# ── Profundidad ──────────────────────────────────────────────
+# AHA 2025: 5–6 cm (adulto). Usamos margen interior para retroalimentacion.
+AHA_MIN_DEPTH_MM      = 50.0   # 5.0 cm — minimo clinico
+AHA_MAX_DEPTH_MM      = 60.0   # 6.0 cm — maximo clinico
+AHA_DEPTH_WARN_LOW_MM = 45.0   # <4.5 cm → advertencia "muy superficial"
+AHA_DEPTH_WARN_HI_MM  = 65.0   # >6.5 cm → advertencia "demasiado profundo"
+
+# ── Frecuencia CPM ──────────────────────────────────────────
+# AHA 2025: 100–120 cpm. Fuera de rango = riesgo para el paciente.
+# Por encima de 120 cpm la calidad cae y se puede dañar al paciente.
+AHA_MIN_RATE_CPM      = 100
+AHA_MAX_RATE_CPM      = 120
+AHA_RATE_DANGER_HI    = 130    # >130 cpm = PELIGROSO → penaliza calidad
+AHA_RATE_DANGER_LOW   = 80     # <80 cpm  = MUY LENTO → penaliza calidad
+
+# ── Fuerza aplicada (HX711, celda de carga) ─────────────────
+# Referencia: ~25–60 kg-fuerza para adulto sobre maniquí.
+# Ajusta FORCE_MIN_KG y FORCE_MAX_KG según tu celda calibrada.
+AHA_FORCE_MIN_KG      = 25.0   # Minimo de fuerza aceptable
+AHA_FORCE_MAX_KG      = 60.0   # Maximo de fuerza aceptable
+AHA_FORCE_DANGER_KG   = 70.0   # Fuerza excesiva — riesgo fractura costal
+
+# ── Recoil (descompresion completa) ──────────────────────────
+# El pecho debe descomprimirse por completo entre compresiones.
+# Si la fuerza residual supera este umbral, el recoil es incompleto.
+AHA_RECOIL_THRESHOLD  = 2.5    # kg — umbral mas estricto (antes 0.8 kg)
+                                # En maniqui con celda real: ajustar post-calibracion
+
+# ── Pausa maxima sin compresiones ────────────────────────────
+AHA_MAX_PAUSE_SEC     = 10.0
+
+# ── Deteccion de compresiones (maquina de estados) ──────────
+# Ajustados para maniqui adulto + sensor VL53L0X montado sobre el pecho.
+# La base del sensor esta tipicamente a 150–300 mm sobre el esternon en reposo.
+
+DETECT_START_MM       = 10.0   # Profundidad minima para abrir la ventana de compresion
+                                # (era 8 mm, ahora 10 mm para reducir falsos positivos)
+DETECT_PEAK_MIN_MM    = 10.0   # Pico minimo aceptable para que sea compresion real
+                                # (era 20 mm — ahora 35 mm para exigir al menos 3.5 cm
+                                #  y descartar toqueteos o apoyos leves)
+DETECT_END_MM         = 6.0    # Profundidad al regresar para cerrar el ciclo
+                                # (era 4 mm, ahora 6 mm — regreso mas realista)
+DETECT_REARM_MM       = 6.0    # Umbral de rearmado antes de aceptar nueva compresion
+                                # (era 6 mm, ahora 8 mm — evita doble conteo)
+DETECT_MIN_DUR_MS     = 120    # Duracion minima de compresion valida (antes 120 ms)
+                                # < 150 ms = toque rapido, no compresion clinica
+DETECT_MAX_DUR_MS     = 900    # Duracion maxima (antes 900 ms)
+                                # > 800 ms = compresion demasiado lenta
+DETECT_DEBOUNCE_MS    = 60     # Debounce entre ciclos (antes 60 ms)
+
+# ── Telemetria ──────────────────────────────────────────────
+TELEMETRIA_MS         = 100    # ~6-7 updates/seg (antes 100 ms — mas estable en red)
+
+# ── Boton de finalizacion fisica ─────────────────────────────
+# El sistema NO finaliza por tiempo. Termina cuando el operador
+# presiona el boton fisico conectado a GPIO 0 (pull-up interno).
+# PIN_BTN_FIN = 0 corresponde al BOOT button del ESP32 (facil de usar en demos).
+PIN_BTN_FIN           = 0      # GPIO con boton de finalizar sesion (pull-up interno)
+BTN_DEBOUNCE_MS       = 300    # Antirrebote del boton
+
+
+# ============================================================
+# SISTEMA RCP — AHA 2025 (version mejorada)
+# ============================================================
+class SistemaRCP:
+    """
+    Sistema de monitoreo RCP con precision clinica AHA 2025.
+
+    Mejoras respecto a version anterior:
+    - DETECT_PEAK_MIN_MM subido a 35 mm → solo cuenta compresiones reales
+    - Umbral AHA_RECOIL_THRESHOLD subido a 2.5 kg → recoil mas estricto
+    - Frecuencia: penalizacion de calidad si cpm > 120 o < 100
+    - Fuerza: evaluacion y retroalimentacion auditiva por rango
+    - Calidad: ponderada (profundidad 40% + recoil 30% + frecuencia 30%)
+    - Sesion finaliza con BOTON FISICO, no por tiempo
+    - Telemetria incluye breakdowns de calidad
+    """
+
+    def __init__(self):
+        print("\n" + "=" * 50)
+        print("   SIERCP — Sistema RCP AHA 2025 v2")
+        print("=" * 50)
+
+        # Boton de finalizacion (GPIO 0, BOOT button ESP32)
+        self.btn_fin = Pin(PIN_BTN_FIN, Pin.IN, Pin.PULL_UP)
+        self._btn_last_ms = 0
+        self._sesion_activa = False
+
+        # Audio JQ8900
+        self._init_audio()
+
+        # Sensor de Fuerza HX711
+        self._init_fuerza()
+
+        # Sensor Laser VL53L0X (OBLIGATORIO)
+        self._init_laser()
+
+        # Control de compresiones
+        self.en_compresion = False
+        self.pico_fuerza = 0.0
+        self.pico_profundidad = 0.0
+        self._ts_compresiones = []
+        self._MAX_WINDOW = 14   # ventana de 14 compresiones para CPM estable
+
+        # Telemetria
+        self.ultima_telemetria = 0
+        self._tel_data = None
+        self._tel_lock = _thread.allocate_lock()
+        self._tel_running = False
+
+        self.reset_estadisticas()
+
+    # ── Reset ────────────────────────────────────────────────────
+    def reset_estadisticas(self):
+        """Reinicia todos los contadores para una nueva sesion"""
+        self.estado_mecanico     = "reposo"
+        self.en_compresion       = False
+        self.inicio_compresion_ts = 0
+        self.fin_compresion_ts   = 0
+        self.pico_fuerza         = 0.0
+        self.pico_profundidad    = 0.0
+        self.compresiones_totales   = 0
+        self.compresiones_correctas = 0
+        self.recoil_correctos    = 0
+        self.freq_correctas      = 0   # compresiones dentro de 100-120 cpm
+        self.fuerza_correctas    = 0   # compresiones con fuerza en rango
+        self._ts_compresiones    = []
+        self.ultima_compresion_ts = 0
+        self.pausas_count        = 0
+        self.max_pausa_seg       = 0.0
+        self._sum_profundidad    = 0.0
+        self._sum_fuerza         = 0.0
+
+        # Estado instantaneo
+        self.frecuencia_cpm      = 0
+        self.profundidad_actual  = 0.0
+        self.fuerza_actual       = 0.0
+        self.calidad_pct         = 0.0
+        self.recoil_ok           = False
+        self.compresion_correcta = False
+
+        print("\n[OK] Estadisticas reiniciadas\n")
+
+    # ── Inicializacion ───────────────────────────────────────────
+    def _init_audio(self):
+        try:
+            uart = UART(2, baudrate=9600, tx=Pin(16), rx=Pin(15))
+            self.audio = JQ8900(uart)
+            print("[Audio] OK - JQ8900 (TX:16, RX:15)")
+        except Exception as e:
+            print("[Audio] WARN: {}".format(e))
+            self.audio = None
+
+    def _init_fuerza(self):
         self.fuerza_ok = False
         try:
             self.celda = HX711(4, 5)
             self.fuerza_ok = True
-            print("HX711 (Fuerza) -> OK")
-        except Exception as e:
-            print("HX711 -> FALLO:", e)
-
-        # Laser (I2C en 17 y 18)
-        self.laser_ok = False
-        self.distancia_base = 200
-        try:
-            self.i2c = I2C(1, sda=Pin(17), scl=Pin(18), freq=100000)
-            if 0x29 in self.i2c.scan():
-                self.laser = VL53L0X(self.i2c)
-                self.laser_ok = True
-                print("VL53L0X (Laser) ->  OK")
+            if self.celda.is_calibrated:
+                print("[Fuerza] OK - HX711 calibrado (scale={:.2f})".format(self.celda.scale))
             else:
-                print("VL53L0X -> No detectado en I2C (revisa cables)")
+                print("[Fuerza] WARN - HX711 SIN CALIBRAR — ejecutar: sistema.calibrar_fuerza()")
         except Exception as e:
-            print("VL53L0X -> FALLO:", e)
+            print("[Fuerza] ERROR: {}".format(e))
 
-        if not self.laser_ok:
-            print("\n[!] AVISO: Laser VL53L0X no disponible.")
-            print("[!] Se simulara la profundidad usando la fuerza de compresion.")
-
-        self.ultima_telemetria = 0
-
-    def enviar_telemetria(self, hr, ox, pres, temp):
-        if not wlan.isconnected(): return
-        try:
-            import urequests
-            url = FIREBASE_URL + "/telemetria/" + MANIQUI_UUID + ".json"
-            data = {
-                "ritmo_cardiaco": hr,
-                "oxigeno": ox,
-                "presion": pres,
-                "temperatura": temp,
-                "timestamp": {".sv": "timestamp"}
-            }
-            # PATCH actualiza los datos en vez de duplicarlos/sobreescribir el historial entero
-            res = urequests.patch(url, json=data, timeout=3)
-            print("[Firebase] Enviado OK:", res.text)
-            res.close()
-        except ImportError:
-            pass # No hay urequests instalado
-        except Exception as e:
-            print("[Firebase] Fallo envio:", e)
-
-    def calibrar(self):
-        print("\nCalibrando sensores...")
-        if self.fuerza_ok:
-            try:
-                self.celda.tare(10)
-            except: pass
-            
-        if self.laser_ok:
-            muestras = []
-=======
-    
-    def play(self, track):
-        """Reproduce pista específica (1-255)"""
-        self._cmd(0x07, 0x00, track)
-
-# ============================================================
-# SISTEMA RCP
-# ============================================================
-class SistemaRCP:
-    """Sistema de monitoreo de RCP con sensores y telemetría"""
-    
-    def __init__(self):
-        print("\n" + "="*50)
-        print("   SISTEMA RCP - Inicializando...")
-        print("="*50)
-        
-        # Audio JQ8900
-        self._init_audio()
-        
-        # Sensor de Fuerza HX711
-        self._init_fuerza()
-        
-        # Sensor Láser VL53L0X
-        self._init_laser()
-        
-        # Variables de control
-        self.ultima_telemetria = 0
-        self.compresiones_detectadas = 0
-        self.ultima_compresion = 0
-        self.timestamps_compresiones = []
-        self.en_compresion = False
-        self.pico_fuerza = 0.0
-        
-        print("\n" + "="*50)
-        print("   ✓ Sistema inicializado correctamente")
-        print("="*50 + "\n")
-    
-    def _init_audio(self):
-        """Inicializa módulo de audio"""
-        try:
-            uart = UART(2, baudrate=9600, tx=Pin(16), rx=Pin(15))
-            self.audio = JQ8900(uart)
-            print("[Audio] ✓ JQ8900 OK (Pines TX:16, RX:15)")
-        except Exception as e:
-            print(f"[Audio] ✗ Error: {e}")
-            self.audio = None
-    
-    def _init_fuerza(self):
-        """Inicializa sensor de fuerza HX711"""
-        self.fuerza_ok = False
-        try:
-            self.celda = HX711(4, 5)  # DT=4, SCK=5
-            self.fuerza_ok = True
-            print("[Fuerza] ✓ HX711 OK (Pines DT:4, SCK:5)")
-        except Exception as e:
-            print(f"[Fuerza] ✗ Error: {e}")
-    
     def _init_laser(self):
-        """Inicializa sensor láser VL53L0X"""
         self.laser_ok = False
-        self.distancia_base = 200  # mm (distancia sin compresión)
-        
+        self.distancia_base = 0
         try:
-            self.i2c = I2C(1, sda=Pin(17), scl=Pin(18), freq=100000)
+            self.i2c = I2C(1, sda=Pin(17), scl=Pin(18), freq=400000)
             dispositivos = self.i2c.scan()
-            
             if 0x29 in dispositivos:
                 from vl53l0x import VL53L0X
                 self.laser = VL53L0X(self.i2c)
                 self.laser_ok = True
-                print("[Láser] ✓ VL53L0X OK (I2C SDA:17, SCL:18)")
+                print("[Laser] OK - VL53L0X (I2C SDA:17, SCL:18)")
             else:
-                print(f"[Láser] ⚠ No detectado en I2C")
+                print("[Laser] ERROR - No detectado | I2C: {}".format(
+                    ['0x{:02X}'.format(d) for d in dispositivos]))
         except Exception as e:
-            print(f"[Láser] ✗ Error: {e}")
-        
+            print("[Laser] ERROR: {}".format(e))
+
         if not self.laser_ok:
-            print("[Láser] ⚠ Usando simulación basada en fuerza")
-    
+            print("\n" + "!" * 50)
+            print("  SENSOR VL53L0X NO DISPONIBLE")
+            print("  No se puede iniciar sesion de entrenamiento")
+            print("!" * 50 + "\n")
+
+    # ── Calibracion ─────────────────────────────────────────────
+    def calibrar_fuerza(self):
+        if not self.fuerza_ok:
+            print("[ERROR] Celda de carga no inicializada")
+            return False
+        return self.celda.calibrate_interactive()
+
     def calibrar(self):
-        """Calibra los sensores antes de iniciar"""
-        print("\n[Calibración] Iniciando...")
-        
-        # Calibrar celda de carga (tarar)
+        print("\n[Calibracion] Iniciando...")
+        if not self.laser_ok:
+            print("[Calibracion] FALLO: Sensor laser no disponible")
+            return False
+
         if self.fuerza_ok:
             try:
-                print("[Calibración] Tarando celda... (no presionar)")
-                self.celda.tare(10)
-                print("[Calibración] ✓ Celda tarada")
+                print("[Calibracion] Tarando celda... (no presionar el maniqui)")
+                self.celda.tare(20)
+                print("[Calibracion] Tara OK")
             except Exception as e:
-                print(f"[Calibración] ✗ Error en tara: {e}")
-        
-        # Calibrar láser (medir distancia base)
-        if self.laser_ok:
-            print("[Calibración] Midiendo distancia base...")
-            muestras = []
-            
->>>>>>> origin/main
-            for _ in range(10):
-                try:
-                    d = self.laser.read()
-                    if d and 10 < d < 8000:
-                        muestras.append(d)
-                except:
-                    pass
-                utime.sleep_ms(50)
-<<<<<<< HEAD
-            if muestras:
-                muestras.sort()
-                self.distancia_base = muestras[len(muestras)//2]
-            else:
-                print("Laser dio valores nulos o 0, asumiendo error y simulando profundidad.")
-                self.laser_ok = False
+                print("[Calibracion] ERROR en tara: {}".format(e))
 
-    def leer_profundidad(self, fuerza_kg):
-=======
-            
-            if muestras:
-                muestras.sort()
-                self.distancia_base = muestras[len(muestras)//2]  # Mediana
-                print(f"[Calibración] ✓ Distancia base: {self.distancia_base} mm")
-            else:
-                print("[Calibración] ✗ Láser sin lecturas válidas")
-                self.laser_ok = False
-        
-        print("[Calibración] ✓ Completada\n")
-    
+        print("[Calibracion] Midiendo distancia base (30 muestras)... no presionar")
+        base = self.laser.calibrate_base(30)
+        if base is None:
+            print("[Calibracion] FALLO: Laser sin lecturas validas")
+            return False
+
+        self.distancia_base = base
+        print("[Calibracion] Distancia base: {} mm".format(base))
+        print("[Calibracion] OK — LISTO\n")
+        return True
+
+    # ── Lectura de sensores ──────────────────────────────────────
     def leer_fuerza(self):
-        """Lee la fuerza actual en kg"""
         if not self.fuerza_ok:
             return 0.0
         try:
-            return max(0.0, self.celda.get_kg())
+            return self.celda.get_kg()
         except:
             return 0.0
-    
-    def leer_profundidad(self, fuerza_kg):
-        """Lee o estima la profundidad de compresión en mm"""
->>>>>>> origin/main
-        if self.laser_ok:
-            try:
-                d = self.laser.read()
-                if d and d < 8000:
-<<<<<<< HEAD
-                    return max(0, self.distancia_base - d)
-            except: pass
-        # Simulacion: Si el laser falla, estimamos que 1kg = 2mm (ej: 25kg = 50mm)
-        return fuerza_kg * 2.0
 
-    def iniciar(self):
-        self.calibrar()
-        print("\n= SISTEMA LISTO = Esperando compresiones...")
-        
-        while True:
-            # Leer Sensores
-            fuerza = 0
-            if self.fuerza_ok:
-                try: fuerza = self.celda.get_kg()
-                except: pass
-            fuerza = max(0, fuerza)
-            
-            prof = self.leer_profundidad(fuerza)
-            
-            # Subir a internet cada 1 segundo (solo si hay Wifi y hay datos)
-            ahora = utime.ticks_ms()
-            if utime.ticks_diff(ahora, self.ultima_telemetria) > 1000:
-                print("Estado -> Fuerza: {:.1f} kg | Profundidad: {:.1f} mm".format(fuerza, prof))
-                
-                # Valores simulados mezclados con sensor real
-                ritmo_simulado = 70 + (fuerza * 0.5)
-                presion_estimada = fuerza * 1.5 
-                
-                self.enviar_telemetria(ritmo_simulado, 98.0, presion_estimada, 36.5)
-                self.ultima_telemetria = ahora
-                
-            utime.sleep_ms(50)
-=======
-                    prof = self.distancia_base - d
-                    return max(0.0, prof)
-            except:
-                pass
-        
-        # Simulación: ~1 kg ≈ 2 mm
-        return fuerza_kg * 2.0
-    
-    def detectar_compresion(self, fuerza):
+    def leer_profundidad(self):
         """
-        Detecta compresiones válidas por ciclo de fuerza
-        Retorna: nueva_compresion_detectada
+        Lee profundidad de compresion en mm.
+        Filtro: descarta lecturas > distancia_base (sensor mirando al techo)
+        y lecturas anomalas > 500 mm de profundidad.
         """
-        UMBRAL_INICIO = 4.0   # kg para iniciar compresión
-        UMBRAL_FIN = 2.0      # kg para fin de compresión
-        
-        nueva_compresion = False
+        if not self.laser_ok:
+            return 0.0
+        try:
+            d = self.laser.read()
+            if d and 10 < d < 8000:
+                prof = self.distancia_base - d
+                # Clamp: entre 0 y 150 mm (mas de 15 cm de compresion = imposible)
+                return max(0.0, min(float(prof), 150.0))
+        except:
+            pass
+        return 0.0
+
+    # ── CPM con ventana deslizante estabilizada ──────────────────
+    def _calcular_cpm(self):
+        """
+        CPM robusto: ventana deslizante de _MAX_WINDOW compresiones.
+        Si han pasado >3 s sin compresion nueva, retorna 0 (ritmo detenido).
+        """
+        n = len(self._ts_compresiones)
+        if n < 2:
+            return 0
+
         ahora = utime.ticks_ms()
-        
-        # Detectar inicio de compresión
-        if fuerza >= UMBRAL_INICIO and not self.en_compresion:
-            self.en_compresion = True
-            self.pico_fuerza = fuerza
-        
-        # Actualizar pico durante compresión
-        elif fuerza > self.pico_fuerza and self.en_compresion:
-            self.pico_fuerza = fuerza
-        
-        # Detectar fin de compresión
-        elif fuerza <= UMBRAL_FIN and self.en_compresion:
-            self.en_compresion = False
-            self.compresiones_detectadas += 1
-            self.timestamps_compresiones.append(ahora)
-            self.ultima_compresion = ahora
-            self.pico_fuerza = 0.0
-            nueva_compresion = True
-            
-            # Reproducir audio cada 5 compresiones
-            if self.audio and self.compresiones_detectadas % 5 == 0:
-                self.audio.play(2)  # Pista 2: "Bien"
-        
+        # Si no hubo compresion reciente, el ritmo cayó
+        if utime.ticks_diff(ahora, self._ts_compresiones[-1]) > 3000:
+            return 0
+
+        window = self._ts_compresiones[-self._MAX_WINDOW:]
+        span_ms = utime.ticks_diff(window[-1], window[0])
+        if span_ms <= 0:
+            return 0
+
+        # (n_compresiones - 1) intervalos en `span_ms` ms
+        cpm = round((len(window) - 1) / (span_ms / 60000.0))
+        return min(cpm, 200)  # clamp anti-desbordamiento
+
+    # ── Clasificacion de frecuencia ──────────────────────────────
+    def _clasificar_frecuencia(self, cpm):
+        """Retorna etiqueta y si esta dentro del rango AHA"""
+        if cpm == 0:
+            return "SIN_DATOS", False
+        if cpm < AHA_RATE_DANGER_LOW:
+            return "MUY_LENTO", False
+        if cpm < AHA_MIN_RATE_CPM:
+            return "LENTO", False
+        if cpm <= AHA_MAX_RATE_CPM:
+            return "CORRECTO", True
+        if cpm <= AHA_RATE_DANGER_HI:
+            return "RAPIDO", False
+        return "PELIGROSO", False   # >130 cpm — riesgo real para el paciente
+
+    # ── Clasificacion de fuerza ──────────────────────────────────
+    def _clasificar_fuerza(self, fuerza_kg):
+        if fuerza_kg < AHA_FORCE_MIN_KG:
+            return "INSUFICIENTE", False
+        if fuerza_kg <= AHA_FORCE_MAX_KG:
+            return "CORRECTA", True
+        if fuerza_kg <= AHA_FORCE_DANGER_KG:
+            return "EXCESIVA", False
+        return "PELIGROSA", False   # >70 kg — riesgo fractura costal
+
+    # ── Calidad ponderada ────────────────────────────────────────
+    def _calcular_calidad(self, cpm):
+        """
+        Calidad ponderada (0-100%):
+          - 40% profundidad correcta
+          - 30% recoil completo
+          - 30% frecuencia en rango AHA
+
+        Una frecuencia peligrosa (>130 cpm) aplica penalizacion adicional del 20%.
+        """
+        if self.compresiones_totales == 0:
+            return 0.0
+
+        _, freq_ok = self._clasificar_frecuencia(cpm)
+        freq_score = (self.freq_correctas / self.compresiones_totales) if self.compresiones_totales > 0 else 0.0
+        prof_score = self.compresiones_correctas / self.compresiones_totales
+        recoil_score = self.recoil_correctos / self.compresiones_totales
+
+        calidad = (prof_score * 0.40) + (recoil_score * 0.30) + (freq_score * 0.30)
+
+        # Penalizacion si hay compresiones en zona peligrosa de frecuencia
+        if cpm > AHA_RATE_DANGER_HI:
+            calidad *= 0.80
+
+        return round(calidad * 100.0, 1)
+
+    # ── Maquina de estados de compresion ────────────────────────
+    def procesar_compresion(self, fuerza, profundidad):
+        """
+        Maquina de estados biomédica mejorada.
+        Estados: reposo → comprimiendo → rearmando
+
+        Cambios respecto a v1:
+        - DETECT_PEAK_MIN_MM = 35 mm (mayor exigencia)
+        - Recoil mas estricto: 2.5 kg umbral
+        - Evaluacion de fuerza por rango
+        - Evaluacion de frecuencia por rango (peligroso/rapido/correcto/lento)
+        - Retroalimentacion auditiva granular
+        """
+        ahora = utime.ticks_ms()
+        nueva_compresion = False
+
+        # Recoil instantaneo
+        self.recoil_ok = bool(fuerza < AHA_RECOIL_THRESHOLD)
+
+        # ── REPOSO ──────────────────────────────────────────────
+        if self.estado_mecanico == "reposo":
+            # Auto-reset si pasan >30 s sin actividad
+            if (self.ultima_compresion_ts > 0 and
+                    utime.ticks_diff(ahora, self.ultima_compresion_ts) > 30000):
+                self.reset_estadisticas()
+
+            if profundidad >= DETECT_START_MM:
+                self.estado_mecanico     = "comprimiendo"
+                self.en_compresion       = True
+                self.inicio_compresion_ts = ahora
+                self.pico_fuerza         = fuerza
+                self.pico_profundidad    = profundidad
+
+        # ── COMPRIMIENDO ─────────────────────────────────────────
+        elif self.estado_mecanico == "comprimiendo":
+            if fuerza > self.pico_fuerza:
+                self.pico_fuerza = fuerza
+            if profundidad > self.pico_profundidad:
+                self.pico_profundidad = profundidad
+
+            if profundidad <= DETECT_END_MM:
+                duracion_ms = utime.ticks_diff(ahora, self.inicio_compresion_ts)
+                self.estado_mecanico = "rearmando"
+                self.en_compresion   = False
+                self.fin_compresion_ts = ahora
+
+                # Validar ruido vs compresion real
+                valida = (
+                    duracion_ms >= DETECT_MIN_DUR_MS and
+                    duracion_ms <= DETECT_MAX_DUR_MS and
+                    self.pico_profundidad >= DETECT_PEAK_MIN_MM
+                )
+
+                if valida:
+                    self.compresiones_totales += 1
+
+                    # Registrar timestamp para CPM
+                    self._ts_compresiones.append(ahora)
+                    if len(self._ts_compresiones) > self._MAX_WINDOW * 2:
+                        self._ts_compresiones = self._ts_compresiones[-self._MAX_WINDOW:]
+
+                    # ── Evaluacion AHA ────────────────────────────────
+                    prof_ok    = (AHA_MIN_DEPTH_MM <= self.pico_profundidad <= AHA_MAX_DEPTH_MM)
+                    recoil_fue = (fuerza < AHA_RECOIL_THRESHOLD)
+                    cpm_ahora  = self._calcular_cpm()
+                    _, freq_ok = self._clasificar_frecuencia(cpm_ahora)
+                    _, fuerza_ok_flag = self._clasificar_fuerza(self.pico_fuerza)
+
+                    if prof_ok:
+                        self.compresiones_correctas += 1
+                    if recoil_fue:
+                        self.recoil_correctos += 1
+                    if freq_ok:
+                        self.freq_correctas += 1
+
+                    self.compresion_correcta = prof_ok and recoil_fue and freq_ok
+
+                    self._sum_profundidad += self.pico_profundidad
+                    self._sum_fuerza      += self.pico_fuerza
+
+                    # ── Pausas ────────────────────────────────────────
+                    if self.ultima_compresion_ts > 0:
+                        pausa = utime.ticks_diff(ahora, self.ultima_compresion_ts) / 1000.0
+                        if pausa > self.max_pausa_seg:
+                            self.max_pausa_seg = pausa
+                        if pausa >= AHA_MAX_PAUSE_SEC:
+                            self.pausas_count += 1
+
+                    self.ultima_compresion_ts = ahora
+                    nueva_compresion = True
+
+                    # ── Retroalimentacion auditiva ────────────────────
+                    # Pista 1: inicio/sesion
+                    # Pista 2: compresion excelente
+                    # Pista 3: profundidad incorrecta
+                    # Pista 4: recoil incompleto
+                    # Pista 5: frecuencia fuera de rango / demasiado rapido
+                    # Pista 6: frecuencia peligrosa
+                    if self.audio and self.compresiones_totales % 5 == 0:
+                        cpm_lbl, _ = self._clasificar_frecuencia(cpm_ahora).__class__, None
+                        cpm_lbl, freq_ok2 = self._clasificar_frecuencia(cpm_ahora)
+
+                        if cpm_lbl == "PELIGROSO":
+                            self.audio.play(6)   # alerta maxima — demasiado rapido
+                        elif not prof_ok:
+                            self.audio.play(3)   # profundidad incorrecta
+                        elif not recoil_fue:
+                            self.audio.play(4)   # recoil incompleto
+                        elif not freq_ok2:
+                            self.audio.play(5)   # frecuencia fuera de rango
+                        else:
+                            self.audio.play(2)   # correcto
+
+        # ── REARMANDO ────────────────────────────────────────────
+        elif self.estado_mecanico == "rearmando":
+            if utime.ticks_diff(ahora, self.fin_compresion_ts) > DETECT_DEBOUNCE_MS:
+                if profundidad < DETECT_REARM_MM:
+                    self.estado_mecanico  = "reposo"
+                    self.pico_fuerza      = 0.0
+                    self.pico_profundidad = 0.0
+
         return nueva_compresion
-    
-    def enviar_telemetria(self, fuerza):
-        """
-        Envía telemetría a Firebase (FORMATO ORIGINAL)
-        Los valores son independientes de los datos reales de compresión
-        """
+
+    # ── Hilo de telemetria ───────────────────────────────────────
+    def _tel_thread_func(self, url):
+        """Hilo dedicado para enviar telemetria sin bloquear el ciclo principal"""
+        import urequests
+        while self._tel_running:
+            data_to_send = None
+            self._tel_lock.acquire()
+            if self._tel_data is not None:
+                data_to_send = self._tel_data
+                self._tel_data = None
+            self._tel_lock.release()
+
+            if data_to_send is not None:
+                try:
+                    headers = {"Content-Type": "application/json"}
+                    body = ujson.dumps(data_to_send)
+                    res = urequests.request("PATCH", url, data=body,
+                                            headers=headers, timeout=2.0)
+                    if res.status_code == 200:
+                        print("[Tel] OK - C:{} CPM:{} Cal:{:.0f}%".format(
+                            data_to_send["compresiones"],
+                            data_to_send["frecuencia_cpm"],
+                            data_to_send["calidad_pct"]))
+                    else:
+                        print("[Tel] ERROR HTTP {}".format(res.status_code))
+                    res.close()
+                except Exception as e:
+                    print("[Tel] Excepcion: {}".format(e))
+
+            utime.sleep_ms(TELEMETRIA_MS)
+
+    def enviar_telemetria(self, fuerza, profundidad):
+        """Encola datos para el hilo de telemetria (no bloquea)"""
         if not wlan.isconnected():
             return
-        
-        try:
-            import urequests
-            
-            # URL de Firebase
-            url = f"{FIREBASE_URL}/telemetria/{DEVICE_MAC}.json"
-            
-            # DATOS SIMULADOS/INDEPENDIENTES (mantiene formato original)
-            ritmo_simulado = 70 + (fuerza * 0.5)  # Ritmo cardíaco "del paciente"
-            oxigeno = 98.0                        # Oxígeno fijo
-            presion = fuerza                      # Fuerza real (Flutter lo convierte a mm)
-            temperatura = 36.5                    # Temperatura fija
-            
-            data = {
-                "ritmo_cardiaco": round(ritmo_simulado, 1),
-                "oxigeno": oxigeno,
-                "presion": round(presion, 2),
-                "temperatura": temperatura,
-                "timestamp": {".sv": "timestamp"}
-            }
-            
-            # Enviar a Firebase (PATCH actualiza sin borrar)
-            res = urequests.patch(url, json=data, timeout=3)
-            
-            if res.status_code == 200:
-                print(f"[Firebase] ✓ Enviado | RC:{ritmo_simulado:.1f} O2:{oxigeno} P:{presion:.1f} T:{temperatura}")
-            else:
-                print(f"[Firebase] ✗ Error {res.status_code}")
-            
-            res.close()
-            
-        except ImportError:
-            print("[Firebase] ✗ urequests no instalado")
-        except Exception as e:
-            print(f"[Firebase] ✗ Error: {e}")
-    
-    def iniciar(self):
-        """Inicia el loop principal del sistema"""
-        self.calibrar()
-        
-        print("\n" + "="*50)
-        print("   🚀 SISTEMA ACTIVO - Esperando compresiones...")
-        print("="*50 + "\n")
-        
-        while True:
+
+        cpm = self._calcular_cpm()
+        self.frecuencia_cpm = cpm
+        self.calidad_pct    = self._calcular_calidad(cpm)
+
+        avg_prof   = (self._sum_profundidad / self.compresiones_totales
+                      if self.compresiones_totales > 0 else 0.0)
+        avg_fuerza = (self._sum_fuerza / self.compresiones_totales
+                      if self.compresiones_totales > 0 else 0.0)
+        recoil_pct = (self.recoil_correctos / self.compresiones_totales * 100.0
+                      if self.compresiones_totales > 0 else 0.0)
+        freq_pct   = (self.freq_correctas / self.compresiones_totales * 100.0
+                      if self.compresiones_totales > 0 else 0.0)
+
+        cpm_lbl, _ = self._clasificar_frecuencia(cpm)
+        fza_lbl, _ = self._clasificar_fuerza(fuerza)
+
+        data = {
+            # Sensores en tiempo real
+            "fuerza_kg":          round(fuerza, 2),
+            "profundidad_mm":     round(profundidad, 1),
+            "frecuencia_cpm":     cpm,
+            "frecuencia_estado":  cpm_lbl,
+            "fuerza_estado":      fza_lbl,
+
+            # Estadisticas de sesion
+            "compresiones":             self.compresiones_totales,
+            "compresiones_correctas":   self.compresiones_correctas,
+            "recoil_ok":                self.recoil_ok,
+            "en_compresion":            self.en_compresion,
+            "compresion_correcta":      self.compresion_correcta,
+
+            # Calidad desglosada
+            "calidad_pct":          round(self.calidad_pct, 1),
+            "recoil_pct":           round(recoil_pct, 1),
+            "freq_correcta_pct":    round(freq_pct, 1),
+            "avg_profundidad_mm":   round(avg_prof, 1),
+            "avg_fuerza_kg":        round(avg_fuerza, 2),
+
+            # Pausas
+            "pausas":               self.pausas_count,
+            "max_pausa_seg":        round(self.max_pausa_seg, 1),
+
+            # Estado del hardware
+            "sensor_ok":   self.laser_ok and self.fuerza_ok,
+            "calibrado":   self.celda.is_calibrated if self.fuerza_ok else False,
+            "timestamp":   {".sv": "timestamp"},
+        }
+
+        self._tel_lock.acquire()
+        self._tel_data = data
+        self._tel_lock.release()
+
+    # ── Boton de finalizacion ────────────────────────────────────
+    def _boton_presionado(self):
+        """Retorna True si el boton de finalizar fue presionado (con debounce)"""
+        if self.btn_fin.value() == 0:   # activo bajo (pull-up)
+            ahora = utime.ticks_ms()
+            if utime.ticks_diff(ahora, self._btn_last_ms) > BTN_DEBOUNCE_MS:
+                self._btn_last_ms = ahora
+                return True
+        return False
+
+    # ── Resumen final ────────────────────────────────────────────
+    def _resumen_sesion(self):
+        """Imprime y envia a Firebase el resumen final de la sesion"""
+        cpm_final = self._calcular_cpm()
+        calidad   = self._calcular_calidad(cpm_final)
+
+        print("\n" + "=" * 50)
+        print("   RESUMEN DE SESION")
+        print("=" * 50)
+        print("  Compresiones totales  : {}".format(self.compresiones_totales))
+        print("  Compresiones correctas: {} ({:.0f}%)".format(
+            self.compresiones_correctas,
+            (self.compresiones_correctas / self.compresiones_totales * 100
+             if self.compresiones_totales > 0 else 0)))
+        print("  Recoil correcto       : {:.0f}%".format(
+            self.recoil_correctos / self.compresiones_totales * 100
+            if self.compresiones_totales > 0 else 0))
+        print("  Freq en rango         : {:.0f}%".format(
+            self.freq_correctas / self.compresiones_totales * 100
+            if self.compresiones_totales > 0 else 0))
+        print("  Prof. promedio        : {:.1f} mm".format(
+            self._sum_profundidad / self.compresiones_totales
+            if self.compresiones_totales > 0 else 0))
+        print("  Fuerza promedio       : {:.1f} kg".format(
+            self._sum_fuerza / self.compresiones_totales
+            if self.compresiones_totales > 0 else 0))
+        print("  Pausas >10s           : {}".format(self.pausas_count))
+        print("  Pausa maxima          : {:.1f} s".format(self.max_pausa_seg))
+        print("  CALIDAD GLOBAL        : {:.1f}%".format(calidad))
+        print("=" * 50 + "\n")
+
+        # Enviar resumen a Firebase (nodo separado)
+        if wlan.isconnected():
             try:
-                # Leer sensores REALES (para control interno)
-                fuerza = self.leer_fuerza()
-                profundidad = self.leer_profundidad(fuerza)
-                
-                # Detectar compresiones REALES (para audio feedback)
-                nueva_comp = self.detectar_compresion(fuerza)
-                
-                if nueva_comp:
-                    print(f"[Compresión] #{self.compresiones_detectadas} detectada | F:{fuerza:.1f}kg P:{profundidad:.1f}mm")
-                
-                # Enviar telemetría cada 250 ms para fluidez en la UI
-                ahora = utime.ticks_ms()
-                if utime.ticks_diff(ahora, self.ultima_telemetria) >= 250:
-                    self.enviar_telemetria(fuerza)
-                    self.ultima_telemetria = ahora
-                
-                utime.sleep_ms(50)  # 20 lecturas por segundo
-                
-            except KeyboardInterrupt:
-                print("\n\n[Sistema] Detenido por usuario")
-                break
+                import urequests
+                url = "{}/sesiones/{}.json".format(FIREBASE_URL, DEVICE_MAC)
+                data = {
+                    "compresiones":       self.compresiones_totales,
+                    "compresiones_ok":    self.compresiones_correctas,
+                    "recoil_pct":         round(self.recoil_correctos / self.compresiones_totales * 100 if self.compresiones_totales > 0 else 0, 1),
+                    "freq_pct":           round(self.freq_correctas / self.compresiones_totales * 100 if self.compresiones_totales > 0 else 0, 1),
+                    "avg_prof_mm":        round(self._sum_profundidad / self.compresiones_totales if self.compresiones_totales > 0 else 0, 1),
+                    "avg_fuerza_kg":      round(self._sum_fuerza / self.compresiones_totales if self.compresiones_totales > 0 else 0, 2),
+                    "pausas":             self.pausas_count,
+                    "max_pausa_seg":      round(self.max_pausa_seg, 1),
+                    "calidad_pct":        calidad,
+                    "timestamp":          {".sv": "timestamp"},
+                }
+                headers = {"Content-Type": "application/json"}
+                res = urequests.request("PATCH", url,
+                                        data=ujson.dumps(data),
+                                        headers=headers, timeout=4)
+                res.close()
+                print("[Firebase] Resumen de sesion guardado OK")
             except Exception as e:
-                print(f"[Error] {e}")
+                print("[Firebase] ERROR guardando resumen: {}".format(e))
+
+    # ── Loop principal ───────────────────────────────────────────
+    def iniciar(self):
+        """
+        Inicia el loop principal del sistema.
+        La sesion termina UNICAMENTE al presionar el boton fisico (GPIO 0).
+        NO hay limite de tiempo.
+        """
+        if not self.laser_ok:
+            print("\n" + "!" * 50)
+            print("  ERROR: SENSOR VL53L0X NO DISPONIBLE")
+            print("  El sensor es requerido para sesion valida AHA 2025")
+            print("!" * 50 + "\n")
+            # Reportar error a Firebase
+            if wlan.isconnected():
+                try:
+                    import urequests
+                    url = "{}/telemetria/{}.json".format(FIREBASE_URL, DEVICE_MAC)
+                    data = {"sensor_ok": False, "error": "VL53L0X no disponible",
+                            "timestamp": {".sv": "timestamp"}}
+                    res = urequests.request("PATCH", url, data=ujson.dumps(data),
+                                            headers={"Content-Type": "application/json"},
+                                            timeout=3)
+                    res.close()
+                except:
+                    pass
+            return
+
+        if not self.calibrar():
+            print("[ERROR] Calibracion fallida — no se puede iniciar")
+            return
+
+        print("\n" + "=" * 50)
+        print("   SISTEMA ACTIVO — Esperando compresiones...")
+        print("   AHA 2025: Prof 50-60 mm | Frec 100-120 cpm")
+        print("   Presiona el boton (GPIO 0) para finalizar")
+        print("=" * 50 + "\n")
+
+        if self.audio:
+            self.audio.play(1)   # pista 1 = inicio de sesion
+
+        # Iniciar hilo de telemetria
+        self._tel_running = True
+        url_tel = "{}/telemetria/{}.json".format(FIREBASE_URL, DEVICE_MAC)
+        _thread.start_new_thread(self._tel_thread_func, (url_tel,))
+
+        self._sesion_activa = True
+
+        while self._sesion_activa:
+            try:
+                # ── Leer sensores ──────────────────────────────
+                fuerza      = self.leer_fuerza()
+                profundidad = self.leer_profundidad()
+
+                self.fuerza_actual      = fuerza
+                self.profundidad_actual = profundidad
+
+                # ── Detectar compresion ────────────────────────
+                nueva_comp = self.procesar_compresion(fuerza, profundidad)
+
+                if nueva_comp:
+                    cpm = self._calcular_cpm()
+                    cpm_lbl, cpm_ok = self._clasificar_frecuencia(cpm)
+                    fza_lbl, fza_ok = self._clasificar_fuerza(self.pico_fuerza)
+                    prof_ok = (AHA_MIN_DEPTH_MM <= self.pico_profundidad <= AHA_MAX_DEPTH_MM)
+
+                    estado = "OK" if self.compresion_correcta else "CORREGIR"
+                    print("[C#{:>3}] Pecho:{:.0f}mm F:{:.1f}kg CPM:{} [{}] Frec:{} Fza:{}".format(
+                        self.compresiones_totales,
+                        self.pico_profundidad,
+                        self.pico_fuerza,
+                        cpm, estado, cpm_lbl, fza_lbl))
+
+                # ── Telemetria periodica ───────────────────────
+                ahora = utime.ticks_ms()
+                if utime.ticks_diff(ahora, self.ultima_telemetria) >= TELEMETRIA_MS:
+                    self.enviar_telemetria(fuerza, profundidad)
+                    self.ultima_telemetria = ahora
+
+                    if not wlan.isconnected():
+                        print("[WiFi] Reconectando...")
+                        conectar_wifi()
+
+                # ── Boton de finalizacion (sin limite de tiempo) ─
+                if self._boton_presionado():
+                    print("\n[Boton] Sesion finalizada por el operador")
+                    self._sesion_activa = False
+
+                utime.sleep_ms(10)   # 100 Hz de muestreo
+
+            except KeyboardInterrupt:
+                print("\n[Sistema] Detenido por usuario (Ctrl+C)")
+                self._sesion_activa = False
+            except Exception as e:
+                print("[Error] {}".format(e))
                 utime.sleep(1)
->>>>>>> origin/main
+
+        # ── Cierre limpio ──────────────────────────────────────
+        self._tel_running = False
+        utime.sleep_ms(200)   # dar tiempo al hilo de telemetria a terminar
+
+        if self.laser_ok:
+            try:
+                self.laser.stop_continuous()
+            except:
+                pass
+
+        if self.audio:
+            self.audio.play(7)   # pista 7 = fin de sesion
+
+        self._resumen_sesion()
+
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-<<<<<<< HEAD
+    print("\n" + "=" * 50)
+    print("   SIERCP — Sistema de RCP Inteligente v2")
+    print("   Estandares AHA 2025")
+    print("=" * 50)
+
     conectar_wifi()
+
     sistema = SistemaRCP()
     sistema.iniciar()
-=======
-    print("\n" + "="*50)
-    print("   SIERCP - Sistema de RCP Inteligente")
-    print("="*50)
-    
-    # Conectar WiFi
-    conectar_wifi()
-    
-    # Iniciar sistema
-    sistema = SistemaRCP()
-    sistema.iniciar()
->>>>>>> origin/main
