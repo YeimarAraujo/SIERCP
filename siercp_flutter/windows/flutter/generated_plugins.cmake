@@ -9,17 +9,11 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   firebase_storage
-<<<<<<< HEAD
   flutter_blue_plus_winrt
   permission_handler_windows
   printing
   share_plus
-=======
-  permission_handler_windows
-  printing
-  share_plus
   syncfusion_pdfviewer_windows
->>>>>>> origin/main
   url_launcher_windows
 )
 

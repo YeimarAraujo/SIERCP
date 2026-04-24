@@ -23,6 +23,7 @@ dependencies:
   cloud_firestore: ^5.5.4
   firebase_storage: ^12.3.4
   firebase_messaging: ^15.1.4
+  firebase_database: ^11.3.10
 
   # Gráficas
   fl_chart: ^0.68.0
@@ -47,16 +48,19 @@ dependencies:
   path_provider: ^2.1.2
   printing: ^5.13.1
   syncfusion_flutter_gauges: ^33.1.45
-<<<<<<< HEAD
-  firebase_database: ^11.3.10
+  syncfusion_flutter_pdfviewer: ^33.2.3
+  file_picker: ^8.1.7
+
+  # BLE & Audio
   flutter_blue_plus: ^2.2.1
   audioplayers: ^6.6.0
-=======
-  syncfusion_flutter_pdfviewer: ^33.2.3
-  firebase_database: ^11.3.10
-  audioplayers: ^6.6.0
-  file_picker: ^8.1.7
->>>>>>> origin/main
+
+  # Almacenamiento Local Offline
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Para abrir archivos guardados
+  open_filex: ^4.5.0
 
 
 dev_dependencies:

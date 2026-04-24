@@ -23,6 +23,7 @@ import '../screens/user_detail_screen.dart';
 import '../screens/device_status_screen.dart';
 import '../screens/create_user_screen.dart';
 import '../screens/device_selection_screen.dart';
+import '../screens/reports_screen.dart';
 import '../models/guide.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -117,6 +118,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               courseId: state.pathParameters['courseId']!,
             ),
           ),
+
+          // ── Reportes PDF ──────────────────────────────────────────────────
+          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
 
           // ── Admin routes ──────────────────────────────────────────────────
           GoRoute(path: '/admin/users',       builder: (_, __) => const ManageUsersScreen()),
