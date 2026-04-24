@@ -574,12 +574,8 @@ final userStatsProvider = Provider<UserStats?>((ref) {
 
 // ─── Course Students ─────────────────────────────────────────────────────────
 final courseStudentsProvider =
-    FutureProvider.family<List, String>((ref, courseId) async {
-  try {
-    return await ref.read(sessionServiceProvider).getCourseStudents(courseId);
-  } catch (_) {
-    return [];
-  }
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, courseId) {
+  return ref.read(sessionServiceProvider).watchCourseStudents(courseId);
 });
 
 // ─── Device Status ────────────────────────────────────────────────────────────

@@ -59,29 +59,42 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            expandedHeight: 200,
-            pinned: true,
-            stretch: true,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _InstructorHeaderCard(course: course),
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          final isLandscape =
+              MediaQuery.of(context).orientation == Orientation.landscape;
+          return [
+            SliverAppBar(
+              expandedHeight: isLandscape ? 120 : 200,
+              pinned: true,
+              stretch: true,
+              backgroundColor: theme.scaffoldBackgroundColor,
+              flexibleSpace: FlexibleSpaceBar(
+                background: _InstructorHeaderCard(course: course),
+              ),
+              bottom: TabBar(
+                controller: _tabCtrl,
+                isScrollable: false,
+                labelStyle:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                unselectedLabelStyle: const TextStyle(fontSize: 11),
+                tabs: const [
+                  Tab(
+                      icon: Icon(Icons.menu_book_outlined, size: 18),
+                      text: 'Guías'),
+                  Tab(
+                      icon: Icon(Icons.people_outline, size: 18),
+                      text: 'Estudiantes'),
+                  Tab(
+                      icon: Icon(Icons.sports_score_outlined, size: 18),
+                      text: 'Escenarios'),
+                  Tab(
+                      icon: Icon(Icons.bar_chart_outlined, size: 18),
+                      text: 'Stats'),
+                ],
+              ),
             ),
-            bottom: TabBar(
-              controller: _tabCtrl,
-              isScrollable: false,
-              labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-              unselectedLabelStyle: const TextStyle(fontSize: 11),
-              tabs: const [
-                Tab(icon: Icon(Icons.menu_book_outlined, size: 18), text: 'Guías'),
-                Tab(icon: Icon(Icons.people_outline,     size: 18), text: 'Estudiantes'),
-                Tab(icon: Icon(Icons.sports_score_outlined, size: 18), text: 'Escenarios'),
-                Tab(icon: Icon(Icons.bar_chart_outlined, size: 18), text: 'Stats'),
-              ],
-            ),
-          ),
-        ],
+          ];
+        },
         body: TabBarView(
           controller: _tabCtrl,
           children: [
@@ -118,6 +131,9 @@ class _InstructorHeaderCard extends ConsumerWidget {
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -128,14 +144,14 @@ class _InstructorHeaderCard extends ConsumerWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+      padding: EdgeInsets.fromLTRB(20, isLandscape ? 40 : 60, 20, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar del instructor
           Container(
-            width: 72,
-            height: 72,
+            width: isLandscape ? 50 : 72,
+            height: isLandscape ? 50 : 72,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [AppColors.brand, AppColors.accent],
