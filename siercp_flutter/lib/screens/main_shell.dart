@@ -14,13 +14,16 @@ class MainShell extends ConsumerWidget {
       if (location.startsWith('/home')) return 0;
       if (location.startsWith('/admin/users')) return 1;
       if (location.startsWith('/admin/devices')) return 2;
-      if (location.startsWith('/profile')) return 3;
+      if (location.startsWith('/reports')) return 3;
+      if (location.startsWith('/analytics')) return 4;
+      if (location.startsWith('/profile')) return 5;
     } else {
       if (location.startsWith('/home')) return 0;
       if (location.startsWith('/session') || location.startsWith('/scenarios')) return 1;
       if (location.startsWith('/history')) return 2;
       if (location.startsWith('/courses')) return 3;
-      if (location.startsWith('/profile')) return 4;
+      if (location.startsWith('/reports')) return 4;
+      if (location.startsWith('/profile')) return 5;
     }
     return 0;
   }
@@ -52,7 +55,9 @@ class MainShell extends ConsumerWidget {
                 case 0: context.go('/home');
                 case 1: context.go('/admin/users');
                 case 2: context.go('/admin/devices');
-                case 3: context.go('/profile');
+                case 3: context.go('/reports');
+                case 4: context.go('/analytics');
+                case 5: context.go('/profile');
               }
             } else {
               switch (i) {
@@ -60,7 +65,8 @@ class MainShell extends ConsumerWidget {
                 case 1: context.go('/scenarios');
                 case 2: context.go('/history');
                 case 3: context.go('/courses');
-                case 4: context.go('/profile');
+                case 4: context.go('/reports');
+                case 5: context.go('/profile');
               }
             }
           },
@@ -79,6 +85,16 @@ class MainShell extends ConsumerWidget {
               icon: Icon(Icons.developer_board),
               selectedIcon: Icon(Icons.developer_board),
               label: 'Maniquíes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.picture_as_pdf_outlined),
+              selectedIcon: Icon(Icons.picture_as_pdf),
+              label: 'Reportes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.analytics_outlined),
+              selectedIcon: Icon(Icons.analytics),
+              label: 'Analíticas',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),
@@ -105,6 +121,11 @@ class MainShell extends ConsumerWidget {
               icon: Icon(Icons.menu_book_outlined),
               selectedIcon: Icon(Icons.menu_book),
               label: 'Cursos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.picture_as_pdf_outlined),
+              selectedIcon: Icon(Icons.picture_as_pdf),
+              label: 'Reportes',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),

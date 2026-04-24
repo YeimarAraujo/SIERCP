@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_provider.dart';
+import '../models/session.dart';
 import '../services/session_service.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/alert_card.dart';
@@ -95,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
               else if (isInstructor)
                 _InstructorDashboard(ref: ref, coursesAsync: coursesAsync)
               else ...[
-                // ── ESTUDIANTE: Hero card (solo si está en un curso) ─────────
+                // ── ESTUDIANTE: Per-course training cards ────────────────────
                 SliverToBoxAdapter(
                   child: coursesAsync.when(
                     loading: () => const SizedBox.shrink(),
@@ -103,9 +104,16 @@ class HomeScreen extends ConsumerWidget {
                     data: (courses) => courses.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: _HeroCard(
-                              deviceAsync: deviceAsync,
-                              onTap: () => context.go('/scenarios'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SectionLabel('Tus cursos activos'),
+                                const SizedBox(height: 8),
+                                ...courses.map((c) => _StudentCourseHero(
+                                  course: c,
+                                  deviceAsync: deviceAsync,
+                                )),
+                              ],
                             ),
                           )
                         : Padding(
@@ -177,26 +185,6 @@ class HomeScreen extends ConsumerWidget {
                         );
                       },
                     ),
-                  ),
-                ),
-
-                // Progreso del curso
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: const SectionLabel('Progreso del curso'),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: coursesAsync.when(
-                    loading: () => const _CourseCardShimmer(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (courses) => courses.isEmpty
-                        ? const SizedBox.shrink()
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: _CourseProgressCard(course: courses.first),
-                          ),
                   ),
                 ),
               ],
@@ -665,189 +653,151 @@ class _NotEnrolledCard extends StatelessWidget {
   }
 }
 
-// ─── Hero card (student enrolled + device status) ────────────────────────────
-class _HeroCard extends ConsumerWidget {
+// ─── Per-course hero card (student) ──────────────────────────────────────────
+class _StudentCourseHero extends ConsumerWidget {
+  final dynamic course;
   final AsyncValue<DeviceStatusData> deviceAsync;
-  final VoidCallback onTap;
-  const _HeroCard({required this.deviceAsync, required this.onTap});
+  const _StudentCourseHero({required this.course, required this.deviceAsync});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isConnected = deviceAsync.value?.isConnected ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.brand, AppColors.brand2],
+    // Per-course progress
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final allSessions = sessionsAsync.value ?? <SessionModel>[];
+    final courseSessions = allSessions
+        .where((s) => s.courseId == course.id && s.status == SessionStatus.completed)
+        .toList();
+    final totalDone = courseSessions.length;
+    final approved  = courseSessions.where((s) => s.metrics?.approved == true).length;
+    final required  = course.totalModules > 0 ? course.totalModules : 4;
+    final progress  = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
+    final isComplete = approved >= required;
+
+    return GestureDetector(
+      onTap: () => context.push('/student-course/${course.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isComplete
+                ? [const Color(0xFF00695C), const Color(0xFF004D40)]
+                : [AppColors.brand, AppColors.brand2],
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          boxShadow: AppShadows.elevated(isDark),
         ),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: AppShadows.elevated(isDark),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Device status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: (isConnected ? AppColors.green : AppColors.amber).withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: (isConnected ? AppColors.green : AppColors.amber).withValues(alpha: 0.4),
-                width: 0.5,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top: title + device badge
+            Row(
               children: [
-                Icon(
-                  isConnected
-                      ? Icons.bluetooth_connected_rounded
-                      : Icons.bluetooth_disabled_rounded,
-                  color: isConnected ? AppColors.green : AppColors.amber,
-                  size: 12,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isConnected ? 'Dispositivo conectado' : 'Sin dispositivo',
-                  style: TextStyle(
-                    color: isConnected ? AppColors.green : AppColors.amber,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
+                  child: Icon(
+                    isComplete ? Icons.emoji_events_rounded : Icons.menu_book_outlined,
+                    color: Colors.white, size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(course.title,
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(course.instructorName,
+                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                // Device badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (isConnected ? AppColors.green : AppColors.amber).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                      isConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_disabled_rounded,
+                      color: isConnected ? AppColors.green : AppColors.amber, size: 10,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isConnected ? 'Conectado' : 'Sin disp.',
+                      style: TextStyle(
+                        color: isConnected ? AppColors.green : AppColors.amber,
+                        fontSize: 9, fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ]),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Iniciar sesión RCP',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+            const SizedBox(height: 12),
+
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                valueColor: AlwaysStoppedAnimation(isComplete ? AppColors.green : Colors.white),
+                minHeight: 5,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            isConnected
-                ? 'Selecciona un escenario para comenzar'
-                : 'Conecta el maniquí ESP32 antes de iniciar',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('$approved/$required aprobadas · $totalDone sesiones',
+                    style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                Text('${(progress * 100).toInt()}%',
+                    style: const TextStyle(color: Colors.white, fontSize: 11,
+                        fontWeight: FontWeight.w800, fontFamily: 'SpaceMono')),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // CTA
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.18),
                 border: Border.all(color: Colors.white30),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isComplete ? Icons.visibility_outlined : Icons.play_arrow_rounded,
+                    color: Colors.white, size: 16,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'Comenzar entrenamiento',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    isComplete
+                        ? 'Ver detalle'
+                        : totalDone > 0 ? 'Continuar entrenamiento' : 'Comenzar entrenamiento',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Course progress card ─────────────────────────────────────────────────────
-class _CourseProgressCard extends StatelessWidget {
-  final dynamic course;
-  const _CourseProgressCard({required this.course});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT  = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
-    final surface = theme.colorScheme.surface;
-    final border  = AppColors.brand.withValues(alpha: 0.3);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surface,
-        border: Border.all(color: border, width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(course.title,
-                    style: TextStyle(color: textP, fontSize: 14, fontWeight: FontWeight.w600)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.brand.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${course.progressPct}%',
-                  style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.person_outline, size: 12, color: textS),
-              const SizedBox(width: 4),
-              Text(course.instructorName, style: TextStyle(color: textS, fontSize: 11)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: course.progress,
-              backgroundColor: theme.colorScheme.outline,
-              valueColor: const AlwaysStoppedAnimation(AppColors.brand),
-              minHeight: 5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${course.progressPct}% completado', style: TextStyle(color: textT, fontSize: 10)),
-              if (course.nextDeadline != null)
-                Text(
-                  'Entrega: ${course.nextDeadline!.day}/${course.nextDeadline!.month}',
-                  style: TextStyle(color: textT, fontSize: 10),
-                ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

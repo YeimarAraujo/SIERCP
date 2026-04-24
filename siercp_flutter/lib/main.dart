@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'core/theme.dart';
 import 'core/routes.dart';
 import 'providers/theme_provider.dart';
+import 'services/local_storage_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -28,6 +29,13 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await FirebaseMessaging.instance
       .requestPermission(alert: true, badge: true, sound: true);
+
+  // Inicializar almacenamiento local (SQLite)
+  await LocalStorageService.init();
+  await LocalStorageService().preloadCache();
+
+  // Mantener sincronización activa del nodo de telemetría para lectura rápida
+  FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const ProviderScope(child: SiercpApp()));

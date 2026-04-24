@@ -11,6 +11,7 @@ import '../services/admin_service.dart';
 import '../services/export_service.dart';
 import '../services/session_service.dart';
 import '../widgets/section_label.dart';
+import '../models/session.dart';
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 class CoursesScreen extends ConsumerStatefulWidget {
@@ -107,7 +108,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error: \$e'),
+                      content: Text('Error: $e'),
                       backgroundColor: AppColors.red.withValues(alpha: 0.9),
                     ),
                   );
@@ -203,7 +204,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error: \$e'),
+                              content: Text('Error: $e'),
                               backgroundColor:
                                   AppColors.red.withValues(alpha: 0.9),
                             ),
@@ -474,7 +475,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: Verifica el código (\$e)'),
+            content: Text('Error: Verifica el código ($e)'),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -561,7 +562,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
                     child: Center(
-                      child: Text('Error al cargar cursos: \$e',
+                      child: Text('Error al cargar cursos: $e',
                           style: TextStyle(color: textS)),
                     ),
                   ),
@@ -1073,6 +1074,22 @@ class _CourseCard extends ConsumerWidget {
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
+    // Logic from my branch: dynamic progress based on sessions
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final allSessions = sessionsAsync.value ?? [];
+    final courseSessions = allSessions
+        .where((s) =>
+            s.courseId == course.id && s.status == SessionStatus.completed)
+        .toList();
+    final approved =
+        courseSessions.where((s) => s.metrics?.approved == true).length;
+    final requiredCount = course.totalModules > 0 ? course.totalModules : 4;
+    final progress =
+        requiredCount > 0 ? (approved / requiredCount).clamp(0.0, 1.0) : 0.0;
+    final isComplete = approved >= requiredCount;
+    final remaining = (requiredCount - approved).clamp(0, requiredCount);
+    final progressColor = isComplete ? AppColors.green : AppColors.brand;
+
     final card = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1094,11 +1111,20 @@ class _CourseCard extends ConsumerWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: AppColors.brand.withValues(alpha: 0.12),
+                        gradient: LinearGradient(
+                          colors: isComplete
+                              ? [AppColors.green, const Color(0xFF00C853)]
+                              : [AppColors.brand, AppColors.accent],
+                        ),
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
-                      child: const Icon(Icons.menu_book_outlined,
-                          color: AppColors.brand, size: 20),
+                      child: Icon(
+                        isComplete
+                            ? Icons.emoji_events_rounded
+                            : Icons.menu_book_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1167,9 +1193,9 @@ class _CourseCard extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: course.progress,
+                    value: progress,
                     backgroundColor: border,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.brand),
+                    valueColor: AlwaysStoppedAnimation(progressColor),
                     minHeight: 5,
                   ),
                 ),
@@ -1177,19 +1203,22 @@ class _CourseCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('\${course.progressPct}% completado',
+                    Text('${(progress * 100).toInt()}% completado',
                         style: TextStyle(color: textT, fontSize: 10)),
                     if (canManage)
                       Row(
                         children: [
                           Icon(Icons.people_outline, size: 11, color: textT),
                           const SizedBox(width: 4),
-                          Text('\${course.studentCount ?? 0} estudiantes',
+                          Text('${course.studentCount ?? 0} estudiantes',
                               style: TextStyle(color: textT, fontSize: 10)),
                         ],
                       )
                     else
-                      Text('Certificado SIERCP',
+                      Text(
+                          isComplete
+                              ? 'Completado'
+                              : 'Faltan $remaining sesiones',
                           style: TextStyle(color: textT, fontSize: 10)),
                   ],
                 ),
@@ -1206,7 +1235,7 @@ class _CourseCard extends ConsumerWidget {
                     icon: Icons.layers_outlined,
                     label: 'Módulos',
                     color: AppColors.accent,
-                    onTap: () => context.push('/course-editor/\${course.id}'),
+                    onTap: () => context.push('/course-editor/${course.id}'),
                   ),
                   _ActionButton(
                     icon: Icons.person_add_outlined,
@@ -1244,7 +1273,7 @@ class _CourseCard extends ConsumerWidget {
                     icon: Icons.monitor_heart_outlined,
                     label: 'En Vivo',
                     color: AppColors.cyan,
-                    onTap: () => context.push('/live/\${course.id}'),
+                    onTap: () => context.push('/live/${course.id}'),
                   ),
                 ],
               ),
@@ -1298,7 +1327,7 @@ class _CourseCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al exportar: \$e'),
+            content: Text('Error al exportar: $e'),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -1405,7 +1434,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                   child: CircularProgressIndicator(color: AppColors.brand),
                 ),
                 error: (e, _) => Center(
-                  child: Text('Error: \$e', style: TextStyle(color: textS)),
+                  child: Text('Error: $e', style: TextStyle(color: textS)),
                 ),
                 data: (students) => students.isEmpty
                     ? Center(
@@ -1497,7 +1526,7 @@ class _StudentTile extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Icon(Icons.history_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text('\${student.sessionCount ?? 0} sesiones',
+                    Text('${student.sessionCount ?? 0} sesiones',
                         style: TextStyle(color: textS, fontSize: 10)),
                   ],
                 ),
@@ -1511,7 +1540,7 @@ class _StudentTile extends ConsumerWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '\${score.toStringAsFixed(0)}%',
+              '${score.toStringAsFixed(0)}%',
               style: TextStyle(
                 color: scoreColor,
                 fontSize: 13,

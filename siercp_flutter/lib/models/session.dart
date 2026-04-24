@@ -204,6 +204,7 @@ class LiveSessionData {
   final int compressionCount;
   final int correctCompressionCount;
   final double correctPct;
+  final double sessionScore; // Added for AHA 2025 real-time score
   final bool decompressedFully;
   final double recoilPct;
   final double oxygen;
@@ -221,6 +222,7 @@ class LiveSessionData {
     required this.compressionCount,
     this.correctCompressionCount = 0,
     required this.correctPct,
+    this.sessionScore = 0.0,
     required this.decompressedFully,
     this.recoilPct = 100.0,
     this.oxygen = 98.0,
@@ -239,6 +241,7 @@ class LiveSessionData {
     compressionCount:        m['compressionCount']  ?? 0,
     correctCompressionCount: m['correctCompressionCount'] ?? 0,
     correctPct:             (m['correctPct']        ?? 0).toDouble(),
+    sessionScore:           (m['sessionScore']      ?? 0).toDouble(),
     decompressedFully:       m['decompressedFully'] ?? false,
     recoilPct:              (m['recoilPct']         ?? 100).toDouble(),
     oxygen:                 (m['oxygen']            ?? 98.0).toDouble(),

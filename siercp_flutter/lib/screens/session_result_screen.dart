@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/session.dart';
 import '../services/session_service.dart';
+import '../services/export_service.dart';
 import '../widgets/section_label.dart';
 
 import '../providers/session_provider.dart';
@@ -138,7 +139,8 @@ class SessionResultScreen extends ConsumerWidget {
               );
             }
 
-            return _ResultBody(metrics: metrics, sessionId: sessionId);
+            return _ResultBody(
+                session: session, metrics: metrics, sessionId: sessionId);
           },
         ),
       ),
@@ -147,17 +149,19 @@ class SessionResultScreen extends ConsumerWidget {
 }
 
 class _ResultBody extends ConsumerWidget {
+  final SessionModel session;
   final SessionMetrics metrics;
   final String sessionId;
-  const _ResultBody({required this.metrics, required this.sessionId});
+  const _ResultBody(
+      {required this.session, required this.metrics, required this.sessionId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme   = Theme.of(context);
-    final isDark  = theme.brightness == Brightness.dark;
-    final textP   = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -174,7 +178,7 @@ class _ResultBody extends ConsumerWidget {
                 onPressed: () => context.go('/history'),
               ),
               const Spacer(),
-              _ExportMenu(sessionId: sessionId, metrics: metrics),
+              _ExportButton(session: session, metrics: metrics),
             ],
           ),
           const SizedBox(height: 12),
@@ -259,7 +263,7 @@ class _ResultBody extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Calificación según estándares AHA 2020',
+                    'Calificación según estándares AHA 2025',
                     style: TextStyle(
                         color:
                             Theme.of(context).textTheme.bodyMedium?.color,
@@ -335,6 +339,10 @@ class _ResultBody extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
+          // ── Export PDF Button ─────────────────────────────────────────────────
+          _ExportPdfAction(session: session, metrics: metrics),
+          const SizedBox(height: 12),
+
           // ── Actions ──────────────────────────────────────────────────────────
           ElevatedButton.icon(
             onPressed: () => context.go('/scenarios'),
@@ -354,56 +362,209 @@ class _ResultBody extends ConsumerWidget {
   }
 }
 
-// ─── Export menu ────────────────────────────────────────────────────────────────
-class _ExportMenu extends ConsumerWidget {
-  final String sessionId;
+// ─── Export PDF Action (botón prominente) ──────────────────────────────────────
+class _ExportPdfAction extends ConsumerStatefulWidget {
+  final SessionModel session;
   final SessionMetrics metrics;
-  const _ExportMenu({required this.sessionId, required this.metrics});
+  const _ExportPdfAction({required this.session, required this.metrics});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<String>(
-      onSelected: (value) async {
-        if (value == 'pdf') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Generando PDF… instala las dependencias primero con flutter pub get')),
-          );
-        }
-      },
-      itemBuilder: (_) => [
-        const PopupMenuItem(
-          value: 'pdf',
-          child: Row(
-            children: [
-              Icon(Icons.picture_as_pdf_outlined,
-                  size: 18, color: AppColors.red),
-              SizedBox(width: 10),
-              Text('Exportar PDF'),
-            ],
+  ConsumerState<_ExportPdfAction> createState() => _ExportPdfActionState();
+}
+
+class _ExportPdfActionState extends ConsumerState<_ExportPdfAction> {
+  bool _exporting = false;
+
+  Future<void> _exportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+
+    try {
+      final exportService = ref.read(exportServiceProvider);
+      await exportService.exportSessionPDF(widget.session, widget.metrics);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF generado y compartido exitosamente'),
+            backgroundColor: AppColors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar PDF: $e'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.brand.withValues(alpha: isDark ? 0.15 : 0.08),
+            AppColors.accent.withValues(alpha: isDark ? 0.10 : 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.brand.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _exporting ? null : _exportPdf,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [AppColors.brand, AppColors.accent]),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: _exporting
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.picture_as_pdf_rounded,
+                          color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Exportar reporte PDF',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Genera y comparte el reporte de esta sesión',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: theme.textTheme.bodyMedium?.color,
+                ),
+              ],
+            ),
           ),
         ),
-      ],
-      icon: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      ),
+    );
+  }
+}
+
+// ─── Export button (top bar compact) ────────────────────────────────────────────
+class _ExportButton extends ConsumerStatefulWidget {
+  final SessionModel session;
+  final SessionMetrics metrics;
+  const _ExportButton({required this.session, required this.metrics});
+
+  @override
+  ConsumerState<_ExportButton> createState() => _ExportButtonState();
+}
+
+class _ExportButtonState extends ConsumerState<_ExportButton> {
+  bool _exporting = false;
+
+  Future<void> _exportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+
+    try {
+      final exportService = ref.read(exportServiceProvider);
+      await exportService.exportSessionPDF(widget.session, widget.metrics);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF generado y compartido'),
+            backgroundColor: AppColors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _exporting ? null : _exportPdf,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border: Border.all(
-              color: AppColors.brand.withValues(alpha: 0.4)),
+          border:
+              Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.download_outlined,
-                size: 16, color: AppColors.brand),
-            SizedBox(width: 6),
-            Text('Exportar',
-                style: TextStyle(
-                    color: AppColors.brand,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
+            if (_exporting)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: AppColors.brand,
+                ),
+              )
+            else
+              const Icon(Icons.picture_as_pdf_outlined,
+                  size: 16, color: AppColors.brand),
+            const SizedBox(width: 6),
+            Text(
+              _exporting ? 'Generando…' : 'Exportar PDF',
+              style: const TextStyle(
+                  color: AppColors.brand,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),
