@@ -104,14 +104,17 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
 }
 
 // ─── Header del Instructor ────────────────────────────────────────────────────
-class _InstructorHeaderCard extends StatelessWidget {
+class _InstructorHeaderCard extends ConsumerWidget {
   final CourseModel? course;
   const _InstructorHeaderCard({this.course});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final studentsAsync = course != null ? ref.watch(courseStudentsProvider(course!.id)) : null;
+    final realCount = studentsAsync?.value?.length ?? course?.studentCount ?? 0;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
@@ -196,7 +199,7 @@ class _InstructorHeaderCard extends StatelessWidget {
                   children: [
                     _MetaBadge(
                       icon: Icons.people_outline,
-                      label: '${course?.studentCount ?? 0} estudiantes',
+                      label: '$realCount estudiantes',
                     ),
                     const SizedBox(width: 8),
                     if (course?.inviteCode != null)

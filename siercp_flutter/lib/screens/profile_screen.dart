@@ -120,19 +120,47 @@ class ProfileScreen extends ConsumerWidget {
               // Stats grid
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.9,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _StatCard(label: 'Sesiones totales', value: '${realStats?.totalSessions ?? 0}', color: textColor, cardColor: cardColor, borderColor: borderColor),
-                    _StatCard(label: 'Promedio global', value: '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%', color: AppColors.green, cardColor: cardColor, borderColor: borderColor),
-                    _StatCard(label: 'Horas práctica', value: '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h', color: AppColors.cyan, cardColor: cardColor, borderColor: borderColor),
-                    _StatCard(label: 'Racha actual', value: '${realStats?.streakDays ?? 0}d', color: AppColors.amber, cardColor: cardColor, borderColor: borderColor),
-                  ],
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final isLandscape = MediaQuery.of(context).orientation ==
+                        Orientation.landscape;
+                    return GridView.count(
+                      crossAxisCount: isLandscape ? 4 : 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: isLandscape ? 2.2 : 1.9,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _StatCard(
+                            label: 'Sesiones totales',
+                            value: '${realStats?.totalSessions ?? 0}',
+                            color: textColor,
+                            cardColor: cardColor,
+                            borderColor: borderColor),
+                        _StatCard(
+                            label: 'Promedio global',
+                            value:
+                                '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%',
+                            color: AppColors.green,
+                            cardColor: cardColor,
+                            borderColor: borderColor),
+                        _StatCard(
+                            label: 'Horas práctica',
+                            value:
+                                '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
+                            color: AppColors.cyan,
+                            cardColor: cardColor,
+                            borderColor: borderColor),
+                        _StatCard(
+                            label: 'Racha actual',
+                            value: '${realStats?.streakDays ?? 0}d',
+                            color: AppColors.amber,
+                            cardColor: cardColor,
+                            borderColor: borderColor),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 24),

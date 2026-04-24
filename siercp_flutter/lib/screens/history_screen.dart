@@ -140,14 +140,17 @@ class _HistoryBody extends ConsumerWidget {
           ),
         ),
 
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+
         // Summary cards
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverGrid.count(
-            crossAxisCount: 2,
+            crossAxisCount: isLandscape ? 4 : 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 1.7,
+            childAspectRatio: isLandscape ? 2.4 : 1.7,
             children: [
               _SummaryCard(
                 icon: Icons.analytics_outlined,

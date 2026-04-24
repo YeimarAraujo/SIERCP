@@ -149,16 +149,40 @@ class ScenarioSelectScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             Expanded(
-              child: scenariosAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
-                error: (_, __) => const _OfflineScenarios(),
-                data: (scenarios) => scenarios.isEmpty
-                    ? const _OfflineScenarios()
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: scenarios.length,
-                        itemBuilder: (ctx, i) => _ScenarioCard(scenario: scenarios[i]),
-                      ),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final isLandscape = MediaQuery.of(context).orientation ==
+                      Orientation.landscape;
+                  return scenariosAsync.when(
+                    loading: () => const Center(
+                        child: CircularProgressIndicator(color: AppColors.brand)),
+                    error: (_, __) => const _OfflineScenarios(),
+                    data: (scenarios) => scenarios.isEmpty
+                        ? const _OfflineScenarios()
+                        : isLandscape
+                            ? GridView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 0,
+                                  childAspectRatio: 2.8,
+                                ),
+                                itemCount: scenarios.length,
+                                itemBuilder: (ctx, i) =>
+                                    _ScenarioCard(scenario: scenarios[i]),
+                              )
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                itemCount: scenarios.length,
+                                itemBuilder: (ctx, i) =>
+                                    _ScenarioCard(scenario: scenarios[i]),
+                              ),
+                  );
+                },
               ),
             ),
           ],
@@ -208,20 +232,50 @@ class _OfflineScenarios extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    children: _demos
-        .map((d) => _ScenarioCardRaw(
-              id: d.id,
-              category: d.category,
-              title: d.title,
-              subtitle: d.subtitle,
-              description: d.description,
-              locked: d.locked,
-              isNew: d.isNew,
-            ))
-        .toList(),
-  );
+  Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
+      return GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 0,
+          childAspectRatio: 2.8,
+        ),
+        itemCount: _demos.length,
+        itemBuilder: (ctx, i) {
+          final d = _demos[i];
+          return _ScenarioCardRaw(
+            id: d.id,
+            category: d.category,
+            title: d.title,
+            subtitle: d.subtitle,
+            description: d.description,
+            locked: d.locked,
+            isNew: d.isNew,
+          );
+        },
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      children: _demos
+          .map((d) => _ScenarioCardRaw(
+                id: d.id,
+                category: d.category,
+                title: d.title,
+                subtitle: d.subtitle,
+                description: d.description,
+                locked: d.locked,
+                isNew: d.isNew,
+              ))
+          .toList(),
+    );
+  }
 }
 
 class _DemoScenario {

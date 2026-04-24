@@ -117,114 +117,151 @@ class MainShell extends ConsumerWidget {
     final navBgColor = theme.navigationBarTheme.backgroundColor;
     final borderColor = theme.dividerTheme.color ?? AppColors.cardBorder;
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final navDestinations = isAdmin
+        ? const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.group_outlined),
+              selectedIcon: Icon(Icons.group),
+              label: 'Usuarios',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.developer_board),
+              selectedIcon: Icon(Icons.developer_board),
+              label: 'Maniquíes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.picture_as_pdf_outlined),
+              selectedIcon: Icon(Icons.picture_as_pdf),
+              label: 'Reportes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.analytics_outlined),
+              selectedIcon: Icon(Icons.analytics),
+              label: 'Analíticas',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Perfil',
+            ),
+          ]
+        : isInstructor
+            ? const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.favorite_outline),
+                  selectedIcon: Icon(Icons.favorite),
+                  label: 'Sesión',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.show_chart_outlined),
+                  selectedIcon: Icon(Icons.show_chart),
+                  label: 'Historial',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.menu_book_outlined),
+                  selectedIcon: Icon(Icons.menu_book),
+                  label: 'Cursos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.picture_as_pdf_outlined),
+                  selectedIcon: Icon(Icons.picture_as_pdf),
+                  label: 'Reportes',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Perfil',
+                ),
+              ]
+            : const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.favorite_outline),
+                  selectedIcon: Icon(Icons.favorite),
+                  label: 'Sesión',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.show_chart_outlined),
+                  selectedIcon: Icon(Icons.show_chart),
+                  label: 'Historial',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.menu_book_outlined),
+                  selectedIcon: Icon(Icons.menu_book),
+                  label: 'Cursos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Perfil',
+                ),
+              ];
+
     return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: navBgColor,
-          border: Border(
-            top: BorderSide(color: borderColor, width: 0.5),
-          ),
-        ),
-        child: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: (i) =>
-              _onDestinationSelected(i, context, ref, isAdmin, isInstructor),
-          destinations: isAdmin
-              ? const [
-                  NavigationDestination(
-                    icon: Icon(Icons.dashboard_outlined),
-                    selectedIcon: Icon(Icons.dashboard),
-                    label: 'Dashboard',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.group_outlined),
-                    selectedIcon: Icon(Icons.group),
-                    label: 'Usuarios',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.developer_board),
-                    selectedIcon: Icon(Icons.developer_board),
-                    label: 'Maniquíes',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.picture_as_pdf_outlined),
-                    selectedIcon: Icon(Icons.picture_as_pdf),
-                    label: 'Reportes',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.analytics_outlined),
-                    selectedIcon: Icon(Icons.analytics),
-                    label: 'Analíticas',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.person_outline),
-                    selectedIcon: Icon(Icons.person),
-                    label: 'Perfil',
-                  ),
-                ]
-              : isInstructor
-                  ? const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined),
-                        selectedIcon: Icon(Icons.home),
-                        label: 'Inicio',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.favorite_outline),
-                        selectedIcon: Icon(Icons.favorite),
-                        label: 'Sesión',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.show_chart_outlined),
-                        selectedIcon: Icon(Icons.show_chart),
-                        label: 'Historial',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.menu_book_outlined),
-                        selectedIcon: Icon(Icons.menu_book),
-                        label: 'Cursos',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.picture_as_pdf_outlined),
-                        selectedIcon: Icon(Icons.picture_as_pdf),
-                        label: 'Reportes',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.person_outline),
-                        selectedIcon: Icon(Icons.person),
-                        label: 'Perfil',
-                      ),
-                    ]
-                  : const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined),
-                        selectedIcon: Icon(Icons.home),
-                        label: 'Inicio',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.favorite_outline),
-                        selectedIcon: Icon(Icons.favorite),
-                        label: 'Sesión',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.show_chart_outlined),
-                        selectedIcon: Icon(Icons.show_chart),
-                        label: 'Historial',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.menu_book_outlined),
-                        selectedIcon: Icon(Icons.menu_book),
-                        label: 'Cursos',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.person_outline),
-                        selectedIcon: Icon(Icons.person),
-                        label: 'Perfil',
-                      ),
-                    ],
-        ),
+      body: Row(
+        children: [
+          if (isLandscape)
+            Container(
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: borderColor, width: 0.5)),
+              ),
+              child: NavigationRail(
+                selectedIndex: index,
+                onDestinationSelected: (i) => _onDestinationSelected(
+                    i, context, ref, isAdmin, isInstructor),
+                labelType: NavigationRailLabelType.all,
+                backgroundColor: navBgColor,
+                selectedLabelTextStyle: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelTextStyle: const TextStyle(fontSize: 11),
+                destinations: navDestinations
+                    .map((d) => NavigationRailDestination(
+                          icon: d.icon,
+                          selectedIcon: d.selectedIcon,
+                          label: Text(d.label),
+                        ))
+                    .toList(),
+              ),
+            ),
+          Expanded(child: child),
+        ],
       ),
+      bottomNavigationBar: isLandscape
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                color: navBgColor,
+                border: Border(
+                  top: BorderSide(color: borderColor, width: 0.5),
+                ),
+              ),
+              child: NavigationBar(
+                selectedIndex: index,
+                onDestinationSelected: (i) => _onDestinationSelected(
+                    i, context, ref, isAdmin, isInstructor),
+                destinations: navDestinations,
+              ),
+            ),
     );
   }
 }

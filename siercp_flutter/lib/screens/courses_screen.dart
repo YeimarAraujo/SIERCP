@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../core/theme.dart';
 import '../models/alert_course.dart';
 import '../providers/session_provider.dart';
@@ -489,6 +491,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final isInstructor = currentUser?.isInstructor ?? false;
     final isAdmin = currentUser?.isAdmin ?? false;
     final canManage = isInstructor || isAdmin;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
@@ -573,15 +577,35 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         )
                       : Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: courses
-                                .map((c) => _CourseCard(
-                                      course: c,
-                                      canManage: canManage,
-                                      onEnroll: () => _showEnrollDialog(c.id),
-                                    ))
-                                .toList(),
-                          ),
+                          child: isLandscape
+                              ? GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 2.2,
+                                  ),
+                                  itemCount: courses.length,
+                                  itemBuilder: (ctx, i) => _CourseCard(
+                                    course: courses[i],
+                                    canManage: canManage,
+                                    onEnroll: () =>
+                                        _showEnrollDialog(courses[i].id),
+                                  ),
+                                )
+                              : Column(
+                                  children: courses
+                                      .map((c) => _CourseCard(
+                                            course: c,
+                                            canManage: canManage,
+                                            onEnroll: () =>
+                                                _showEnrollDialog(c.id),
+                                          ))
+                                      .toList(),
+                                ),
                         ),
                 ),
               ),
@@ -619,6 +643,20 @@ class _QRScannerPageState extends State<_QRScannerPage> {
   );
   bool _scanned = false;
   bool _torchOn = false;
+  bool _hasPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final status = await Permission.camera.request();
+    if (mounted) {
+      setState(() => _hasPermission = status.isGranted);
+    }
+  }
 
   @override
   void dispose() {
@@ -678,10 +716,31 @@ class _QRScannerPageState extends State<_QRScannerPage> {
       body: Stack(
         children: [
           // ── Camera view ──────────────────────────────────────────────────
-          MobileScanner(
-            controller: _ctrl,
-            onDetect: _onDetect,
-          ),
+          if (!_hasPermission)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.camera_alt_outlined,
+                      size: 48, color: Colors.white38),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Se requiere permiso de cámara',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _checkPermission,
+                    child: const Text('Otorgar permiso'),
+                  ),
+                ],
+              ),
+            )
+          else
+            MobileScanner(
+              controller: _ctrl,
+              onDetect: _onDetect,
+            ),
 
           // ── Overlay: dark frame with transparent window ──────────────────
           _ScannerOverlay(),
@@ -985,6 +1044,31 @@ class CourseQrDialog extends StatelessWidget {
               style: TextStyle(
                 color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                 fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Share Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final text = '¡Únete a mi curso de RCP en SIERCP!\n'
+                      'Curso: $courseTitle\n'
+                      'Código de invitación: $inviteCode\n\n'
+                      'O escanea el QR desde la app.';
+                  Share.share(text, subject: 'Invitación a curso SIERCP');
+                },
+                icon: const Icon(Icons.share_rounded, size: 18),
+                label: const Text('Compartir invitación'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brand,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ),
           ],

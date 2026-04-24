@@ -259,11 +259,10 @@ class FirestoreService {
     required String studentEmail,
     String? identificacion,
   }) async {
-    final batch = _db.batch();
-
     final enrollRef =
         _courses.doc(courseId).collection('enrollments').doc(studentId);
-    batch.set(enrollRef, {
+    
+    await enrollRef.set({
       'studentId': studentId,
       'studentName': studentName,
       'studentEmail': studentEmail,
@@ -274,13 +273,10 @@ class FirestoreService {
       'sessionCount': 0,
       'status': 'active',
     });
-
-    batch.update(_courses.doc(courseId), {
-      'studentCount': FieldValue.increment(1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
+    
+    // El incremento de studentCount en el documento del curso padre 
+    // suele fallar por permisos cuando lo hace un estudiante (QR).
+    // Es mejor calcularlo dinámicamente o que lo actualice el instructor.
   }
 
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) async {
