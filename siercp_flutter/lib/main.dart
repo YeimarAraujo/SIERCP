@@ -30,8 +30,12 @@ void main() async {
   await FirebaseMessaging.instance
       .requestPermission(alert: true, badge: true, sound: true);
 
-  // Inicializar almacenamiento local (Hive)
+  // Inicializar almacenamiento local (SQLite)
   await LocalStorageService.init();
+  await LocalStorageService().preloadCache();
+
+  // Mantener sincronización activa del nodo de telemetría para lectura rápida
+  FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const ProviderScope(child: SiercpApp()));

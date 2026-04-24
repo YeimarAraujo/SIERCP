@@ -234,7 +234,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                               children: [
                                 _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
                                 _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
-                                _MonitorStat(label: 'CALIDAD %', value: live.correctPct.toStringAsFixed(0), color: const Color(0xFF00FF41)),
+                                _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
                               ],
                             ),
                             const SizedBox(height: 20),

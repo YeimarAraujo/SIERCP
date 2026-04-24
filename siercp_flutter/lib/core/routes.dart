@@ -24,6 +24,8 @@ import '../screens/device_status_screen.dart';
 import '../screens/create_user_screen.dart';
 import '../screens/device_selection_screen.dart';
 import '../screens/reports_screen.dart';
+import '../screens/student_course_detail_screen.dart';
+import '../analytics/presentation/dashboard/analytics_screen.dart';
 import '../models/guide.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -69,11 +71,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/courses',   builder: (_, __) => const CoursesScreen()),
           GoRoute(path: '/scenarios', builder: (_, __) => const ScenarioSelectScreen()),
           GoRoute(path: '/profile',   builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsDashboardScreen()),
 
-          // ── Course Detail ────────────────────────────────────────────────
+          // ── Course Detail (instructor/admin) ────────────────────────────
           GoRoute(
             path: '/courses/:id',
             builder: (_, state) => CourseDetailScreen(
+              courseId: state.pathParameters['id']!,
+            ),
+          ),
+
+          // ── Student Course Detail ───────────────────────────────────────
+          GoRoute(
+            path: '/student-course/:id',
+            builder: (_, state) => StudentCourseDetailScreen(
               courseId: state.pathParameters['id']!,
             ),
           ),

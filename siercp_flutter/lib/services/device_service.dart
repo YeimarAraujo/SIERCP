@@ -169,6 +169,8 @@ class DeviceService {
 
   // ── Stream de todos los dispositivos disponibles ──────────────────────────
   Stream<List<DeviceInfo>> streamAvailableDevices() {
+    // keepSynced mantiene conexión persistente → datos llegan en ~50ms
+    _telemetria.keepSynced(true);
     return _telemetria.onValue.map((event) {
       if (event.snapshot.value == null) return [];
       final raw = Map<String, dynamic>.from(
@@ -188,7 +190,10 @@ class DeviceService {
 
   // ── Stream de un dispositivo especifico ───────────────────────────────────
   Stream<DeviceInfo?> streamDevice(String macAddress) {
-    return _telemetria.child(macAddress).onValue.map((event) {
+    final childRef = _telemetria.child(macAddress);
+    // keepSynced en el nodo específico → recibimos actualizaciones al instante
+    childRef.keepSynced(true);
+    return childRef.onValue.map((event) {
       if (event.snapshot.value == null) return null;
       final data = Map<dynamic, dynamic>.from(
         event.snapshot.value as Map,

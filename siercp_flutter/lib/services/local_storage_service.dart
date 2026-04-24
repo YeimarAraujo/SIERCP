@@ -1,44 +1,117 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as p;
 import '../models/session.dart';
 import '../models/alert_course.dart';
 import '../models/user.dart';
 
-/// Provider global del servicio de almacenamiento local.
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
   return LocalStorageService();
 });
 
-/// Servicio de almacenamiento local offline basado en Hive.
-///
-/// Persiste localmente:
-///  - Sesiones de RCP (con métricas AHA)
-///  - Usuarios (perfil y stats)
-///  - Cursos y enrollments
-///  - PDFs generados (metadatos + path local)
-///
-/// Funciona completamente sin internet.
 class LocalStorageService {
-  static const String _sessionsBox = 'sessions';
-  static const String _usersBox = 'users';
-  static const String _coursesBox = 'courses';
-  static const String _enrollmentsBox = 'enrollments';
-  static const String _reportsBox = 'reports';
-  static const String _syncQueueBox = 'sync_queue';
+  static Database? _db;
 
   // ─── Inicialización ────────────────────────────────────────────────────────
-  /// Inicializa Hive y abre todos los boxes necesarios.
+  /// Inicializa SQLite y crea las tablas necesarias.
   /// Debe llamarse en main() antes de runApp().
   static Future<void> init() async {
-    await Hive.initFlutter();
-    await Future.wait([
-      Hive.openBox<Map>(_sessionsBox),
-      Hive.openBox<Map>(_usersBox),
-      Hive.openBox<Map>(_coursesBox),
-      Hive.openBox<Map>(_enrollmentsBox),
-      Hive.openBox<Map>(_reportsBox),
-      Hive.openBox<Map>(_syncQueueBox),
-    ]);
+    final dbPath = await getDatabasesPath();
+    final path = p.join(dbPath, 'siercp.db');
+
+    _db = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE sessions (
+            id TEXT PRIMARY KEY,
+            studentId TEXT NOT NULL,
+            scenarioId TEXT,
+            scenarioTitle TEXT,
+            patientType TEXT NOT NULL DEFAULT 'adult',
+            status TEXT NOT NULL DEFAULT 'pending',
+            startedAt TEXT NOT NULL,
+            endedAt TEXT,
+            courseId TEXT,
+            metrics TEXT
+          )
+        ''');
+        await db.execute(
+            'CREATE INDEX idx_sessions_student ON sessions(studentId)');
+        await db
+            .execute('CREATE INDEX idx_sessions_course ON sessions(courseId)');
+        await db.execute('''
+          CREATE TABLE users (
+            id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            firstName TEXT NOT NULL,
+            lastName TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'ESTUDIANTE',
+            avatarUrl TEXT,
+            identificacion TEXT,
+            isActive INTEGER NOT NULL DEFAULT 1,
+            stats TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE courses (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            instructorName TEXT NOT NULL,
+            instructorId TEXT,
+            inviteCode TEXT,
+            totalModules INTEGER NOT NULL DEFAULT 0,
+            completedModules INTEGER NOT NULL DEFAULT 0,
+            certification TEXT NOT NULL DEFAULT '',
+            requiredScore REAL NOT NULL DEFAULT 85.0,
+            studentCount INTEGER,
+            description TEXT,
+            createdAt TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE enrollments (
+            courseId TEXT PRIMARY KEY,
+            studentsJson TEXT NOT NULL,
+            savedAt TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE reports (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            studentId TEXT,
+            studentName TEXT,
+            courseId TEXT,
+            courseName TEXT,
+            filePath TEXT NOT NULL,
+            generatedAt TEXT NOT NULL,
+            sessionCount INTEGER NOT NULL DEFAULT 0,
+            averageScore REAL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE sync_queue (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            dataJson TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+          )
+        ''');
+      },
+    );
+  }
+
+  Database get _database {
+    if (_db == null) {
+      throw StateError(
+          'LocalStorageService no inicializado. Llama init() primero.');
+    }
+    return _db!;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -47,94 +120,55 @@ class LocalStorageService {
 
   /// Guarda una sesión completa con sus métricas.
   Future<void> saveSession(SessionModel session) async {
-    final box = Hive.box<Map>(_sessionsBox);
-    await box.put(session.id, _sessionToMap(session));
+    await _database.insert(
+      'sessions',
+      _sessionToRow(session),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await _invalidateCache('sessions');
   }
 
   /// Guarda múltiples sesiones (sincronización masiva).
   Future<void> saveSessions(List<SessionModel> sessions) async {
-    final box = Hive.box<Map>(_sessionsBox);
-    final entries = <String, Map>{};
+    final batch = _database.batch();
     for (final s in sessions) {
-      entries[s.id] = _sessionToMap(s);
+      batch.insert('sessions', _sessionToRow(s),
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await box.putAll(entries);
+    await batch.commit(noResult: true);
+    await _invalidateCache('sessions');
   }
 
   /// Obtiene todas las sesiones de un estudiante, ordenadas por fecha desc.
   List<SessionModel> getStudentSessions(String studentId) {
-    final box = Hive.box<Map>(_sessionsBox);
-    final sessions = <SessionModel>[];
-    for (final key in box.keys) {
-      final data = box.get(key);
-      if (data != null) {
-        final map = Map<String, dynamic>.from(data);
-        if (map['studentId'] == studentId) {
-          sessions.add(_sessionFromMap(key as String, map));
-        }
-      }
-    }
-    sessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    return sessions;
+    return _querySessionsSync('studentId = ?', [studentId]);
   }
 
   /// Obtiene todas las sesiones de un curso.
   List<SessionModel> getCourseSessions(String courseId) {
-    final box = Hive.box<Map>(_sessionsBox);
-    final sessions = <SessionModel>[];
-    for (final key in box.keys) {
-      final data = box.get(key);
-      if (data != null) {
-        final map = Map<String, dynamic>.from(data);
-        if (map['courseId'] == courseId) {
-          sessions.add(_sessionFromMap(key as String, map));
-        }
-      }
-    }
-    sessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    return sessions;
+    return _querySessionsSync('courseId = ?', [courseId]);
   }
 
   /// Obtiene las sesiones de un estudiante en un curso específico.
-  List<SessionModel> getStudentCourseSessions(String studentId, String courseId) {
-    final box = Hive.box<Map>(_sessionsBox);
-    final sessions = <SessionModel>[];
-    for (final key in box.keys) {
-      final data = box.get(key);
-      if (data != null) {
-        final map = Map<String, dynamic>.from(data);
-        if (map['studentId'] == studentId && map['courseId'] == courseId) {
-          sessions.add(_sessionFromMap(key as String, map));
-        }
-      }
-    }
-    sessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    return sessions;
+  List<SessionModel> getStudentCourseSessions(
+      String studentId, String courseId) {
+    return _querySessionsSync(
+        'studentId = ? AND courseId = ?', [studentId, courseId]);
   }
 
   /// Obtiene una sesión por ID.
   SessionModel? getSession(String sessionId) {
-    final box = Hive.box<Map>(_sessionsBox);
-    final data = box.get(sessionId);
-    if (data == null) return null;
-    return _sessionFromMap(sessionId, Map<String, dynamic>.from(data));
+    final results = _querySessionsSync('id = ?', [sessionId]);
+    return results.isEmpty ? null : results.first;
   }
 
   /// Obtiene todas las sesiones almacenadas localmente.
   List<SessionModel> getAllSessions() {
-    final box = Hive.box<Map>(_sessionsBox);
-    final sessions = <SessionModel>[];
-    for (final key in box.keys) {
-      final data = box.get(key);
-      if (data != null) {
-        sessions.add(_sessionFromMap(key as String, Map<String, dynamic>.from(data)));
-      }
-    }
-    sessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    return sessions;
+    return _querySessionsSync(null, null);
   }
 
-  int get totalSessionsStored => Hive.box<Map>(_sessionsBox).length;
+  int get totalSessionsStored =>
+      _querySyncCached('sessions', null, null).length;
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  USUARIOS
@@ -142,62 +176,55 @@ class LocalStorageService {
 
   /// Guarda datos de un usuario (perfil + stats).
   Future<void> saveUser(UserModel user) async {
-    final box = Hive.box<Map>(_usersBox);
-    await box.put(user.id, {
-      'id': user.id,
-      'email': user.email,
-      'firstName': user.firstName,
-      'lastName': user.lastName,
-      'role': user.role,
-      'avatarUrl': user.avatarUrl,
-      'identificacion': user.identificacion,
-      'isActive': user.isActive,
-      'stats': user.stats != null
-          ? {
-              'totalSessions': user.stats!.totalSessions,
-              'sessionsToday': user.stats!.sessionsToday,
-              'averageScore': user.stats!.averageScore,
-              'bestScore': user.stats!.bestScore,
-              'streakDays': user.stats!.streakDays,
-              'totalHours': user.stats!.totalHours,
-              'averageDepthMm': user.stats!.averageDepthMm,
-              'averageRatePerMin': user.stats!.averageRatePerMin,
-            }
-          : null,
-    });
+    final statsJson = user.stats != null
+        ? jsonEncode({
+            'totalSessions': user.stats!.totalSessions,
+            'sessionsToday': user.stats!.sessionsToday,
+            'averageScore': user.stats!.averageScore,
+            'bestScore': user.stats!.bestScore,
+            'streakDays': user.stats!.streakDays,
+            'totalHours': user.stats!.totalHours,
+            'averageDepthMm': user.stats!.averageDepthMm,
+            'averageRatePerMin': user.stats!.averageRatePerMin,
+          })
+        : null;
+
+    await _database.insert(
+        'users',
+        {
+          'id': user.id,
+          'email': user.email,
+          'firstName': user.firstName,
+          'lastName': user.lastName,
+          'role': user.role,
+          'avatarUrl': user.avatarUrl,
+          'identificacion': user.identificacion,
+          'isActive': user.isActive ? 1 : 0,
+          'stats': statsJson,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    await _invalidateCache('users');
   }
 
   /// Obtiene un usuario por ID.
   UserModel? getUser(String userId) {
-    final box = Hive.box<Map>(_usersBox);
-    final data = box.get(userId);
-    if (data == null) return null;
-    final map = Map<String, dynamic>.from(data);
-    final statsMap = map['stats'] != null
-        ? Map<String, dynamic>.from(map['stats'] as Map)
-        : null;
-    return UserModel(
-      id: map['id'] ?? userId,
-      email: map['email'] ?? '',
-      firstName: map['firstName'] ?? '',
-      lastName: map['lastName'] ?? '',
-      role: map['role'] ?? 'ESTUDIANTE',
-      avatarUrl: map['avatarUrl'],
-      identificacion: map['identificacion'],
-      isActive: map['isActive'] ?? true,
-      stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
-    );
+    try {
+      final rows = _querySyncCached('users', 'id = ?', [userId]);
+      if (rows.isEmpty) return null;
+      return _userFromRow(rows.first);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Obtiene todos los usuarios almacenados.
   List<UserModel> getAllUsers() {
-    final box = Hive.box<Map>(_usersBox);
-    final users = <UserModel>[];
-    for (final key in box.keys) {
-      final user = getUser(key as String);
-      if (user != null) users.add(user);
+    try {
+      final rows = _querySyncCached('users', null, null);
+      return rows.map(_userFromRow).toList();
+    } catch (_) {
+      return [];
     }
-    return users;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -206,63 +233,71 @@ class LocalStorageService {
 
   /// Guarda datos de un curso.
   Future<void> saveCourse(CourseModel course) async {
-    final box = Hive.box<Map>(_coursesBox);
-    await box.put(course.id, {
-      'id': course.id,
-      'title': course.title,
-      'instructorName': course.instructorName,
-      'instructorId': course.instructorId,
-      'inviteCode': course.inviteCode,
-      'totalModules': course.totalModules,
-      'completedModules': course.completedModules,
-      'certification': course.certification,
-      'requiredScore': course.requiredScore,
-      'studentCount': course.studentCount,
-      'description': course.description,
-      'createdAt': course.createdAt?.toIso8601String(),
-    });
+    await _database.insert(
+        'courses',
+        {
+          'id': course.id,
+          'title': course.title,
+          'instructorName': course.instructorName,
+          'instructorId': course.instructorId,
+          'inviteCode': course.inviteCode,
+          'totalModules': course.totalModules,
+          'completedModules': course.completedModules,
+          'certification': course.certification,
+          'requiredScore': course.requiredScore,
+          'studentCount': course.studentCount,
+          'description': course.description,
+          'createdAt': course.createdAt?.toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    await _invalidateCache('courses');
   }
 
   /// Guarda múltiples cursos.
   Future<void> saveCourses(List<CourseModel> courses) async {
+    final batch = _database.batch();
     for (final c in courses) {
-      await saveCourse(c);
+      batch.insert(
+          'courses',
+          {
+            'id': c.id,
+            'title': c.title,
+            'instructorName': c.instructorName,
+            'instructorId': c.instructorId,
+            'inviteCode': c.inviteCode,
+            'totalModules': c.totalModules,
+            'completedModules': c.completedModules,
+            'certification': c.certification,
+            'requiredScore': c.requiredScore,
+            'studentCount': c.studentCount,
+            'description': c.description,
+            'createdAt': c.createdAt?.toIso8601String(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
+    await batch.commit(noResult: true);
+    await _invalidateCache('courses');
   }
 
   /// Obtiene un curso por ID.
   CourseModel? getCourse(String courseId) {
-    final box = Hive.box<Map>(_coursesBox);
-    final data = box.get(courseId);
-    if (data == null) return null;
-    final map = Map<String, dynamic>.from(data);
-    return CourseModel(
-      id: map['id'] ?? courseId,
-      title: map['title'] ?? '',
-      instructorName: map['instructorName'] ?? '',
-      instructorId: map['instructorId'],
-      inviteCode: map['inviteCode'],
-      totalModules: map['totalModules'] ?? 0,
-      completedModules: map['completedModules'] ?? 0,
-      certification: map['certification'] ?? '',
-      requiredScore: (map['requiredScore'] ?? 85).toDouble(),
-      studentCount: map['studentCount'],
-      description: map['description'],
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'])
-          : null,
-    );
+    try {
+      final rows = _querySyncCached('courses', 'id = ?', [courseId]);
+      if (rows.isEmpty) return null;
+      return _courseFromRow(rows.first);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Obtiene todos los cursos almacenados.
   List<CourseModel> getAllCourses() {
-    final box = Hive.box<Map>(_coursesBox);
-    final courses = <CourseModel>[];
-    for (final key in box.keys) {
-      final course = getCourse(key as String);
-      if (course != null) courses.add(course);
+    try {
+      final rows = _querySyncCached('courses', null, null);
+      return rows.map(_courseFromRow).toList();
+    } catch (_) {
+      return [];
     }
-    return courses;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -272,24 +307,29 @@ class LocalStorageService {
   /// Guarda los estudiantes inscritos en un curso.
   Future<void> saveCourseEnrollments(
       String courseId, List<Map<String, dynamic>> students) async {
-    final box = Hive.box<Map>(_enrollmentsBox);
-    await box.put(courseId, {
-      'courseId': courseId,
-      'students': students.map((s) => Map<String, dynamic>.from(s)).toList(),
-      'savedAt': DateTime.now().toIso8601String(),
-    });
+    await _database.insert(
+        'enrollments',
+        {
+          'courseId': courseId,
+          'studentsJson': jsonEncode(students),
+          'savedAt': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    await _invalidateCache('enrollments');
   }
 
   /// Obtiene los estudiantes inscritos en un curso.
   List<Map<String, dynamic>> getCourseEnrollments(String courseId) {
-    final box = Hive.box<Map>(_enrollmentsBox);
-    final data = box.get(courseId);
-    if (data == null) return [];
-    final map = Map<String, dynamic>.from(data);
-    final rawStudents = map['students'] as List? ?? [];
-    return rawStudents
-        .map((s) => Map<String, dynamic>.from(s as Map))
-        .toList();
+    try {
+      final rows = _querySyncCached('enrollments', 'courseId = ?', [courseId]);
+      if (rows.isEmpty) return [];
+      final decoded = jsonDecode(rows.first['studentsJson'] as String? ?? '[]');
+      return (decoded as List)
+          .map((s) => Map<String, dynamic>.from(s as Map))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -298,22 +338,20 @@ class LocalStorageService {
 
   /// Guarda el registro de un reporte PDF generado.
   Future<void> saveReportRecord(ReportRecord report) async {
-    final box = Hive.box<Map>(_reportsBox);
-    await box.put(report.id, report.toMap());
+    await _database.insert('reports', report.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    await _invalidateCache('reports');
   }
 
   /// Obtiene todos los reportes generados.
   List<ReportRecord> getAllReports() {
-    final box = Hive.box<Map>(_reportsBox);
-    final reports = <ReportRecord>[];
-    for (final key in box.keys) {
-      final data = box.get(key);
-      if (data != null) {
-        reports.add(ReportRecord.fromMap(Map<String, dynamic>.from(data)));
-      }
+    try {
+      final rows =
+          _querySyncCached('reports', null, null, orderBy: 'generatedAt DESC');
+      return rows.map((r) => ReportRecord.fromMap(r)).toList();
+    } catch (_) {
+      return [];
     }
-    reports.sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
-    return reports;
   }
 
   /// Obtiene reportes por tipo (student, course).
@@ -333,11 +371,11 @@ class LocalStorageService {
 
   /// Elimina un registro de reporte.
   Future<void> deleteReport(String reportId) async {
-    final box = Hive.box<Map>(_reportsBox);
-    await box.delete(reportId);
+    await _database.delete('reports', where: 'id = ?', whereArgs: [reportId]);
+    await _invalidateCache('reports');
   }
 
-  int get totalReportsStored => Hive.box<Map>(_reportsBox).length;
+  int get totalReportsStored => _querySyncCached('reports', null, null).length;
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  SYNC QUEUE (Cola de sincronización pendiente)
@@ -345,31 +383,41 @@ class LocalStorageService {
 
   /// Agrega un item a la cola de sincronización.
   Future<void> addToSyncQueue(String type, Map<String, dynamic> data) async {
-    final box = Hive.box<Map>(_syncQueueBox);
     final id = '${type}_${DateTime.now().millisecondsSinceEpoch}';
-    await box.put(id, {
+    await _database.insert('sync_queue', {
       'id': id,
       'type': type,
-      'data': data,
+      'dataJson': jsonEncode(data),
       'createdAt': DateTime.now().toIso8601String(),
     });
+    await _invalidateCache('sync_queue');
   }
 
   /// Obtiene todos los items pendientes de sincronizar.
   List<Map<String, dynamic>> getPendingSyncItems() {
-    final box = Hive.box<Map>(_syncQueueBox);
-    return box.values
-        .map((v) => Map<String, dynamic>.from(v))
-        .toList();
+    try {
+      final rows = _querySyncCached('sync_queue', null, null);
+      return rows.map((r) {
+        final data = jsonDecode(r['dataJson'] as String? ?? '{}');
+        return {
+          'id': r['id'],
+          'type': r['type'],
+          'data': data,
+          'createdAt': r['createdAt'],
+        };
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Limpia items ya sincronizados.
   Future<void> removeSyncItem(String id) async {
-    final box = Hive.box<Map>(_syncQueueBox);
-    await box.delete(id);
+    await _database.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+    await _invalidateCache('sync_queue');
   }
 
-  int get pendingSyncCount => Hive.box<Map>(_syncQueueBox).length;
+  int get pendingSyncCount => _querySyncCached('sync_queue', null, null).length;
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  LIMPIEZA
@@ -378,25 +426,99 @@ class LocalStorageService {
   /// Limpia todos los datos locales.
   Future<void> clearAll() async {
     await Future.wait([
-      Hive.box<Map>(_sessionsBox).clear(),
-      Hive.box<Map>(_usersBox).clear(),
-      Hive.box<Map>(_coursesBox).clear(),
-      Hive.box<Map>(_enrollmentsBox).clear(),
-      Hive.box<Map>(_reportsBox).clear(),
-      Hive.box<Map>(_syncQueueBox).clear(),
+      _database.delete('sessions'),
+      _database.delete('users'),
+      _database.delete('courses'),
+      _database.delete('enrollments'),
+      _database.delete('reports'),
+      _database.delete('sync_queue'),
     ]);
+    _syncCache.clear();
   }
 
   /// Limpia solo sesiones.
   Future<void> clearSessions() async {
-    await Hive.box<Map>(_sessionsBox).clear();
+    await _database.delete('sessions');
+    _syncCache.remove('sessions');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  CACHE EN MEMORIA PARA LECTURAS SYNC
+  // ═══════════════════════════════════════════════════════════════════════════
+  // sqflite es asíncrono por naturaleza. Mantenemos un cache por tabla
+  // que se actualiza tras cada escritura para preservar la API sincrónica
+  // que los consumidores existentes utilizan.
+
+  final Map<String, List<Map<String, dynamic>>> _syncCache = {};
+
+  /// Precarga tablas en cache para acceso sincrónico. Llamar tras init().
+  Future<void> preloadCache() async {
+    for (final table in [
+      'sessions',
+      'users',
+      'courses',
+      'enrollments',
+      'reports',
+      'sync_queue'
+    ]) {
+      _syncCache[table] = await _database.query(table);
+    }
+  }
+
+  /// Invalidar cache de una tabla específica.
+  Future<void> _invalidateCache(String table) async {
+    _syncCache[table] = await _database.query(table);
+  }
+
+  List<Map<String, dynamic>> _querySyncCached(
+      String table, String? where, List<Object?>? whereArgs,
+      {String? orderBy}) {
+    final cached = _syncCache[table];
+    if (cached == null) return [];
+
+    var results = cached.toList();
+
+    if (where != null && whereArgs != null) {
+      results = results.where((row) {
+        final conditions = where.split(' AND ');
+        for (int i = 0; i < conditions.length; i++) {
+          final cond = conditions[i].trim();
+          final parts = cond.split(' = ');
+          if (parts.length == 2) {
+            final col = parts[0].trim();
+            final val = whereArgs.length > i ? whereArgs[i] : null;
+            if (row[col]?.toString() != val?.toString()) return false;
+          }
+        }
+        return true;
+      }).toList();
+    }
+
+    if (orderBy != null) {
+      final parts = orderBy.split(' ');
+      final col = parts[0];
+      final desc = parts.length > 1 && parts[1].toUpperCase() == 'DESC';
+      results.sort((a, b) {
+        final va = a[col]?.toString() ?? '';
+        final vb = b[col]?.toString() ?? '';
+        return desc ? vb.compareTo(va) : va.compareTo(vb);
+      });
+    }
+
+    return results;
+  }
+
+  List<SessionModel> _querySessionsSync(String? where, List<Object?>? args) {
+    final rows =
+        _querySyncCached('sessions', where, args, orderBy: 'startedAt DESC');
+    return rows.map((r) => _sessionFromRow(r)).toList();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  HELPERS PRIVADOS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Map<String, dynamic> _sessionToMap(SessionModel s) => {
+  Map<String, dynamic> _sessionToRow(SessionModel s) => {
         'id': s.id,
         'studentId': s.studentId,
         'scenarioId': s.scenarioId,
@@ -406,25 +528,68 @@ class LocalStorageService {
         'startedAt': s.startedAt.toIso8601String(),
         'endedAt': s.endedAt?.toIso8601String(),
         'courseId': s.courseId,
-        'metrics': s.metrics != null ? s.metrics!.toMap() : null,
+        'metrics': s.metrics != null ? jsonEncode(s.metrics!.toMap()) : null,
       };
 
-  SessionModel _sessionFromMap(String id, Map<String, dynamic> m) {
+  SessionModel _sessionFromRow(Map<String, dynamic> r) {
+    Map<String, dynamic>? metricsMap;
+    if (r['metrics'] != null) {
+      metricsMap =
+          Map<String, dynamic>.from(jsonDecode(r['metrics'] as String) as Map);
+    }
+
     return SessionModel(
-      id: id,
-      studentId: m['studentId'] ?? '',
-      scenarioId: m['scenarioId'],
-      scenarioTitle: m['scenarioTitle'],
-      patientType: _parsePatientType(m['patientType']),
-      status: _parseStatus(m['status']),
-      startedAt: DateTime.tryParse(m['startedAt'] ?? '') ?? DateTime.now(),
-      endedAt: m['endedAt'] != null ? DateTime.tryParse(m['endedAt']) : null,
-      courseId: m['courseId'],
-      metrics: m['metrics'] != null
-          ? SessionMetrics.fromMap(Map<String, dynamic>.from(m['metrics'] as Map))
+      id: r['id'] as String,
+      studentId: r['studentId'] as String? ?? '',
+      scenarioId: r['scenarioId'] as String?,
+      scenarioTitle: r['scenarioTitle'] as String?,
+      patientType: _parsePatientType(r['patientType'] as String?),
+      status: _parseStatus(r['status'] as String?),
+      startedAt:
+          DateTime.tryParse(r['startedAt'] as String? ?? '') ?? DateTime.now(),
+      endedAt: r['endedAt'] != null
+          ? DateTime.tryParse(r['endedAt'] as String)
           : null,
+      courseId: r['courseId'] as String?,
+      metrics: metricsMap != null ? SessionMetrics.fromMap(metricsMap) : null,
     );
   }
+
+  UserModel _userFromRow(Map<String, dynamic> r) {
+    Map<String, dynamic>? statsMap;
+    if (r['stats'] != null) {
+      statsMap =
+          Map<String, dynamic>.from(jsonDecode(r['stats'] as String) as Map);
+    }
+    return UserModel(
+      id: r['id'] as String? ?? '',
+      email: r['email'] as String? ?? '',
+      firstName: r['firstName'] as String? ?? '',
+      lastName: r['lastName'] as String? ?? '',
+      role: r['role'] as String? ?? 'ESTUDIANTE',
+      avatarUrl: r['avatarUrl'] as String?,
+      identificacion: r['identificacion'] as String?,
+      isActive: (r['isActive'] as int? ?? 1) == 1,
+      stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
+    );
+  }
+
+  CourseModel _courseFromRow(Map<String, dynamic> r) => CourseModel(
+        id: r['id'] as String? ?? '',
+        title: r['title'] as String? ?? '',
+        instructorName: r['instructorName'] as String? ?? '',
+        instructorId: r['instructorId'] as String?,
+        inviteCode: r['inviteCode'] as String?,
+        totalModules: r['totalModules'] as int? ?? 0,
+        completedModules: r['completedModules'] as int? ?? 0,
+        certification: r['certification'] as String? ?? '',
+        requiredScore: (r['requiredScore'] as num? ?? 85).toDouble(),
+        studentCount: r['studentCount'] as int?,
+        description: r['description'] as String?,
+        createdAt: r['createdAt'] != null
+            ? DateTime.tryParse(r['createdAt'] as String)
+            : null,
+      );
 
   static PatientType _parsePatientType(String? t) {
     switch (t) {
@@ -498,16 +663,17 @@ class ReportRecord {
       };
 
   factory ReportRecord.fromMap(Map<String, dynamic> m) => ReportRecord(
-        id: m['id'] ?? '',
-        type: m['type'] ?? 'student',
-        title: m['title'] ?? '',
-        studentId: m['studentId'],
-        studentName: m['studentName'],
-        courseId: m['courseId'],
-        courseName: m['courseName'],
-        filePath: m['filePath'] ?? '',
-        generatedAt: DateTime.tryParse(m['generatedAt'] ?? '') ?? DateTime.now(),
-        sessionCount: m['sessionCount'] ?? 0,
+        id: m['id']?.toString() ?? '',
+        type: m['type']?.toString() ?? 'student',
+        title: m['title']?.toString() ?? '',
+        studentId: m['studentId']?.toString(),
+        studentName: m['studentName']?.toString(),
+        courseId: m['courseId']?.toString(),
+        courseName: m['courseName']?.toString(),
+        filePath: m['filePath']?.toString() ?? '',
+        generatedAt: DateTime.tryParse(m['generatedAt']?.toString() ?? '') ??
+            DateTime.now(),
+        sessionCount: m['sessionCount'] is int ? m['sessionCount'] as int : 0,
         averageScore: (m['averageScore'] as num?)?.toDouble(),
       );
 }

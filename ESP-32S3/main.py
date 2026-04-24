@@ -119,7 +119,7 @@ DETECT_MAX_DUR_MS     = 900    # Duracion maxima (antes 900 ms)
 DETECT_DEBOUNCE_MS    = 60     # Debounce entre ciclos (antes 60 ms)
 
 # ── Telemetria ──────────────────────────────────────────────
-TELEMETRIA_MS         = 100    # ~6-7 updates/seg (antes 100 ms — mas estable en red)
+TELEMETRIA_MS         = 50     # ~20 updates/seg para lectura rapida en Flutter
 
 # ── Boton de finalizacion fisica ─────────────────────────────
 # El sistema NO finaliza por tiempo. Termina cuando el operador

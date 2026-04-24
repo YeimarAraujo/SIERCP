@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/alert_course.dart';
+import '../models/session.dart';
 import '../providers/session_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/admin_service.dart';
@@ -487,197 +488,265 @@ class _CourseCard extends ConsumerWidget {
     final surface = theme.colorScheme.surface;
     final border  = theme.colorScheme.outline;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: surface,
-        border: Border.all(color: border, width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Column(
-        children: [
-          // Card header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.brand.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+    // For students: compute per-course progress from sessions
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final allSessions = sessionsAsync.value ?? [];
+    final courseSessions = allSessions
+        .where((s) => s.courseId == course.id && s.status == SessionStatus.completed)
+        .toList();
+    final totalDone = courseSessions.length;
+    final approved  = courseSessions.where((s) => s.metrics?.approved == true).length;
+    final required  = course.totalModules > 0 ? course.totalModules : 4;
+    final progress  = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
+    final isComplete = approved >= required;
+    final remaining  = (required - approved).clamp(0, required);
+
+    final progressColor = isComplete ? AppColors.green : AppColors.brand;
+
+    return GestureDetector(
+      onTap: () {
+        if (canManage) {
+          context.push('/courses/${course.id}');
+        } else {
+          context.push('/student-course/${course.id}');
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: surface,
+          border: Border.all(color: border, width: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          boxShadow: isDark ? null : AppShadows.card(false),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: icon + title + status badge
+                  Row(
+                    children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isComplete
+                                ? [AppColors.green, const Color(0xFF00C853)]
+                                : [AppColors.brand, AppColors.accent],
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Icon(
+                          isComplete ? Icons.emoji_events_rounded : Icons.menu_book_outlined,
+                          color: Colors.white, size: 20,
+                        ),
                       ),
-                      child: const Icon(Icons.menu_book_outlined,
-                          color: AppColors.brand, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(course.title,
-                              style: TextStyle(
-                                color: textP,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              )),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(Icons.person_outline_rounded,
-                                  size: 11, color: textS),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(course.title,
+                                style: TextStyle(color: textP, fontSize: 14, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Row(children: [
+                              Icon(Icons.person_outline_rounded, size: 11, color: textS),
                               const SizedBox(width: 4),
                               Text(course.instructorName,
                                   style: TextStyle(color: textS, fontSize: 11)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Código de invitación (solo si existe y es instructor/admin)
-                    if (course.inviteCode != null && canManage)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.brand.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: AppColors.brand.withValues(alpha: 0.25), width: 0.5),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.key_rounded,
-                                size: 10, color: AppColors.accent),
-                            const SizedBox(width: 4),
-                            Text(
-                              course.inviteCode!,
-                              style: const TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'SpaceMono',
-                              ),
-                            ),
+                            ]),
                           ],
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: course.progress,
-                    backgroundColor: border,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.brand),
-                    minHeight: 5,
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isComplete ? AppColors.green : totalDone > 0 ? AppColors.amber : AppColors.cyan)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          isComplete ? 'Completado' : totalDone > 0 ? 'En progreso' : 'Pendiente',
+                          style: TextStyle(
+                            color: isComplete ? AppColors.green : totalDone > 0 ? AppColors.amber : AppColors.cyan,
+                            fontSize: 10, fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${course.progressPct}% completado',
-                        style: TextStyle(color: textT, fontSize: 10)),
-                    if (canManage)
-                      Row(
-                        children: [
+                  const SizedBox(height: 14),
+
+                  // Progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: border,
+                      valueColor: AlwaysStoppedAnimation(progressColor),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Stats row
+                  Row(
+                    children: [
+                      _StatChip(icon: Icons.check_circle_outline, label: '$approved aprobadas', color: AppColors.green),
+                      const SizedBox(width: 10),
+                      _StatChip(icon: Icons.repeat_rounded, label: '$totalDone sesiones', color: AppColors.cyan),
+                      const Spacer(),
+                      Text('${(progress * 100).toInt()}%',
+                          style: TextStyle(color: progressColor, fontSize: 13,
+                              fontWeight: FontWeight.w800, fontFamily: 'SpaceMono')),
+                    ],
+                  ),
+
+                  // Remaining message for students
+                  if (!canManage && !isComplete && remaining > 0) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.amberBg,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.info_outline_rounded, size: 13, color: AppColors.amber),
+                        const SizedBox(width: 6),
+                        Text('Faltan $remaining sesión(es) aprobada(s)',
+                            style: const TextStyle(color: AppColors.amber, fontSize: 11, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  ],
+
+                  // Invite code for instructors
+                  if (course.inviteCode != null && canManage) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(children: [
                           Icon(Icons.people_outline, size: 11, color: textT),
                           const SizedBox(width: 4),
                           Text('${course.studentCount ?? 0} estudiantes',
                               style: TextStyle(color: textT, fontSize: 10)),
-                        ],
-                      )
-                    else
-                      Text('Certificado SIERCP',
-                          style: TextStyle(color: textT, fontSize: 10)),
+                        ]),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.brand.withValues(alpha: 0.25), width: 0.5),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.key_rounded, size: 10, color: AppColors.accent),
+                            const SizedBox(width: 4),
+                            Text(course.inviteCode!,
+                                style: const TextStyle(color: AppColors.accent, fontSize: 11,
+                                    fontWeight: FontWeight.w700, fontFamily: 'SpaceMono')),
+                          ]),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-              ],
-            ),
-          ),
-
-          // Actions row (solo para instructores/admin)
-          if (canManage) ...[
-            Divider(color: border, height: 0.5),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  // Ver detalle completo
-                  _ActionButton(
-                    icon: Icons.open_in_new_rounded,
-                    label: 'Detalle',
-                    color: AppColors.accent,
-                    onTap: () => context.push('/courses/${course.id}'),
-                  ),
-                  // Inscribir student
-                  _ActionButton(
-                    icon: Icons.person_add_outlined,
-                    label: 'Inscribir',
-                    onTap: onEnroll,
-                  ),
-                  // Exportar notas
-                  _ActionButton(
-                    icon: Icons.download_outlined,
-                    label: 'Exportar',
-                    color: AppColors.green,
-                    onTap: () => _exportStudentGrades(context, ref, course),
-                  ),
-                  // Monitoreo en vivo
-                  _ActionButton(
-                    icon: Icons.monitor_heart_outlined,
-                    label: 'En Vivo',
-                    color: AppColors.cyan,
-                    onTap: () => context.push('/live/${course.id}'),
-                  ),
                 ],
               ),
             ),
+
+            // CTA for students
+            if (!canManage) ...[
+              Divider(color: border, height: 0.5),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => context.push('/student-course/${course.id}'),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.xl)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isComplete ? Icons.visibility_outlined : Icons.play_arrow_rounded,
+                          size: 16, color: AppColors.brand,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isComplete ? 'Ver detalle del curso' : totalDone > 0 ? 'Continuar' : 'Comenzar entrenamiento',
+                          style: const TextStyle(color: AppColors.brand, fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward_ios, size: 11, color: AppColors.brand),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            // Actions row (instructors/admin only)
+            if (canManage) ...[
+              Divider(color: border, height: 0.5),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    _ActionButton(icon: Icons.open_in_new_rounded, label: 'Detalle',
+                        color: AppColors.accent, onTap: () => context.push('/courses/${course.id}')),
+                    _ActionButton(icon: Icons.person_add_outlined, label: 'Inscribir', onTap: onEnroll),
+                    _ActionButton(icon: Icons.download_outlined, label: 'Exportar',
+                        color: AppColors.green, onTap: () => _exportStudentGrades(context, ref, course)),
+                    _ActionButton(icon: Icons.monitor_heart_outlined, label: 'En Vivo',
+                        color: AppColors.cyan, onTap: () => context.push('/live/${course.id}')),
+                  ],
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Future<void> _exportStudentGrades(
-    BuildContext context,
-    WidgetRef ref,
-    CourseModel course,
-  ) async {
+  Future<void> _exportStudentGrades(BuildContext context, WidgetRef ref, CourseModel course) async {
     try {
       final exportSvc = ref.read(exportServiceProvider);
       await exportSvc.exportCourseGradesCSV(course);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text('CSV de notas exportado'),
-            ]),
-          ),
+          const SnackBar(content: Row(children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+            SizedBox(width: 8), Text('CSV de notas exportado'),
+          ])),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al exportar: $e'),
-            backgroundColor: AppColors.red.withValues(alpha: 0.9),
-          ),
+          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: AppColors.red.withValues(alpha: 0.9)),
         );
       }
     }
   }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StatChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Icon(icon, size: 12, color: color),
+    const SizedBox(width: 4),
+    Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+  ]);
 }
 
 // ─── Action button inside card ─────────────────────────────────────────────────

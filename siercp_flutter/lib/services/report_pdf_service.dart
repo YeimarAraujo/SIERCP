@@ -175,7 +175,7 @@ class ReportPdfService {
     final file = File(filePath);
     await file.writeAsBytes(await pdf.save());
 
-    // Registrar en Hive
+    // Registrar en SQLite
     final record = ReportRecord(
       id: const Uuid().v4(),
       type: 'student',
