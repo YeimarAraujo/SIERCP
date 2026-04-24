@@ -60,6 +60,8 @@ class _HistoryBody extends ConsumerWidget {
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return CustomScrollView(
       slivers: [
@@ -140,8 +142,7 @@ class _HistoryBody extends ConsumerWidget {
           ),
         ),
 
-        final isLandscape =
-            MediaQuery.of(context).orientation == Orientation.landscape;
+
 
         // Summary cards
         SliverPadding(
