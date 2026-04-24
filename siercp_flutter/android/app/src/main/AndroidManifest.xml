@@ -1,10 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <!-- Permisos de almacenamiento y red -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- CÁMARA — requerido para mobile_scanner (QR) -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:label="siercp"

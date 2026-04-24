@@ -1,7 +1,7 @@
 // ─── student_module_viewer_screen.dart ───────────────────────────────────────
 // El ALUMNO ve aquí el contenido de un módulo de Teoría:
 //   • PDF → se muestra con flutter_pdfview (inline, sin salir de la app).
-//   • Video YouTube → se reproduce dentro de la app con youtube_player_flutter.
+//   • Video YouTube → se reproduce dentro de la app con youtube_player_iframe.
 //   • Texto → se muestra directamente.
 // Al finalizar, el alumno puede marcar el módulo como completado.
 
@@ -10,7 +10,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
 import '../../../core/theme.dart';
 import '../../../models/course_module.dart';
@@ -56,22 +56,27 @@ class _StudentModuleViewerScreenState
     super.initState();
     _completed = widget.isCompleted;
 
-    // Construir tabs según contenido disponible
     final tabs = _buildTabs();
     _tabController = TabController(length: tabs.length, vsync: this);
 
-    // Inicializar PDF si existe
     if (widget.module.pdfUrl != null) {
       _loadPdf(widget.module.pdfUrl!);
     }
 
-    // Inicializar YouTube si existe
+    // Inicializar YouTube con youtube_player_iframe
     if (widget.module.videoUrl != null) {
-      final videoId = YoutubePlayer.convertUrlToId(widget.module.videoUrl!);
+      final videoId = YoutubePlayerController.convertUrlToId(
+        widget.module.videoUrl!,
+      );
       if (videoId != null) {
-        _ytController = YoutubePlayerController(
-          initialVideoId: videoId,
-          flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+        _ytController = YoutubePlayerController.fromVideoId(
+          videoId: videoId,
+          params: const YoutubePlayerParams(
+            showFullscreenButton: true,
+            mute: false,
+            showControls: true,
+            playsInline: true,
+          ),
         );
       }
     }
@@ -80,7 +85,7 @@ class _StudentModuleViewerScreenState
   @override
   void dispose() {
     _tabController.dispose();
-    _ytController?.dispose();
+    _ytController?.close(); // close() en lugar de dispose()
     super.dispose();
   }
 
@@ -92,10 +97,11 @@ class _StudentModuleViewerScreenState
     });
     try {
       final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200)
-        throw Exception('HTTP ${response.statusCode}');
+      if (response.statusCode != 200) {
+        throw Exception('HTTP \${response.statusCode}');
+      }
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/module_${widget.module.id}.pdf');
+      final file = File('\${dir.path}/module_\${widget.module.id}.pdf');
       await file.writeAsBytes(response.bodyBytes);
       setState(() {
         _localPdfPath = file.path;
@@ -103,7 +109,7 @@ class _StudentModuleViewerScreenState
       });
     } catch (e) {
       setState(() {
-        _pdfError = 'No se pudo cargar el PDF: $e';
+        _pdfError = 'No se pudo cargar el PDF: \$e';
         _loadingPdf = false;
       });
     }
@@ -117,14 +123,18 @@ class _StudentModuleViewerScreenState
     }
     if (widget.module.videoUrl != null) {
       tabs.add(
-          _TabItem(label: 'Video', icon: Icons.play_circle_outline_rounded));
+        _TabItem(label: 'Video', icon: Icons.play_circle_outline_rounded),
+      );
     }
     if (widget.module.textContent != null &&
         widget.module.textContent!.isNotEmpty) {
-      tabs.add(_TabItem(label: 'Contenido', icon: Icons.text_snippet_outlined));
+      tabs.add(
+        _TabItem(label: 'Contenido', icon: Icons.text_snippet_outlined),
+      );
     }
-    if (tabs.isEmpty)
+    if (tabs.isEmpty) {
       tabs.add(_TabItem(label: 'Info', icon: Icons.info_outline_rounded));
+    }
     return tabs;
   }
 
@@ -150,15 +160,13 @@ class _StudentModuleViewerScreenState
           ]),
           backgroundColor: AppColors.green,
         ));
-        // Invalidar progreso para que la pantalla anterior se actualice
-        // ref.invalidate(studentModuleProgressProvider(...));
-        Navigator.pop(context, true); // pop con resultado para refrescar
+        Navigator.pop(context, true);
       }
     } catch (e) {
       setState(() => _marking = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          content: Text('Error: \$e'),
           backgroundColor: AppColors.red.withValues(alpha: 0.9),
         ));
       }
@@ -172,114 +180,152 @@ class _StudentModuleViewerScreenState
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final tabs = _buildTabs();
 
-    return YoutubePlayerBuilder(
-      player: YoutubePlayer(
-        controller:
-            _ytController ?? YoutubePlayerController(initialVideoId: ''),
-        showVideoProgressIndicator: true,
-        progressIndicatorColor: AppColors.brand,
-      ),
-      builder: (context, player) => Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.module.title,
-                  style: TextStyle(
-                      color: textP, fontSize: 14, fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              Text(widget.module.type.label,
-                  style: TextStyle(color: AppColors.brand, fontSize: 11)),
-            ],
-          ),
-          actions: [
-            if (_completed)
-              Container(
-                margin: const EdgeInsets.only(right: 12),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppColors.green, size: 14),
-                  const SizedBox(width: 4),
-                  const Text('Completado',
-                      style: TextStyle(
-                          color: AppColors.green,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
-                ]),
-              ),
-          ],
-          bottom: tabs.length > 1
-              ? TabBar(
-                  controller: _tabController,
-                  indicatorColor: AppColors.brand,
-                  labelColor: AppColors.brand,
-                  unselectedLabelColor: textS,
-                  tabs: tabs
-                      .map((t) =>
-                          Tab(icon: Icon(t.icon, size: 16), text: t.label))
-                      .toList(),
-                )
-              : null,
+    // YoutubePlayerScaffold envuelve el Scaffold completo para manejar
+    // correctamente el fullscreen en youtube_player_iframe.
+    // Si no hay video, se renderiza el Scaffold directamente.
+    if (_ytController != null) {
+      return YoutubePlayerScaffold(
+        controller: _ytController!,
+        aspectRatio: 16 / 9,
+        builder: (context, player) => _buildScaffold(
+          context,
+          theme,
+          textP,
+          textS,
+          tabs,
+          player,
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: tabs.length > 1
-                  ? TabBarView(
-                      controller: _tabController,
-                      children: _buildTabViews(player, tabs),
-                    )
-                  : _buildTabViews(player, tabs).first,
-            ),
+      );
+    }
 
-            // ── Botón "Marcar como completado" ────────────────────────
-            if (!_completed)
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: ElevatedButton.icon(
-                    onPressed: _marking ? null : _markComplete,
-                    icon: _marking
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.check_circle_outline_rounded,
-                            size: 18),
-                    label: Text(
-                        _marking ? 'Guardando...' : 'Marcar como completado'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brand,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md)),
+    return _buildScaffold(context, theme, textP, textS, tabs, null);
+  }
+
+  Scaffold _buildScaffold(
+    BuildContext context,
+    ThemeData theme,
+    Color textP,
+    Color textS,
+    List<_TabItem> tabs,
+    Widget? player,
+  ) {
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.module.title,
+              style: TextStyle(
+                color: textP,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              widget.module.type.label,
+              style: TextStyle(color: AppColors.brand, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          if (_completed)
+            Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.check_circle_rounded,
+                    color: AppColors.green, size: 14),
+                SizedBox(width: 4),
+                Text(
+                  'Completado',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ]),
+            ),
+        ],
+        bottom: tabs.length > 1
+            ? TabBar(
+                controller: _tabController,
+                indicatorColor: AppColors.brand,
+                labelColor: AppColors.brand,
+                unselectedLabelColor: textS,
+                tabs: tabs
+                    .map(
+                      (t) => Tab(icon: Icon(t.icon, size: 16), text: t.label),
+                    )
+                    .toList(),
+              )
+            : null,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: tabs.length > 1
+                ? TabBarView(
+                    controller: _tabController,
+                    children: _buildTabViews(player, tabs),
+                  )
+                : _buildTabViews(player, tabs).first,
+          ),
+
+          // ── Botón "Marcar como completado" ─────────────────────────────
+          if (!_completed)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: ElevatedButton.icon(
+                  onPressed: _marking ? null : _markComplete,
+                  icon: _marking
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 18,
+                        ),
+                  label: Text(
+                    _marking ? 'Guardando...' : 'Marcar como completado',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brand,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
-  List<Widget> _buildTabViews(Widget player, List<_TabItem> tabs) {
+  List<Widget> _buildTabViews(Widget? player, List<_TabItem> tabs) {
     final views = <Widget>[];
     if (widget.module.pdfUrl != null) views.add(_buildPdfTab());
     if (widget.module.videoUrl != null) views.add(_buildVideoTab(player));
@@ -308,9 +354,11 @@ class _StudentModuleViewerScreenState
           const Icon(Icons.error_outline_rounded,
               size: 48, color: AppColors.red),
           const SizedBox(height: 12),
-          Text(_pdfError!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.red, fontSize: 13)),
+          Text(
+            _pdfError!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.red, fontSize: 13),
+          ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => _loadPdf(widget.module.pdfUrl!),
@@ -322,7 +370,8 @@ class _StudentModuleViewerScreenState
     }
     if (_localPdfPath == null) {
       return const Center(
-          child: CircularProgressIndicator(color: AppColors.brand));
+        child: CircularProgressIndicator(color: AppColors.brand),
+      );
     }
     return PDFView(
       filePath: _localPdfPath!,
@@ -337,17 +386,20 @@ class _StudentModuleViewerScreenState
   }
 
   // ── Vista Video YouTube ────────────────────────────────────────────────────
-  Widget _buildVideoTab(Widget player) {
-    if (_ytController == null) {
+  // [player] viene del builder de YoutubePlayerScaffold; null si no hay video.
+  Widget _buildVideoTab(Widget? player) {
+    if (_ytController == null || player == null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.play_disabled_rounded, size: 48, color: Colors.red),
           const SizedBox(height: 12),
           const Text('URL de video no válida', style: TextStyle(fontSize: 13)),
           const SizedBox(height: 8),
-          Text(widget.module.videoUrl ?? '',
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-              textAlign: TextAlign.center),
+          Text(
+            widget.module.videoUrl ?? '',
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
         ]),
       );
     }
@@ -359,32 +411,39 @@ class _StudentModuleViewerScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Reproductor YouTube integrado
+          // Reproductor YouTube integrado (16:9)
           player,
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.module.title,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                Text(
+                  widget.module.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Row(children: [
                   const Icon(Icons.play_circle_fill_rounded,
                       size: 14, color: Colors.red),
                   const SizedBox(width: 6),
-                  Text('YouTube · Reproducción integrada',
-                      style: TextStyle(color: textS, fontSize: 12)),
+                  Text(
+                    'YouTube · Reproducción integrada',
+                    style: TextStyle(color: textS, fontSize: 12),
+                  ),
                 ]),
                 if (widget.module.textContent != null &&
                     widget.module.textContent!.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 12),
-                  Text(widget.module.textContent!,
-                      style:
-                          TextStyle(color: textS, fontSize: 14, height: 1.6)),
+                  Text(
+                    widget.module.textContent!,
+                    style: TextStyle(color: textS, fontSize: 14, height: 1.6),
+                  ),
                 ],
               ],
             ),
@@ -411,8 +470,10 @@ class _StudentModuleViewerScreenState
   // ── Empty ──────────────────────────────────────────────────────────────────
   Widget _buildEmptyTab() {
     return const Center(
-      child: Text('Este módulo no tiene contenido aún.',
-          style: TextStyle(fontSize: 13, color: Colors.grey)),
+      child: Text(
+        'Este módulo no tiene contenido aún.',
+        style: TextStyle(fontSize: 13, color: Colors.grey),
+      ),
     );
   }
 }

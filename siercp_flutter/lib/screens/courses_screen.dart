@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../core/theme.dart';
 import '../models/alert_course.dart';
 import '../providers/session_provider.dart';
@@ -10,7 +12,7 @@ import '../services/export_service.dart';
 import '../services/session_service.dart';
 import '../widgets/section_label.dart';
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen ───────────────────────────────────────────────────────────────
 class CoursesScreen extends ConsumerStatefulWidget {
   const CoursesScreen({super.key});
 
@@ -19,7 +21,7 @@ class CoursesScreen extends ConsumerStatefulWidget {
 }
 
 class _CoursesScreenState extends ConsumerState<CoursesScreen> {
-  // ─── Create course dialog ─────────────────────────────────────────────────
+  // ─── Create course dialog ────────────────────────────────────────────────────
   void _showCreateDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -70,7 +72,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               ),
             ],
           ),
-        ), // End of SingleChildScrollView
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -105,7 +107,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error: $e'),
+                      content: Text('Error: \$e'),
                       backgroundColor: AppColors.red.withValues(alpha: 0.9),
                     ),
                   );
@@ -118,7 +120,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     );
   }
 
-  // ─── Enroll student by cedula dialog ─────────────────────────────────────
+  // ─── Enroll student by cedula dialog ────────────────────────────────────────
   void _showEnrollDialog(String courseId) {
     final cedulaCtrl = TextEditingController();
     bool loading = false;
@@ -201,7 +203,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error: $e'),
+                              content: Text('Error: \$e'),
                               backgroundColor:
                                   AppColors.red.withValues(alpha: 0.9),
                             ),
@@ -216,14 +218,17 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     );
   }
 
-  // ─── Join Course Dialog (Students) ───────────────────────────────────────
+  // ─── Join Course Dialog (Students) — con opción QR ─────────────────────────
   void _showJoinDialog() {
     final codeCtrl = TextEditingController();
     bool loading = false;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
               Icon(Icons.sensor_door_outlined,
@@ -232,14 +237,67 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               Text('Unirse a un curso'),
             ],
           ),
-          content: TextField(
-            controller: codeCtrl,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(
-              labelText: 'Código del curso',
-              hintText: 'Ej: X9J2P1',
-              prefixIcon: Icon(Icons.key_outlined),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Text field with QR scan button ───────────────────────────
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Código del curso',
+                  hintText: 'Ej: X9J2P1',
+                  prefixIcon: const Icon(Icons.key_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: 'Escanear QR',
+                    icon: const Icon(Icons.qr_code_scanner_rounded,
+                        color: AppColors.brand),
+                    onPressed: () async {
+                      // Cerramos el diálogo actual y abrimos el scanner
+                      Navigator.pop(ctx);
+                      final scanned = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (_) => const _QRScannerPage(),
+                        ),
+                      );
+                      if (scanned != null && scanned.isNotEmpty) {
+                        // Reabrimos el diálogo con el código ya relleno
+                        if (context.mounted) {
+                          _showJoinDialogWithCode(scanned);
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // ── Quick scan hint ──────────────────────────────────────────
+              Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 12,
+                      color: Theme.of(ctx)
+                          .textTheme
+                          .bodySmall
+                          ?.color
+                          ?.withValues(alpha: 0.6)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Escribe el código o toca el ícono QR para escanear.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(ctx)
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -258,51 +316,170 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               label: const Text('Unirse'),
               onPressed: loading
                   ? null
-                  : () async {
-                      if (codeCtrl.text.trim().isEmpty) return;
-                      setSt(() => loading = true);
-                      try {
-                        final user = ref.read(currentUserProvider);
-                        await ref.read(sessionServiceProvider).joinCourse(
-                              codeCtrl.text.trim().toUpperCase(),
-                              studentId: user?.id ?? '',
-                              studentName: user?.fullName ?? '',
-                              studentEmail: user?.email ?? '',
-                              identificacion: user?.identificacion,
-                            );
-                        if (context.mounted) {
-                          Navigator.pop(ctx);
-                          ref.invalidate(coursesProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Row(children: [
-                                Icon(Icons.check_circle_outline,
-                                    color: Colors.white, size: 16),
-                                SizedBox(width: 8),
-                                Text('Te has unido al curso con éxito'),
-                              ]),
-                              backgroundColor: AppColors.green,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        setSt(() => loading = false);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: Verifica el código ($e)'),
-                              backgroundColor:
-                                  AppColors.red.withValues(alpha: 0.9),
-                            ),
-                          );
-                        }
-                      }
-                    },
+                  : () => _doJoinCourse(
+                        ctx,
+                        codeCtrl.text.trim().toUpperCase(),
+                        setSt,
+                        (v) => loading = v,
+                      ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Igual que _showJoinDialog pero con el código ya rellenado tras escanear
+  void _showJoinDialogWithCode(String code) {
+    final codeCtrl = TextEditingController(text: code);
+    bool loading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.qr_code_rounded, color: AppColors.brand, size: 20),
+              SizedBox(width: 10),
+              Text('Unirse a un curso'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Green banner: QR escaneado ───────────────────────────────
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: AppColors.green.withValues(alpha: 0.3),
+                      width: 0.8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded,
+                        color: AppColors.green, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'QR escaneado correctamente',
+                      style: TextStyle(
+                          color: AppColors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Código del curso',
+                  prefixIcon: const Icon(Icons.key_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: 'Escanear de nuevo',
+                    icon: const Icon(Icons.qr_code_scanner_rounded,
+                        color: AppColors.brand),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final scanned = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (_) => const _QRScannerPage(),
+                        ),
+                      );
+                      if (scanned != null &&
+                          scanned.isNotEmpty &&
+                          context.mounted) {
+                        _showJoinDialogWithCode(scanned);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: loading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.login_rounded, size: 16),
+              label: const Text('Unirse'),
+              onPressed: loading
+                  ? null
+                  : () => _doJoinCourse(
+                        ctx,
+                        codeCtrl.text.trim().toUpperCase(),
+                        setSt,
+                        (v) => loading = v,
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Lógica real de unirse al curso — compartida por ambos diálogos
+  Future<void> _doJoinCourse(
+    BuildContext ctx,
+    String code,
+    StateSetter setSt,
+    void Function(bool) setLoading,
+  ) async {
+    if (code.isEmpty) return;
+    setSt(() => setLoading(true));
+
+    try {
+      final user = ref.read(currentUserProvider);
+      await ref.read(sessionServiceProvider).joinCourse(
+            code,
+            studentId: user?.id ?? '',
+            studentName: user?.fullName ?? '',
+            studentEmail: user?.email ?? '',
+            identificacion: user?.identificacion,
+          );
+      if (context.mounted) {
+        Navigator.pop(ctx);
+        ref.invalidate(coursesProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(children: [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Text('Te has unido al curso con éxito'),
+            ]),
+            backgroundColor: AppColors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ ERROR joinCourse: $e');
+      setSt(() => setLoading(false));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: Verifica el código (\$e)'),
+            backgroundColor: AppColors.red.withValues(alpha: 0.9),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -350,7 +527,6 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           ),
                         ],
                       ),
-                      // Botón crear (solo instructores/admin)
                       if (canManage)
                         ElevatedButton.icon(
                           onPressed: _showCreateDialog,
@@ -366,7 +542,6 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 ),
               ),
 
-              // Courses list
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
@@ -386,7 +561,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
                     child: Center(
-                      child: Text('Error al cargar cursos: $e',
+                      child: Text('Error al cargar cursos: \$e',
                           style: TextStyle(color: textS)),
                     ),
                   ),
@@ -428,7 +603,398 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   }
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── QR Scanner Page ───────────────────────────────────────────────────────────
+class _QRScannerPage extends StatefulWidget {
+  const _QRScannerPage();
+
+  @override
+  State<_QRScannerPage> createState() => _QRScannerPageState();
+}
+
+class _QRScannerPageState extends State<_QRScannerPage> {
+  final MobileScannerController _ctrl = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    facing: CameraFacing.back,
+    torchEnabled: false,
+  );
+  bool _scanned = false;
+  bool _torchOn = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    final barcode = capture.barcodes.firstOrNull;
+    final raw = barcode?.rawValue;
+    if (raw == null || raw.isEmpty) return;
+
+    // Extraemos solo el código: si el QR contiene un JSON u otra estructura
+    // buscamos el campo "code", si no, usamos el valor raw completo.
+    String code = raw;
+    try {
+      // Soporte para QR generado como: siercp://course?code=X9J2P1
+      final uri = Uri.tryParse(raw);
+      if (uri != null && uri.queryParameters.containsKey('code')) {
+        code = uri.queryParameters['code']!;
+      }
+    } catch (_) {}
+
+    setState(() => _scanned = true);
+    _ctrl.stop();
+    Navigator.of(context).pop(code.toUpperCase());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Escanear código QR',
+            style: TextStyle(color: Colors.white, fontSize: 16)),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+              color: _torchOn ? Colors.amber : Colors.white,
+            ),
+            onPressed: () {
+              _ctrl.toggleTorch();
+              setState(() => _torchOn = !_torchOn);
+            },
+          ),
+          IconButton(
+            icon:
+                const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+            onPressed: () => _ctrl.switchCamera(),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // ── Camera view ──────────────────────────────────────────────────
+          MobileScanner(
+            controller: _ctrl,
+            onDetect: _onDetect,
+          ),
+
+          // ── Overlay: dark frame with transparent window ──────────────────
+          _ScannerOverlay(),
+
+          // ── Bottom hint ──────────────────────────────────────────────────
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Apunta al código QR del curso',
+                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Scanner overlay (dark mask + transparent square) ─────────────────────────
+class _ScannerOverlay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    const scanSize = 240.0;
+    final top = (size.height - scanSize) / 2 - 40;
+    final left = (size.width - scanSize) / 2;
+
+    return Stack(
+      children: [
+        // Dark background
+        ColorFiltered(
+          colorFilter: ColorFilter.mode(
+            Colors.black.withValues(alpha: 0.55),
+            BlendMode.srcOut,
+          ),
+          child: Stack(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  backgroundBlendMode: BlendMode.dstOut,
+                ),
+              ),
+              Positioned(
+                top: top,
+                left: left,
+                child: Container(
+                  width: scanSize,
+                  height: scanSize,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Corner decoration
+        Positioned(
+          top: top - 2,
+          left: left - 2,
+          child: _CornerFrame(size: scanSize + 4),
+        ),
+      ],
+    );
+  }
+}
+
+class _CornerFrame extends StatelessWidget {
+  final double size;
+  const _CornerFrame({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    const cornerLen = 24.0;
+    const thick = 3.0;
+    const r = 12.0;
+    final c = AppColors.brand;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _CornerPainter(c, cornerLen, thick, r),
+      ),
+    );
+  }
+}
+
+class _CornerPainter extends CustomPainter {
+  final Color color;
+  final double len, thick, radius;
+  const _CornerPainter(this.color, this.len, this.thick, this.radius);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = thick
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Top-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, len)
+        ..lineTo(0, radius)
+        ..arcToPoint(Offset(radius, 0), radius: Radius.circular(radius))
+        ..lineTo(len, 0),
+      p,
+    );
+    // Top-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - len, 0)
+        ..lineTo(size.width - radius, 0)
+        ..arcToPoint(Offset(size.width, radius),
+            radius: Radius.circular(radius))
+        ..lineTo(size.width, len),
+      p,
+    );
+    // Bottom-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height - len)
+        ..lineTo(0, size.height - radius)
+        ..arcToPoint(Offset(radius, size.height),
+            radius: Radius.circular(radius), clockwise: false)
+        ..lineTo(len, size.height),
+      p,
+    );
+    // Bottom-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - len, size.height)
+        ..lineTo(size.width - radius, size.height)
+        ..arcToPoint(Offset(size.width, size.height - radius),
+            radius: Radius.circular(radius), clockwise: false)
+        ..lineTo(size.width, size.height - len),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ─── QR Display Dialog (para el instructor) ────────────────────────────────────
+/// Llamar desde _CourseCard cuando el instructor quiere mostrar el QR del curso
+class CourseQrDialog extends StatelessWidget {
+  final String inviteCode;
+  final String courseTitle;
+
+  const CourseQrDialog({
+    super.key,
+    required this.inviteCode,
+    required this.courseTitle,
+  });
+
+  static void show(BuildContext ctx,
+      {required String inviteCode, required String courseTitle}) {
+    showDialog(
+      context: ctx,
+      builder: (_) => CourseQrDialog(
+        inviteCode: inviteCode,
+        courseTitle: courseTitle,
+      ),
+    );
+  }
+
+  // El QR codifica una URI: siercp://course?code=X9J2P1
+  // Esto permite extraerlo limpio en el scanner.
+  String get _qrData => 'siercp://course?code=$inviteCode';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkCard : Colors.white;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: bg,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Title
+            Row(
+              children: [
+                const Icon(Icons.qr_code_2_rounded,
+                    color: AppColors.brand, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'QR del curso',
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              courseTitle,
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // QR Code
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: QrImageView(
+                data: _qrData,
+                version: QrVersions.auto,
+                size: 200,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Invite code badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.brand.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.brand.withValues(alpha: 0.25), width: 0.8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.key_rounded,
+                      size: 14, color: AppColors.accent),
+                  const SizedBox(width: 8),
+                  Text(
+                    inviteCode,
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: 'SpaceMono',
+                      letterSpacing: 4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Muestra este QR o comparte el código con tus estudiantes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Empty state ───────────────────────────────────────────────────────────────
 class _EmptyCoursesState extends StatelessWidget {
   final bool canManage;
   final VoidCallback onCreate;
@@ -474,8 +1040,7 @@ class _EmptyCoursesState extends StatelessWidget {
           ] else ...[
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed:
-                  onCreate, // onCreate para estudiantes será igual The Dialog para unirse o lo llamamos directo
+              onPressed: onCreate,
               icon: const Icon(Icons.sensor_door_outlined, size: 16),
               label: const Text('Unirse con código'),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
@@ -487,7 +1052,7 @@ class _EmptyCoursesState extends StatelessWidget {
   }
 }
 
-// ─── Course card ──────────────────────────────────────────────────────────────
+// ─── Course card ───────────────────────────────────────────────────────────────
 class _CourseCard extends ConsumerWidget {
   final CourseModel course;
   final bool canManage;
@@ -508,7 +1073,6 @@ class _CourseCard extends ConsumerWidget {
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
-    // ✅ CAMBIO: Container guardado en variable 'card'
     final card = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -519,7 +1083,6 @@ class _CourseCard extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // Card header
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -561,41 +1124,46 @@ class _CourseCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    // Código de invitación (solo si existe y es instructor/admin)
+                    // ── Invite code + tap para mostrar QR ───────────────────
                     if (course.inviteCode != null && canManage)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.brand.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: AppColors.brand.withValues(alpha: 0.25),
-                              width: 0.5),
+                      GestureDetector(
+                        onTap: () => CourseQrDialog.show(
+                          context,
+                          inviteCode: course.inviteCode!,
+                          courseTitle: course.title,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.key_rounded,
-                                size: 10, color: AppColors.accent),
-                            const SizedBox(width: 4),
-                            Text(
-                              course.inviteCode!,
-                              style: const TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'SpaceMono',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: AppColors.brand.withValues(alpha: 0.25),
+                                width: 0.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.qr_code_rounded,
+                                  size: 10, color: AppColors.accent),
+                              const SizedBox(width: 4),
+                              Text(
+                                course.inviteCode!,
+                                style: const TextStyle(
+                                  color: AppColors.accent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'SpaceMono',
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 14),
-
-                // Progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
@@ -609,14 +1177,14 @@ class _CourseCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${course.progressPct}% completado',
+                    Text('\${course.progressPct}% completado',
                         style: TextStyle(color: textT, fontSize: 10)),
                     if (canManage)
                       Row(
                         children: [
                           Icon(Icons.people_outline, size: 11, color: textT),
                           const SizedBox(width: 4),
-                          Text('${course.studentCount ?? 0} estudiantes',
+                          Text('\${course.studentCount ?? 0} estudiantes',
                               style: TextStyle(color: textT, fontSize: 10)),
                         ],
                       )
@@ -628,8 +1196,6 @@ class _CourseCard extends ConsumerWidget {
               ],
             ),
           ),
-
-          // Actions row (solo para instructores/admin)
           if (canManage) ...[
             Divider(color: border, height: 0.5),
             Padding(
@@ -640,7 +1206,7 @@ class _CourseCard extends ConsumerWidget {
                     icon: Icons.layers_outlined,
                     label: 'Módulos',
                     color: AppColors.accent,
-                    onTap: () => context.push('/course-editor/${course.id}'),
+                    onTap: () => context.push('/course-editor/\${course.id}'),
                   ),
                   _ActionButton(
                     icon: Icons.person_add_outlined,
@@ -663,10 +1229,22 @@ class _CourseCard extends ConsumerWidget {
                     onTap: () => _exportStudentGrades(context, ref, course),
                   ),
                   _ActionButton(
+                    icon: Icons.qr_code_2_rounded,
+                    label: 'QR',
+                    color: AppColors.cyan,
+                    onTap: () => course.inviteCode != null
+                        ? CourseQrDialog.show(
+                            context,
+                            inviteCode: course.inviteCode!,
+                            courseTitle: course.title,
+                          )
+                        : null,
+                  ),
+                  _ActionButton(
                     icon: Icons.monitor_heart_outlined,
                     label: 'En Vivo',
                     color: AppColors.cyan,
-                    onTap: () => context.push('/live/${course.id}'),
+                    onTap: () => context.push('/live/\${course.id}'),
                   ),
                 ],
               ),
@@ -676,7 +1254,6 @@ class _CourseCard extends ConsumerWidget {
       ),
     );
 
-    // ✅ CAMBIO CLAVE: alumno → toda la tarjeta navega al detalle del curso
     if (!canManage) {
       return GestureDetector(
         onTap: () {
@@ -695,7 +1272,6 @@ class _CourseCard extends ConsumerWidget {
       );
     }
 
-    // Instructor/Admin → usa los botones internos, no tap global
     return card;
   }
 
@@ -722,7 +1298,7 @@ class _CourseCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al exportar: $e'),
+            content: Text('Error al exportar: \$e'),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -771,7 +1347,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// ─── Students bottom sheet ────────────────────────────────────────────────────
+// ─── Students bottom sheet ─────────────────────────────────────────────────────
 class _StudentsBottomSheet extends ConsumerWidget {
   final String courseId;
   const _StudentsBottomSheet({required this.courseId});
@@ -798,7 +1374,6 @@ class _StudentsBottomSheet extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.only(top: 10),
               width: 36,
@@ -830,7 +1405,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                   child: CircularProgressIndicator(color: AppColors.brand),
                 ),
                 error: (e, _) => Center(
-                  child: Text('Error: $e', style: TextStyle(color: textS)),
+                  child: Text('Error: \$e', style: TextStyle(color: textS)),
                 ),
                 data: (students) => students.isEmpty
                     ? Center(
@@ -862,7 +1437,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
   }
 }
 
-// ─── Student tile ─────────────────────────────────────────────────────────────
+// ─── Student tile ──────────────────────────────────────────────────────────────
 class _StudentTile extends ConsumerWidget {
   final dynamic student;
   const _StudentTile({required this.student});
@@ -873,10 +1448,8 @@ class _StudentTile extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
-    // Score color
     final score = student.avgScore as double? ?? 0.0;
     final scoreColor = score >= 85
         ? AppColors.green
@@ -893,7 +1466,6 @@ class _StudentTile extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Avatar
           CircleAvatar(
             radius: 20,
             backgroundColor: AppColors.brand.withValues(alpha: 0.15),
@@ -925,14 +1497,13 @@ class _StudentTile extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Icon(Icons.history_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text('${student.sessionCount ?? 0} sesiones',
+                    Text('\${student.sessionCount ?? 0} sesiones',
                         style: TextStyle(color: textS, fontSize: 10)),
                   ],
                 ),
               ],
             ),
           ),
-          // Score badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -940,7 +1511,7 @@ class _StudentTile extends ConsumerWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${score.toStringAsFixed(0)}%',
+              '\${score.toStringAsFixed(0)}%',
               style: TextStyle(
                 color: scoreColor,
                 fontSize: 13,
