@@ -490,7 +490,9 @@ class _AddModuleSheetState extends ConsumerState<_AddModuleSheet> {
       widget.onSaved();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Error: $e'),
@@ -644,7 +646,9 @@ class _TeoriaConfigState extends State<TeoriaConfig> {
         ));
       }
     } catch (e) {
-      setState(() => _uploadingPdf = false);
+      if (mounted) {
+        setState(() => _uploadingPdf = false);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error al subir PDF: $e'),
