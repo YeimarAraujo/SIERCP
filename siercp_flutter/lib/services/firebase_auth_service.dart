@@ -26,7 +26,7 @@ class FirebaseAuthService {
       email: email.trim(),
       password: password,
     );
-    final uid  = credential.user!.uid;
+    final uid = credential.user!.uid;
     final user = await _firestore.getUser(uid);
     if (user == null) {
       await _auth.signOut();
@@ -54,13 +54,13 @@ class FirebaseAuthService {
     await credential.user?.updateDisplayName('$firstName $lastName');
 
     final user = UserModel(
-      id:             credential.user!.uid,
-      email:          email.trim(),
-      firstName:      firstName.trim(),
-      lastName:       lastName.trim(),
-      role:           role,
+      id: credential.user!.uid,
+      email: email.trim(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      role: role,
       identificacion: identificacion?.trim(),
-      isActive:       true,
+      isActive: true,
     );
     await _firestore.createUser(user);
     return user;
@@ -70,9 +70,6 @@ class FirebaseAuthService {
     await _auth.signOut();
   }
 
-  /// Crea un usuario (instructor o estudiante) desde el panel admin
-  /// **sin** cerrar la sesión del administrador actual.
-  /// Usa una segunda instancia temporal de FirebaseApp para aislar la creación.
   Future<UserModel> adminCreateUser({
     required String email,
     required String password,
@@ -99,13 +96,13 @@ class FirebaseAuthService {
       await credential.user?.updateDisplayName('$firstName $lastName');
 
       final user = UserModel(
-        id:             credential.user!.uid,
-        email:          email.trim(),
-        firstName:      firstName.trim(),
-        lastName:       lastName.trim(),
-        role:           role,
+        id: credential.user!.uid,
+        email: email.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        role: role,
         identificacion: identificacion?.trim(),
-        isActive:       true,
+        isActive: true,
       );
 
       await _firestore.createUser(user);
@@ -134,15 +131,24 @@ class FirebaseAuthService {
   static String parseAuthError(Object e) {
     if (e is FirebaseAuthException) {
       switch (e.code) {
-        case 'user-not-found':         return 'No existe una cuenta con ese correo.';
-        case 'wrong-password':         return 'Contraseña incorrecta. Inténtalo de nuevo.';
-        case 'email-already-in-use':   return 'Ese correo ya está registrado.';
-        case 'weak-password':          return 'La contraseña es muy débil (mínimo 6 caracteres).';
-        case 'invalid-email':          return 'El formato del correo no es válido.';
-        case 'user-disabled':          return 'Tu cuenta está desactivada.';
-        case 'too-many-requests':      return 'Demasiados intentos. Espera un momento.';
-        case 'network-request-failed': return 'Sin conexión a internet.';
-        default:                       return 'Error de autenticación: ${e.message}';
+        case 'user-not-found':
+          return 'No existe una cuenta con ese correo.';
+        case 'wrong-password':
+          return 'Contraseña incorrecta. Inténtalo de nuevo.';
+        case 'email-already-in-use':
+          return 'Ese correo ya está registrado.';
+        case 'weak-password':
+          return 'La contraseña es muy débil (mínimo 6 caracteres).';
+        case 'invalid-email':
+          return 'El formato del correo no es válido.';
+        case 'user-disabled':
+          return 'Tu cuenta está desactivada.';
+        case 'too-many-requests':
+          return 'Demasiados intentos. Espera un momento.';
+        case 'network-request-failed':
+          return 'Sin conexión a internet.';
+        default:
+          return 'Error de autenticación: ${e.message}';
       }
     }
     return e.toString();

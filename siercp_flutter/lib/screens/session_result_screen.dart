@@ -61,8 +61,7 @@ class SessionResultScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text('Error al cargar resultados:\n$e',
                       textAlign: TextAlign.center,
-                      style:
-                          const TextStyle(color: AppColors.textSecondary)),
+                      style: const TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
@@ -171,8 +170,6 @@ class _ResultBody extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-
-          // ── Top bar ─────────────────────────────────────────────────────────
           Row(
             children: [
               IconButton(
@@ -184,7 +181,6 @@ class _ResultBody extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           if (isLandscape)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,23 +265,17 @@ class _ResultBody extends ConsumerWidget {
                 border: border,
                 isDark: isDark),
           ],
-
           const SizedBox(height: 20),
-
-          // ── Violations ────────────────────────────────────────────────────────
           if (metrics.violations.isNotEmpty) ...[
             const SectionLabel('Correcciones necesarias'),
             const SizedBox(height: 8),
             ...metrics.violations.map((v) => _ViolationCard(violation: v)),
             const SizedBox(height: 16),
           ],
-
           if (!isLandscape) ...[
             _ExportPdfAction(session: session, metrics: metrics),
             const SizedBox(height: 12),
           ],
-
-          // ── Actions ──────────────────────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -442,7 +432,6 @@ class _AhaParametersList extends StatelessWidget {
   }
 }
 
-// ─── Export PDF Action (botón prominente) ──────────────────────────────────────
 class _ExportPdfAction extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -568,7 +557,6 @@ class _ExportPdfActionState extends ConsumerState<_ExportPdfAction> {
   }
 }
 
-// ─── Export button (top bar compact) ────────────────────────────────────────────
 class _ExportButton extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -618,8 +606,7 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border:
-              Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
@@ -652,7 +639,6 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────────────────────────────────
 class _AhaRow extends StatelessWidget {
   final String label;
   final String value;
@@ -679,8 +665,7 @@ class _AhaRow extends StatelessWidget {
               color: color, size: 18),
           const SizedBox(width: 12),
           Expanded(
-              child: Text(label,
-                  style: TextStyle(color: textP, fontSize: 13))),
+              child: Text(label, style: TextStyle(color: textP, fontSize: 13))),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -731,10 +716,7 @@ class _ViolationCard extends StatelessWidget {
                       )),
                   Text('${violation.count} ocurrencia(s)',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 11,
                       )),
                 ],

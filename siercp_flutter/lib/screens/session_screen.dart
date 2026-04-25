@@ -48,8 +48,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         backgroundColor: theme.colorScheme.surface,
         title: Text('Finalizar sesión',
             style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
-        content: Text(
-            '¿Estás seguro de que deseas finalizar la sesión de RCP?',
+        content: Text('¿Estás seguro de que deseas finalizar la sesión de RCP?',
             style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
         actions: [
           TextButton(
@@ -59,7 +58,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-              child: const Text('Finalizar', style: TextStyle(color: Colors.white))),
+              child: const Text('Finalizar',
+                  style: TextStyle(color: Colors.white))),
         ],
       ),
     );
@@ -79,7 +79,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
 
       if (mounted) context.go('/session-result/${session.id}');
     } catch (e) {
-      // Si falló Firestore pero tenemos el sessionId guardado, navegar igual
       if (mounted) {
         if (sessionId != null) {
           context.go('/session-result/$sessionId');
@@ -164,7 +163,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                     children: [
                       Text('Sesión activa',
                           style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge?.color,
                               fontSize: 16,
                               fontWeight: FontWeight.w600)),
                       Row(
@@ -172,7 +172,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                           Text(
                               'Escenario: ${session?.scenarioTitle ?? 'RCP Adulto'}',
                               style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 11)),
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
+                                  fontSize: 11)),
                           const SizedBox(width: 8),
                           Text(elapsedStr,
                               style: const TextStyle(
@@ -193,13 +197,18 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                             height: 36,
                             child: ElevatedButton.icon(
                               onPressed: _endSession,
-                              icon: const Icon(Icons.stop_circle_outlined, size: 14),
-                              label: const Text('Finalizar', style: TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.stop_circle_outlined,
+                                  size: 14),
+                              label: const Text('Finalizar',
+                                  style: TextStyle(fontSize: 12)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.red.withValues(alpha: 0.1),
+                                backgroundColor:
+                                    AppColors.red.withValues(alpha: 0.1),
                                 foregroundColor: AppColors.red,
-                                side: const BorderSide(color: AppColors.red, width: 0.5),
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                side: const BorderSide(
+                                    color: AppColors.red, width: 0.5),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                               ),
                             ),
                           ),
@@ -210,7 +219,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 ],
               ),
             ),
-            
+
             // Monitor Area (Forced Dark)
             Expanded(
               child: Container(
@@ -219,162 +228,202 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                   color: const Color(0xFF0A0B0E),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 15)
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15)
                   ],
                 ),
-                child: isLandscape 
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          // Left: Gauges
-                          Expanded(
-                            flex: 4,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _MonitorPanel(
-                                        label: 'PROFUNDIDAD',
-                                        widget: SizedBox(
-                                          height: 120,
-                                          child: DepthGauge(depthMm: live.depthMm),
+                child: isLandscape
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            // Left: Gauges
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _MonitorPanel(
+                                          label: 'PROFUNDIDAD',
+                                          widget: SizedBox(
+                                            height: 120,
+                                            child: DepthGauge(
+                                                depthMm: live.depthMm),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      child: _MonitorPanel(
-                                        label: 'FRECUENCIA',
-                                        widget: SizedBox(
-                                          height: 120,
-                                          child: RateGauge(ratePerMin: live.ratePerMin),
+                                      Expanded(
+                                        child: _MonitorPanel(
+                                          label: 'FRECUENCIA',
+                                          widget: SizedBox(
+                                            height: 120,
+                                            child: RateGauge(
+                                                ratePerMin: live.ratePerMin),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Container(width: 1, height: double.infinity, color: Colors.white10, margin: const EdgeInsets.symmetric(horizontal: 16)),
-                          // Right: Stats & Wave
+                            Container(
+                                width: 1,
+                                height: double.infinity,
+                                color: Colors.white10,
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 16)),
+                            // Right: Stats & Wave
+                            Expanded(
+                              flex: 6,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _MonitorStat(
+                                          label: 'COMPRESIONES',
+                                          value: '${live.compressionCount}',
+                                          color: Colors.white),
+                                      _MonitorStat(
+                                          label: 'OXÍGENO %',
+                                          value: live.oxygen.toStringAsFixed(0),
+                                          color: const Color(0xFF00E5FF)),
+                                      _MonitorStat(
+                                          label: 'CALIDAD %',
+                                          value: live.sessionScore
+                                              .toStringAsFixed(0),
+                                          color: const Color(0xFF00FF41)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (history.isNotEmpty)
+                                    Container(
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.03),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child:
+                                            CompressionWave(history: history),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 12),
+                                  Theme(
+                                    data: ThemeData.dark(),
+                                    child: AhaStatusBar(
+                                      depthMm: live.depthMm,
+                                      ratePerMin: live.ratePerMin,
+                                      decompressedFully: live.decompressedFully,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        children: [
                           Expanded(
-                            flex: 6,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
-                                    _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
-                                    _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                if (history.isNotEmpty)
-                                  Container(
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.03),
-                                      borderRadius: BorderRadius.circular(12),
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  // Gauges Row
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _MonitorPanel(
+                                          label: 'PROFUNDIDAD',
+                                          widget: SizedBox(
+                                            height: 130,
+                                            child: DepthGauge(
+                                                depthMm: live.depthMm),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                          width: 1,
+                                          height: 100,
+                                          color: Colors.white10),
+                                      Expanded(
+                                        child: _MonitorPanel(
+                                          label: 'FRECUENCIA',
+                                          widget: SizedBox(
+                                            height: 130,
+                                            child: RateGauge(
+                                                ratePerMin: live.ratePerMin),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Stats Row
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _MonitorStat(
+                                          label: 'COMPRESIONES',
+                                          value: '${live.compressionCount}',
+                                          color: Colors.white),
+                                      _MonitorStat(
+                                          label: 'OXÍGENO %',
+                                          value: live.oxygen.toStringAsFixed(0),
+                                          color: const Color(0xFF00E5FF)),
+                                      _MonitorStat(
+                                          label: 'CALIDAD %',
+                                          value: live.sessionScore
+                                              .toStringAsFixed(0),
+                                          color: const Color(0xFF00FF41)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Waveform
+                                  if (history.isNotEmpty)
+                                    Container(
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.03),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child:
+                                            CompressionWave(history: history),
+                                      ),
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: CompressionWave(history: history),
+                                  const SizedBox(height: 12),
+
+                                  // AHA Status (Themed Dark)
+                                  Theme(
+                                    data: ThemeData.dark(),
+                                    child: AhaStatusBar(
+                                      depthMm: live.depthMm,
+                                      ratePerMin: live.ratePerMin,
+                                      decompressedFully: live.decompressedFully,
                                     ),
                                   ),
-                                const SizedBox(height: 12),
-                                Theme(
-                                  data: ThemeData.dark(),
-                                  child: AhaStatusBar(
-                                    depthMm: live.depthMm,
-                                    ratePerMin: live.ratePerMin,
-                                    decompressedFully: live.decompressedFully,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : Column(
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              // Gauges Row
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _MonitorPanel(
-                                      label: 'PROFUNDIDAD',
-                                      widget: SizedBox(
-                                        height: 130,
-                                        child: DepthGauge(depthMm: live.depthMm),
-                                      ),
-                                    ),
-                                  ),
-                                  Container(width: 1, height: 100, color: Colors.white10),
-                                  Expanded(
-                                    child: _MonitorPanel(
-                                      label: 'FRECUENCIA',
-                                      widget: SizedBox(
-                                        height: 130,
-                                        child: RateGauge(ratePerMin: live.ratePerMin),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              
-                              // Stats Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _MonitorStat(label: 'COMPRESIONES', value: '${live.compressionCount}', color: Colors.white),
-                                  _MonitorStat(label: 'OXÍGENO %', value: live.oxygen.toStringAsFixed(0), color: const Color(0xFF00E5FF)),
-                                  _MonitorStat(label: 'CALIDAD %', value: live.sessionScore.toStringAsFixed(0), color: const Color(0xFF00FF41)),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              
-                              // Waveform
-                              if (history.isNotEmpty)
-                                Container(
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.03),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: CompressionWave(history: history),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              
-                              // AHA Status (Themed Dark)
-                              Theme(
-                                data: ThemeData.dark(),
-                                child: AhaStatusBar(
-                                  depthMm: live.depthMm,
-                                  ratePerMin: live.ratePerMin,
-                                  decompressedFully: live.decompressedFully,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
               ),
             ),
 
@@ -384,8 +433,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                 child: Column(
                   children: [
-                    if (alerts.isNotEmpty)
-                      _AlertBanner(alert: alerts.first),
+                    if (alerts.isNotEmpty) _AlertBanner(alert: alerts.first),
                     if (!isLandscape) ...[
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
@@ -396,7 +444,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                           backgroundColor: AppColors.red.withValues(alpha: 0.1),
                           foregroundColor: AppColors.red,
                           minimumSize: const Size(double.infinity, 50),
-                          side: const BorderSide(color: AppColors.red, width: 0.5),
+                          side: const BorderSide(
+                              color: AppColors.red, width: 0.5),
                         ),
                       ),
                     ],
@@ -417,26 +466,41 @@ class _MonitorPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      Text(label, style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-      const SizedBox(height: 10),
-      widget,
-    ],
-  );
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0)),
+          const SizedBox(height: 10),
+          widget,
+        ],
+      );
 }
 
 class _MonitorStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _MonitorStat({required this.label, required this.value, required this.color});
+  const _MonitorStat(
+      {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w800, fontFamily: 'SpaceMono')),
-      Text(label, style: const TextStyle(color: Colors.white38, fontSize: 8, fontWeight: FontWeight.bold)),
-    ],
-  );
+        children: [
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'SpaceMono')),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold)),
+        ],
+      );
 }
 
 class _LiveBadge extends StatefulWidget {
@@ -444,33 +508,50 @@ class _LiveBadge extends StatefulWidget {
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
 
-class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMixin {
+class _LiveBadgeState extends State<_LiveBadge>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))
+      ..repeat(reverse: true);
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: AppColors.greenBg, borderRadius: BorderRadius.circular(20)),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FadeTransition(opacity: _anim, child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle))),
-        const SizedBox(width: 5),
-        const Text('EN VIVO', style: TextStyle(color: AppColors.green, fontSize: 10, fontWeight: FontWeight.w700)),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+            color: AppColors.greenBg, borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FadeTransition(
+                opacity: _anim,
+                child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                        color: AppColors.green, shape: BoxShape.circle))),
+            const SizedBox(width: 5),
+            const Text('EN VIVO',
+                style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
 }
 
 class _AlertBanner extends StatelessWidget {
@@ -479,20 +560,26 @@ class _AlertBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: alert.bgColor, borderRadius: BorderRadius.circular(14), border: Border.all(color: alert.color.withValues(alpha: 0.2))),
-    child: Row(
-      children: [
-        Icon(alert.icon, color: alert.color, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(alert.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(alert.message, style: const TextStyle(fontSize: 11)),
-          ]),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: alert.bgColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: alert.color.withValues(alpha: 0.2))),
+        child: Row(
+          children: [
+            Icon(alert.icon, color: alert.color, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(alert.title,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold)),
+                    Text(alert.message, style: const TextStyle(fontSize: 11)),
+                  ]),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
-

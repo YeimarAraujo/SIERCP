@@ -96,17 +96,7 @@ class CourseService {
   }
 
   // ── Obtener progreso del alumno ────────────────────────────────────────────
-  //
-  // Retorna el Set de IDs de módulos que el alumno ya completó.
-  // Si no existe el documento (alumno sin progreso), retorna Set vacío.
-  //
-  // Estructura Firestore:
-  //   courses/{courseId}/progress/{studentId}
-  //     ├── studentId:        String
-  //     ├── courseId:         String
-  //     ├── completedModules: List<String>  ← IDs de módulos completados
-  //     └── lastUpdated:      Timestamp
-  //
+
   Future<Set<String>> getStudentProgress(
       String courseId, String studentId) async {
     final doc = await _progressRef(courseId).doc(studentId).get();
@@ -115,16 +105,11 @@ class CourseService {
 
     final data = doc.data()! as Map<String, dynamic>;
     // Usamos 'completedModuleIds' para la lista de IDs para evitar conflicto
-    // con el campo 'completedModules' que es un entero en FirestoreService.
     final completed = List<String>.from(data['completedModuleIds'] ?? []);
     return completed.toSet();
   }
 
-  // ── Marcar módulo como completado ─────────────────────────────────────────
-  //
-  // Usa arrayUnion para evitar duplicados y merge:true para no pisar datos
-  // existentes si el alumno ya tiene otros módulos completados.
-  //
+  // ── Marcar módulo como completado ────────────────────
   Future<void> markModuleComplete({
     required String courseId,
     required String moduleId,
@@ -141,24 +126,3 @@ class CourseService {
     });
   }
 }
-
-// ─── Estructura de Firestore ──────────────────────────────────────────────────
-//
-//  courses/{courseId}/
-//    ├── modules/{moduleId}
-//    │     ├── title:             String
-//    │     ├── type:              String  (teoria | evaluacion_teorica |
-//    │     │                               practica_guiada | certificacion)
-//    │     ├── pdfUrl:            String?   ← URL de Firebase Storage
-//    │     ├── videoUrl:          String?   ← URL de YouTube
-//    │     ├── textContent:       String?
-//    │     ├── passingScore:      int
-//    │     ├── questions:         List<Map>
-//    │     ├── requiredSessions:  List<Map>
-//    │     └── order:             int
-//    │
-//    └── progress/{studentId}
-//          ├── studentId:         String
-//          ├── courseId:          String
-//          ├── completedModules:  List<String>  ← IDs de módulos completados
-//          └── lastUpdated:       Timestamp

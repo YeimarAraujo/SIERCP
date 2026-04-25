@@ -125,8 +125,34 @@ class SessionService {
       identificacion: identificacion,
     );
 
+    // Notificar al instructor en sus Alertas
+    if (course.instructorId != null && course.instructorId!.isNotEmpty) {
+      debugPrint('🔔 Creando alerta para instructor: ${course.instructorId}');
+      await _db.addInstructorAlert(
+        course.instructorId!,
+        AlertModel(
+          id: '', // Se genera en Firestore (add)
+          courseId: course.id,
+          type: AlertType.info,
+          title: 'Nuevo estudiante',
+          message: '$studentName se ha unido a "${course.title}"',
+          timestamp: DateTime.now(),
+        ),
+      );
+    } else {
+      debugPrint('⚠️ No se pudo notificar al instructor (ID nulo o vacío)');
+    }
+
     debugPrint('✅ Inscripción completada');
     return course;
+  }
+
+  Future<List<AlertModel>> getInstructorAlerts(String instructorId) {
+    return _db.getInstructorAlerts(instructorId);
+  }
+
+  Stream<List<AlertModel>> watchInstructorAlerts(String instructorId) {
+    return _db.watchInstructorAlerts(instructorId);
   }
 
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) {

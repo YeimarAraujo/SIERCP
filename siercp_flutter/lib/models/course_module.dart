@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// ─── Tipos de módulo ──────────────────────────────────────────────────────────
 enum ModuleType {
   teoria,
   evaluacion_teorica,
@@ -47,7 +46,6 @@ enum ModuleType {
   }
 }
 
-// ─── Pregunta de quiz ─────────────────────────────────────────────────────────
 class QuizQuestion {
   final String text;
   final List<String> options;
@@ -72,7 +70,6 @@ class QuizQuestion {
       };
 }
 
-// ─── Sesión requerida (práctica guiada) ──────────────────────────────────────
 class RequiredSession {
   final String scenarioId;
   final int count;
@@ -97,7 +94,6 @@ class RequiredSession {
       };
 }
 
-// ─── Módulo de curso ──────────────────────────────────────────────────────────
 class CourseModule {
   final String id;
   final String courseId;

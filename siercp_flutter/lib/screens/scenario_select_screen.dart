@@ -6,7 +6,7 @@ import '../models/alert_course.dart';
 import '../providers/session_provider.dart';
 import '../widgets/device_status_widget.dart';
 
-// ─── Icono por categoría de escenario ─────────────────────────────────────────
+// Icono por categoría de escenario
 IconData _scenarioIcon(String category) {
   switch (category.toLowerCase()) {
     case 'accident':
@@ -57,7 +57,6 @@ Color _scenarioColor(String category) {
   }
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
 class ScenarioSelectScreen extends ConsumerWidget {
   const ScenarioSelectScreen({super.key});
 
@@ -83,7 +82,10 @@ class ScenarioSelectScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Seleccionar escenario',
-                          style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
+                          style: TextStyle(
+                              color: textP,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
                       Text('Elige el caso clínico a simular',
                           style: TextStyle(color: textS, fontSize: 12)),
@@ -92,9 +94,11 @@ class ScenarioSelectScreen extends ConsumerWidget {
                   // Botón seleccionar maniquí
                   OutlinedButton.icon(
                     icon: const Icon(Icons.sensors_rounded, size: 14),
-                    label: const Text('Maniquí', style: TextStyle(fontSize: 11)),
+                    label:
+                        const Text('Maniquí', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       minimumSize: Size.zero,
                     ),
                     onPressed: () => context.push('/session/device-select'),
@@ -116,26 +120,32 @@ class ScenarioSelectScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Builder(
                 builder: (context) {
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final isDark =
+                      Theme.of(context).brightness == Brightness.dark;
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.brand.withValues(alpha: isDark ? 0.12 : 0.06),
+                      color: AppColors.brand
+                          .withValues(alpha: isDark ? 0.12 : 0.06),
                       border: Border.all(
-                        color: AppColors.brand.withValues(alpha: isDark ? 0.3 : 0.2),
+                        color: AppColors.brand
+                            .withValues(alpha: isDark ? 0.3 : 0.2),
                         width: 0.5,
                       ),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: AppColors.brand, size: 16),
+                        const Icon(Icons.info_outline_rounded,
+                            color: AppColors.brand, size: 16),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Selecciona un escenario y conecta el maniquí ESP32 para comenzar.',
                             style: TextStyle(
-                              color: isDark ? AppColors.accent : AppColors.brand,
+                              color:
+                                  isDark ? AppColors.accent : AppColors.brand,
                               fontSize: 11,
                             ),
                           ),
@@ -153,35 +163,35 @@ class ScenarioSelectScreen extends ConsumerWidget {
                 builder: (context, ref, child) {
                   final isLandscape = MediaQuery.of(context).orientation ==
                       Orientation.landscape;
-                    return scenariosAsync.when(
-                      loading: () => const Center(
-                          child:
-                              CircularProgressIndicator(color: AppColors.brand)),
-                      error: (_, __) => const _OfflineScenarios(),
-                      data: (scenarios) => scenarios.isEmpty
-                          ? const _OfflineScenarios()
-                          : isLandscape
-                              ? GridView.builder(
-                                  padding: const EdgeInsets.all(20),
-                                  gridDelegate:
-                                      const SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: 400,
-                                    mainAxisExtent: 95,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 0,
-                                  ),
-                                  itemCount: scenarios.length,
-                                  itemBuilder: (ctx, i) =>
-                                      _ScenarioCard(scenario: scenarios[i]),
-                                )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20),
-                                  itemCount: scenarios.length,
-                                  itemBuilder: (ctx, i) =>
-                                      _ScenarioCard(scenario: scenarios[i]),
+                  return scenariosAsync.when(
+                    loading: () => const Center(
+                        child:
+                            CircularProgressIndicator(color: AppColors.brand)),
+                    error: (_, __) => const _OfflineScenarios(),
+                    data: (scenarios) => scenarios.isEmpty
+                        ? const _OfflineScenarios()
+                        : isLandscape
+                            ? GridView.builder(
+                                padding: const EdgeInsets.all(20),
+                                gridDelegate:
+                                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 400,
+                                  mainAxisExtent: 95,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 0,
                                 ),
-                    );
+                                itemCount: scenarios.length,
+                                itemBuilder: (ctx, i) =>
+                                    _ScenarioCard(scenario: scenarios[i]),
+                              )
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                itemCount: scenarios.length,
+                                itemBuilder: (ctx, i) =>
+                                    _ScenarioCard(scenario: scenarios[i]),
+                              ),
+                  );
                 },
               ),
             ),
@@ -192,43 +202,74 @@ class ScenarioSelectScreen extends ConsumerWidget {
   }
 }
 
-// ─── 8 escenarios locales completos ──────────────────────────────────────────
 class _OfflineScenarios extends StatelessWidget {
   const _OfflineScenarios();
 
   static const _demos = [
-    _DemoScenario('paroCardiaco',      'cardiac',           '🏠 Paro cardíaco en casa',
+    _DemoScenario(
+        'paroCardiaco',
+        'cardiac',
+        'Paro cardíaco en casa',
         'Adulto · 52 años · Colapso repentino',
         'Familiar encuentra a la víctima inconsciente en el suelo. Sin pulso ni respiración.',
-        false, false),
-    _DemoScenario('accidenteTransito', 'accident',          '🚗 Accidente de tránsito',
+        false,
+        false),
+    _DemoScenario(
+        'accidenteTransito',
+        'accident',
+        'Accidente de tránsito',
         'Adulto · 35 años · Múltiples traumas',
         'Víctima encontrada en la vía, sin respuesta. Evalúa la escena antes de actuar.',
-        false, false),
-    _DemoScenario('ahogamiento',       'drowning',          '🌊 Ahogamiento en piscina',
+        false,
+        false),
+    _DemoScenario(
+        'ahogamiento',
+        'drowning',
+        'Ahogamiento en piscina',
         'Adulto · Sin respiración ni pulso',
         'Rescatado de la piscina. Protocolo de ahogamiento: ventilaciones primero.',
-        false, true),
-    _DemoScenario('colapsoEjercicio',  'colapsoEjercicio',  '🏋️ Colapso durante ejercicio',
+        false,
+        true),
+    _DemoScenario(
+        'colapsoEjercicio',
+        'colapsoEjercicio',
+        'Colapso durante ejercicio',
         'Adulto · 28 años · Atleta',
         'Colapso súbito en el gimnasio. Posible fibrilación ventricular. Usa el DEA.',
-        false, true),
-    _DemoScenario('atragantamiento',   'atragantamiento',   '🍽️ Atragantamiento severo',
+        false,
+        true),
+    _DemoScenario(
+        'atragantamiento',
+        'atragantamiento',
+        'Atragantamiento severo',
         'Adulto · Obstrucción de vía aérea',
         'Cena familiar. Maniobra de Heimlich + RCP si pierde el conocimiento.',
-        false, false),
-    _DemoScenario('descargaElectrica', 'electrocucion',     '⚡ Descarga eléctrica',
+        false,
+        false),
+    _DemoScenario(
+        'descargaElectrica',
+        'electrocucion',
+        'Descarga eléctrica',
         'Adulto · Accidente laboral',
         'Trabajador electrocutado. Asegurar la escena antes de tocar a la víctima.',
-        false, false),
-    _DemoScenario('sobredosis',        'sobredosis',        '🛏️ Sobredosis por opioides',
+        false,
+        false),
+    _DemoScenario(
+        'sobredosis',
+        'sobredosis',
+        'Sobredosis por opioides',
         'Adulto · Intoxicación · Respiración lenta',
         'Víctima con sobredosis: Naloxona si disponible + RCP si paro cardíaco.',
-        false, false),
-    _DemoScenario('infarto',           'cardiac',           '🚨 Infarto que evoluciona a paro',
+        false,
+        false),
+    _DemoScenario(
+        'infarto',
+        'cardiac',
+        'Infarto que evoluciona a paro',
         'Adulto · 60 años · Dolor torácico',
         'Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.',
-        false, false),
+        false,
+        false),
   ];
 
   @override
@@ -285,7 +326,7 @@ class _DemoScenario {
       this.description, this.locked, this.isNew);
 }
 
-// ─── Card from API model ───────────────────────────────────────────────────────
+// Card from API model
 class _ScenarioCard extends StatelessWidget {
   final ScenarioModel scenario;
   const _ScenarioCard({required this.scenario});
@@ -319,16 +360,16 @@ class _ScenarioCardRaw extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT  = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
     final cardBg = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
     final iconColor = _scenarioColor(category);
-    final icon      = _scenarioIcon(category);
+    final icon = _scenarioIcon(category);
 
     return GestureDetector(
       onTap: locked
@@ -384,7 +425,8 @@ class _ScenarioCardRaw extends StatelessWidget {
                         ),
                         if (isNew)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppColors.cyanBg,
                               borderRadius: BorderRadius.circular(20),
@@ -399,11 +441,13 @@ class _ScenarioCardRaw extends StatelessWidget {
                             ),
                           ),
                         if (locked)
-                          Icon(Icons.lock_outline_rounded, color: textT, size: 16),
+                          Icon(Icons.lock_outline_rounded,
+                              color: textT, size: 16),
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text(subtitle, style: TextStyle(color: textS, fontSize: 11)),
+                    Text(subtitle,
+                        style: TextStyle(color: textS, fontSize: 11)),
                     const SizedBox(height: 4),
                     Text(
                       description,
@@ -417,7 +461,8 @@ class _ScenarioCardRaw extends StatelessWidget {
               if (!locked)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Icon(Icons.chevron_right_rounded, size: 20, color: textT),
+                  child:
+                      Icon(Icons.chevron_right_rounded, size: 20, color: textT),
                 ),
             ],
           ),
@@ -426,4 +471,3 @@ class _ScenarioCardRaw extends StatelessWidget {
     );
   }
 }
-

@@ -91,7 +91,7 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     }
   }
 
-  // ── Incrementar viewCount ─────────────────────────────────────────────────
+  // Incrementar viewCount
   void _incrementViewCount() {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -104,7 +104,7 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     );
   }
 
-  // ── Iniciar timers de lectura ─────────────────────────────────────────────
+  // Iniciar timers de lectura
   void _initTracking() {
     _readTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_isActive && !_completed) {
@@ -115,7 +115,7 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     });
   }
 
-  // ── Reiniciar timer de inactividad ────────────────────────────────────────
+  // Reiniciar timer de inactividad
   void _resetInactivityTimer() {
     _inactivityTimer?.cancel();
     setState(() => _isActive = true);
@@ -125,7 +125,6 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     );
   }
 
-  // ── Guardar progreso en Firestore ─────────────────────────────────────────
   void _saveProgress() {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -137,7 +136,6 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     );
   }
 
-  // ── Marcar como completada ────────────────────────────────────────────────
   Future<void> _markAsCompleted() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -165,7 +163,7 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
     );
   }
 
-  // ── Diálogo de confirmación de lectura ────────────────────────────────────
+  // Diálogo de confirmación de lectura
   void _showCompleteDialog() {
     final minSeconds = widget.guide.estimatedMinutes * 60 * 0.8;
     final hasSpentEnoughTime = _timeSpentSeconds >= minSeconds;
@@ -404,7 +402,7 @@ class _GuidePDFViewerScreenState extends ConsumerState<GuidePDFViewerScreen> {
   }
 }
 
-// ─── Fila de información ──────────────────────────────────────────────────────
+// Fila de información
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
