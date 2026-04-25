@@ -12,7 +12,6 @@ class GuideService {
 
   CollectionReference get _guides => _db.collection('guides');
 
-  // ── Subir PDF a Firebase Storage ──────────────────────────────────────────
   Future<String> uploadPDF(
     File file,
     String courseId,
@@ -42,7 +41,6 @@ class GuideService {
     return await ref.getDownloadURL();
   }
 
-  // ── Crear guía en Firestore ───────────────────────────────────────────────
   Future<void> createGuide(GuideModel guide) async {
     await _guides.doc(guide.id).set(guide.toFirestore());
 
@@ -54,26 +52,23 @@ class GuideService {
     });
   }
 
-  // ── Actualizar metadatos de guía ──────────────────────────────────────────
   Future<void> updateGuide(GuideModel guide) async {
     await _guides.doc(guide.id).update({
-      'title':            guide.title,
-      'description':      guide.description,
-      'category':         guide.category.value,
-      'required':         guide.required,
-      'order':            guide.order,
+      'title': guide.title,
+      'description': guide.description,
+      'category': guide.category.value,
+      'required': guide.required,
+      'order': guide.order,
       'estimatedMinutes': guide.estimatedMinutes,
-      'updatedAt':        FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // ── Eliminar guía ─────────────────────────────────────────────────────────
   Future<void> deleteGuide(String guideId, String courseId) async {
-    // Obtener guía para saber si era required
     final doc = await _guides.doc(guideId).get();
-    final wasRequired = (doc.data() as Map<String, dynamic>?)?['required'] ?? false;
+    final wasRequired =
+        (doc.data() as Map<String, dynamic>?)?['required'] ?? false;
 
-    // Intentar eliminar PDF de Storage
     try {
       await _storage.ref('guides/$courseId/$guideId.pdf').delete();
     } catch (_) {}
@@ -89,7 +84,6 @@ class GuideService {
     });
   }
 
-  // ── Obtener guías de un curso ─────────────────────────────────────────────
   Future<List<GuideModel>> getGuidesByCourse(String courseId) async {
     final snap = await _guides
         .where('courseId', isEqualTo: courseId)
@@ -98,7 +92,6 @@ class GuideService {
     return snap.docs.map(GuideModel.fromFirestore).toList();
   }
 
-  // ── Stream de guías de un curso ───────────────────────────────────────────
   Stream<List<GuideModel>> streamGuidesByCourse(String courseId) {
     return _guides
         .where('courseId', isEqualTo: courseId)
@@ -107,7 +100,6 @@ class GuideService {
         .map((snap) => snap.docs.map(GuideModel.fromFirestore).toList());
   }
 
-  // ── Marcar guía como completada ───────────────────────────────────────────
   Future<void> markGuideAsCompleted(
     String userId,
     String guideId,
@@ -120,23 +112,21 @@ class GuideService {
         .doc(guideId);
 
     final existing = await ref.get();
-    final prevCount = existing.exists
-        ? (existing.data()?['viewCount'] ?? 0) as int
-        : 0;
+    final prevCount =
+        existing.exists ? (existing.data()?['viewCount'] ?? 0) as int : 0;
 
     await ref.set({
-      'guideId':          guideId,
-      'userId':           userId,
-      'completed':        true,
-      'completedAt':      FieldValue.serverTimestamp(),
+      'guideId': guideId,
+      'userId': userId,
+      'completed': true,
+      'completedAt': FieldValue.serverTimestamp(),
       'timeSpentSeconds': timeSpentSeconds,
-      'viewCount':        prevCount + 1,
-      'lastPageReached':  9999,
-      'updatedAt':        FieldValue.serverTimestamp(),
+      'viewCount': prevCount + 1,
+      'lastPageReached': 9999,
+      'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
-  // ── Actualizar progreso parcial (página actual, tiempo) ───────────────────
   Future<void> updateGuideProgress(
     String userId,
     String guideId, {
@@ -151,11 +141,11 @@ class GuideService {
         .doc(guideId);
 
     final updates = <String, dynamic>{
-      'guideId':          guideId,
-      'userId':           userId,
+      'guideId': guideId,
+      'userId': userId,
       'timeSpentSeconds': timeSpentSeconds,
-      'lastPageReached':  lastPageReached,
-      'updatedAt':        FieldValue.serverTimestamp(),
+      'lastPageReached': lastPageReached,
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     if (incrementViewCount) {
@@ -165,7 +155,6 @@ class GuideService {
     await ref.set(updates, SetOptions(merge: true));
   }
 
-  // ── Obtener progreso de un usuario en todas sus guías ────────────────────
   Future<Map<String, GuideProgress>> getUserGuideProgress(String userId) async {
     final snap = await _db
         .collection('guideProgress')
@@ -180,7 +169,6 @@ class GuideService {
     return result;
   }
 
-  // ── Stream de progreso de un usuario ─────────────────────────────────────
   Stream<Map<String, GuideProgress>> streamUserGuideProgress(String userId) {
     return _db
         .collection('guideProgress')
@@ -196,7 +184,6 @@ class GuideService {
     });
   }
 
-  // ── Resumen de progreso de guías en un curso ──────────────────────────────
   Future<GuideProgressSummary> getCourseGuideProgressSummary(
     String userId,
     String courseId,
@@ -208,19 +195,17 @@ class GuideService {
     final requiredCompleted = guides
         .where((g) => g.required && (progressMap[g.id]?.completed ?? false))
         .length;
-    final completed = guides
-        .where((g) => progressMap[g.id]?.completed ?? false)
-        .length;
+    final completed =
+        guides.where((g) => progressMap[g.id]?.completed ?? false).length;
 
     return GuideProgressSummary(
-      totalGuides:       guides.length,
-      completedGuides:   completed,
-      requiredGuides:    required,
+      totalGuides: guides.length,
+      completedGuides: completed,
+      requiredGuides: required,
       requiredCompleted: requiredCompleted,
     );
   }
 
-  // ── Estadísticas de guía para instructores ────────────────────────────────
   Future<Map<String, int>> getGuideStudentStats(
     String guideId,
     List<String> studentIds,

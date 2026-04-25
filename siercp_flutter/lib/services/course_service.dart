@@ -14,8 +14,10 @@ class CourseService {
   CollectionReference _modulesRef(String courseId) =>
       _db.collection('courses').doc(courseId).collection('modules');
 
+  // Usamos la subcolección 'enrollments' porque los estudiantes tienen permiso
+  // para escribir en su propio documento de inscripción cuando se unen al curso.
   CollectionReference _progressRef(String courseId) =>
-      _db.collection('courses').doc(courseId).collection('progress');
+      _db.collection('courses').doc(courseId).collection('enrollments');
 
   // ── Leer módulos ordenados ─────────────────────────────────────────────────
   Future<List<CourseModule>> getModules(String courseId) async {
@@ -94,17 +96,7 @@ class CourseService {
   }
 
   // ── Obtener progreso del alumno ────────────────────────────────────────────
-  //
-  // Retorna el Set de IDs de módulos que el alumno ya completó.
-  // Si no existe el documento (alumno sin progreso), retorna Set vacío.
-  //
-  // Estructura Firestore:
-  //   courses/{courseId}/progress/{studentId}
-  //     ├── studentId:        String
-  //     ├── courseId:         String
-  //     ├── completedModules: List<String>  ← IDs de módulos completados
-  //     └── lastUpdated:      Timestamp
-  //
+
   Future<Set<String>> getStudentProgress(
       String courseId, String studentId) async {
     final doc = await _progressRef(courseId).doc(studentId).get();
@@ -112,51 +104,25 @@ class CourseService {
     if (!doc.exists) return {};
 
     final data = doc.data()! as Map<String, dynamic>;
-    final completed = List<String>.from(data['completedModules'] ?? []);
+    // Usamos 'completedModuleIds' para la lista de IDs para evitar conflicto
+    final completed = List<String>.from(data['completedModuleIds'] ?? []);
     return completed.toSet();
   }
 
-  // ── Marcar módulo como completado ─────────────────────────────────────────
-  //
-  // Usa arrayUnion para evitar duplicados y merge:true para no pisar datos
-  // existentes si el alumno ya tiene otros módulos completados.
-  //
+  // ── Marcar módulo como completado ────────────────────
   Future<void> markModuleComplete({
     required String courseId,
     required String moduleId,
     required String studentId,
   }) async {
-    final progressRef = _progressRef(courseId).doc(studentId);
+    final enrollRef = _progressRef(courseId).doc(studentId);
 
-    await progressRef.set(
-      {
-        'completedModules': FieldValue.arrayUnion([moduleId]),
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'studentId': studentId,
-        'courseId': courseId,
-      },
-      SetOptions(merge: true),
-    );
+    // Actualizamos la lista de IDs y también incrementamos el contador entero
+    // para mantener consistencia con FirestoreService.
+    await enrollRef.update({
+      'completedModuleIds': FieldValue.arrayUnion([moduleId]),
+      'completedModules': FieldValue.increment(1),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
   }
 }
-
-// ─── Estructura de Firestore ──────────────────────────────────────────────────
-//
-//  courses/{courseId}/
-//    ├── modules/{moduleId}
-//    │     ├── title:             String
-//    │     ├── type:              String  (teoria | evaluacion_teorica |
-//    │     │                               practica_guiada | certificacion)
-//    │     ├── pdfUrl:            String?   ← URL de Firebase Storage
-//    │     ├── videoUrl:          String?   ← URL de YouTube
-//    │     ├── textContent:       String?
-//    │     ├── passingScore:      int
-//    │     ├── questions:         List<Map>
-//    │     ├── requiredSessions:  List<Map>
-//    │     └── order:             int
-//    │
-//    └── progress/{studentId}
-//          ├── studentId:         String
-//          ├── courseId:          String
-//          ├── completedModules:  List<String>  ← IDs de módulos completados
-//          └── lastUpdated:       Timestamp

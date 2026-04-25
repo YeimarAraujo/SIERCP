@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../models/session.dart';
@@ -17,6 +18,9 @@ class FirestoreService {
   CollectionReference get _courses => _db.collection('courses');
   CollectionReference get _manikins => _db.collection('manikins');
   CollectionReference get _scenarios => _db.collection('scenarios');
+
+  CollectionReference _userAlerts(String userId) =>
+      _users.doc(userId).collection('alerts');
 
   Future<void> createUser(UserModel user) async {
     await _users.doc(user.id).set(user.toFirestore());
@@ -179,9 +183,28 @@ class FirestoreService {
         .add(alert.toFirestore());
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  CURSOS
-  // ══════════════════════════════════════════════════════════════════════════
+  Future<void> addInstructorAlert(String instructorId, AlertModel alert) async {
+    debugPrint('💾 Guardando alerta en users/$instructorId/alerts');
+    await _userAlerts(instructorId).add(alert.toFirestore());
+  }
+
+  Future<List<AlertModel>> getInstructorAlerts(String instructorId,
+      {int limit = 10}) async {
+    final snap = await _userAlerts(instructorId)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs.map(AlertModel.fromFirestore).toList();
+  }
+
+  Stream<List<AlertModel>> watchInstructorAlerts(String instructorId,
+      {int limit = 10}) {
+    return _userAlerts(instructorId)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs.map(AlertModel.fromFirestore).toList());
+  }
 
   Future<String> createCourse({
     required String title,
@@ -261,7 +284,7 @@ class FirestoreService {
   }) async {
     final enrollRef =
         _courses.doc(courseId).collection('enrollments').doc(studentId);
-    
+
     await enrollRef.set({
       'studentId': studentId,
       'studentName': studentName,
@@ -273,8 +296,8 @@ class FirestoreService {
       'sessionCount': 0,
       'status': 'active',
     });
-    
-    // El incremento de studentCount en el documento del curso padre 
+
+    // El incremento de studentCount en el documento del curso padre
     // suele fallar por permisos cuando lo hace un estudiante (QR).
     // Es mejor calcularlo dinámicamente o que lo actualice el instructor.
   }
@@ -282,6 +305,15 @@ class FirestoreService {
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) async {
     final snap = await _courses.doc(courseId).collection('enrollments').get();
     return snap.docs.map((d) => d.data()).toList();
+  }
+
+  Stream<List<Map<String, dynamic>>> watchCourseStudents(String courseId) {
+    return _courses
+        .doc(courseId)
+        .collection('enrollments')
+        .orderBy('enrolledAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.data()).toList());
   }
 
   Future<List<String>> getStudentEnrolledCourseIds(String studentId) async {
@@ -327,10 +359,6 @@ class FirestoreService {
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  MANIQUÍES
-  // ══════════════════════════════════════════════════════════════════════════
-
   Future<List<ManiquiModel>> getManikins() async {
     final snap = await _manikins.get();
     return snap.docs.map(ManiquiModel.fromFirestore).toList();
@@ -357,14 +385,9 @@ class FirestoreService {
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  ESCENARIOS
-  // ══════════════════════════════════════════════════════════════════════════
-
   Future<List<ScenarioModel>> getScenarios() async {
     final snap = await _scenarios.orderBy('orderIndex').get();
     if (snap.docs.isEmpty) {
-      // Fallback a escenarios locales si Firestore aún no tiene datos
       return _localScenarios();
     }
     return snap.docs.map(ScenarioModel.fromFirestore).toList();

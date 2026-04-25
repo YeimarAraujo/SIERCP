@@ -15,9 +15,6 @@ final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
 class LocalStorageService {
   static Database? _db;
 
-  // ─── Inicialización ────────────────────────────────────────────────────────
-  /// Inicializa SQLite y crea las tablas necesarias.
-  /// Debe llamarse en main() antes de runApp().
   static Future<void> init() async {
     final dbPath = await getDatabasesPath();
     final path = p.join(dbPath, 'siercp.db');
@@ -115,10 +112,6 @@ class LocalStorageService {
     return _db!;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  SESIONES
-  // ═══════════════════════════════════════════════════════════════════════════
-
   /// Guarda una sesión completa con sus métricas.
   Future<void> saveSession(SessionModel session) async {
     await _database.insert(
@@ -140,17 +133,14 @@ class LocalStorageService {
     await _invalidateCache('sessions');
   }
 
-  /// Obtiene todas las sesiones de un estudiante, ordenadas por fecha desc.
   List<SessionModel> getStudentSessions(String studentId) {
     return _querySessionsSync('studentId = ?', [studentId]);
   }
 
-  /// Obtiene todas las sesiones de un curso.
   List<SessionModel> getCourseSessions(String courseId) {
     return _querySessionsSync('courseId = ?', [courseId]);
   }
 
-  /// Obtiene las sesiones de un estudiante en un curso específico.
   List<SessionModel> getStudentCourseSessions(
       String studentId, String courseId) {
     return _querySessionsSync(
@@ -170,10 +160,6 @@ class LocalStorageService {
 
   int get totalSessionsStored =>
       _querySyncCached('sessions', null, null).length;
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  USUARIOS
-  // ═══════════════════════════════════════════════════════════════════════════
 
   /// Guarda datos de un usuario (perfil + stats).
   Future<void> saveUser(UserModel user) async {
@@ -228,11 +214,7 @@ class LocalStorageService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  CURSOS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /// Guarda datos de un curso.
+  // Guarda datos de un curso.
   Future<void> saveCourse(CourseModel course) async {
     await _database.insert(
         'courses',
@@ -301,10 +283,6 @@ class LocalStorageService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  ENROLLMENTS (Inscripciones del curso)
-  // ═══════════════════════════════════════════════════════════════════════════
-
   /// Guarda los estudiantes inscritos en un curso.
   Future<void> saveCourseEnrollments(
       String courseId, List<Map<String, dynamic>> students) async {
@@ -336,10 +314,6 @@ class LocalStorageService {
       return [];
     }
   }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  REPORTES PDF (Metadatos locales)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   /// Guarda el registro de un reporte PDF generado.
   Future<void> saveReportRecord(ReportRecord report) async {
@@ -382,10 +356,6 @@ class LocalStorageService {
 
   int get totalReportsStored => _querySyncCached('reports', null, null).length;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  SYNC QUEUE (Cola de sincronización pendiente)
-  // ═══════════════════════════════════════════════════════════════════════════
-
   /// Agrega un item a la cola de sincronización.
   Future<void> addToSyncQueue(String type, Map<String, dynamic> data) async {
     final id = '${type}_${DateTime.now().millisecondsSinceEpoch}';
@@ -424,10 +394,6 @@ class LocalStorageService {
 
   int get pendingSyncCount => _querySyncCached('sync_queue', null, null).length;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  LIMPIEZA
-  // ═══════════════════════════════════════════════════════════════════════════
-
   /// Limpia todos los datos locales.
   Future<void> clearAll() async {
     await Future.wait([
@@ -446,13 +412,6 @@ class LocalStorageService {
     await _database.delete('sessions');
     _syncCache.remove('sessions');
   }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  CACHE EN MEMORIA PARA LECTURAS SYNC
-  // ═══════════════════════════════════════════════════════════════════════════
-  // sqflite es asíncrono por naturaleza. Mantenemos un cache por tabla
-  // que se actualiza tras cada escritura para preservar la API sincrónica
-  // que los consumidores existentes utilizan.
 
   final Map<String, List<Map<String, dynamic>>> _syncCache = {};
 
@@ -518,10 +477,6 @@ class LocalStorageService {
         _querySyncCached('sessions', where, args, orderBy: 'startedAt DESC');
     return rows.map((r) => _sessionFromRow(r)).toList();
   }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  HELPERS PRIVADOS
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Map<String, dynamic> _sessionToRow(SessionModel s) => {
         'id': s.id,
@@ -621,11 +576,7 @@ class LocalStorageService {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  MODELO: ReportRecord
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/// Registro de un PDF generado y guardado localmente.
+// Registro de un PDF generado y guardado localmente.
 class ReportRecord {
   final String id;
   final String type; // 'student' | 'course'

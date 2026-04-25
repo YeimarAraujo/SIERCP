@@ -520,9 +520,18 @@ final coursesProvider = FutureProvider<List<CourseModel>>((ref) async {
   return ref.read(sessionServiceProvider).getCoursesForUser(user.id, user.role);
 });
 
-// ─── Alerts (últimas de sesiones cerradas) ────────────────────────────────────
-final recentAlertsProvider = FutureProvider<List<AlertModel>>((ref) async {
-  return [];
+// ─── Alerts (Stream en tiempo real) ──────────────────────────────────────────
+final recentAlertsProvider = StreamProvider<List<AlertModel>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return Stream.value([]);
+  
+  // Si es instructor o admin, ver alertas de su buzón en tiempo real
+  if (user.isInstructor || user.isAdmin) {
+    debugPrint('📡 Escuchando alertas para usuario: ${user.id}');
+    return ref.read(sessionServiceProvider).watchInstructorAlerts(user.id);
+  }
+  
+  return Stream.value([]);
 });
 
 // ─── User Stats (calculadas desde historial) ─────────────────────────────────
@@ -574,12 +583,8 @@ final userStatsProvider = Provider<UserStats?>((ref) {
 
 // ─── Course Students ─────────────────────────────────────────────────────────
 final courseStudentsProvider =
-    FutureProvider.family<List, String>((ref, courseId) async {
-  try {
-    return await ref.read(sessionServiceProvider).getCourseStudents(courseId);
-  } catch (_) {
-    return [];
-  }
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, courseId) {
+  return ref.read(sessionServiceProvider).watchCourseStudents(courseId);
 });
 
 // ─── Device Status ────────────────────────────────────────────────────────────

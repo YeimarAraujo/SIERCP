@@ -61,8 +61,7 @@ class SessionResultScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text('Error al cargar resultados:\n$e',
                       textAlign: TextAlign.center,
-                      style:
-                          const TextStyle(color: AppColors.textSecondary)),
+                      style: const TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
@@ -162,6 +161,8 @@ class _ResultBody extends ConsumerWidget {
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -169,8 +170,6 @@ class _ResultBody extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-
-          // ── Top bar ─────────────────────────────────────────────────────────
           Row(
             children: [
               IconButton(
@@ -182,178 +181,119 @@ class _ResultBody extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // ── Score circle ────────────────────────────────────────────────────
-          Center(
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: metrics.score / 100),
-              duration: const Duration(milliseconds: 1000),
-              curve: Curves.easeOutCubic,
-              builder: (_, value, __) => Column(
-                children: [
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 140,
-                          height: 140,
-                          child: CircularProgressIndicator(
-                            value: value,
-                            strokeWidth: 10,
-                            backgroundColor: border,
-                            valueColor:
-                                AlwaysStoppedAnimation(metrics.scoreColor),
-                            strokeCap: StrokeCap.round,
-                          ),
+          if (isLandscape)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Score left
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _ScoreCircle(metrics: metrics, size: 120),
+                      const SizedBox(height: 16),
+                      Text(
+                        metrics.approved
+                            ? '¡Excelente técnica!'
+                            : 'Sigue practicando',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: textP,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${(value * 100).toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: metrics.scoreColor,
-                                fontSize: 36,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'SpaceMono',
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  metrics.approved
-                                      ? Icons.check_circle_outlined
-                                      : Icons.cancel_outlined,
-                                  color: metrics.scoreColor,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  metrics.approved
-                                      ? 'APROBADO'
-                                      : 'REPROBADO',
-                                  style: TextStyle(
-                                    color: metrics.scoreColor,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 24),
+                      _ExportPdfAction(session: session, metrics: metrics),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  Text(
-                    metrics.approved
-                        ? '¡Excelente técnica de RCP!'
-                        : 'Sigue practicando — puedes mejorar',
-                    style: TextStyle(
-                      color: textP,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                const SizedBox(width: 24),
+                // Parameters right
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SectionLabel('Parámetros AHA'),
+                      const SizedBox(height: 10),
+                      _AhaParametersList(
+                          metrics: metrics,
+                          surface: surface,
+                          border: border,
+                          isDark: isDark),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Calificación según estándares AHA 2025',
-                    style: TextStyle(
-                        color:
-                            Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 12),
-                  ),
-                ],
+                ),
+              ],
+            )
+          else ...[
+            // Score center (Portrait)
+            Center(child: _ScoreCircle(metrics: metrics, size: 140)),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                metrics.approved
+                    ? '¡Excelente técnica de RCP!'
+                    : 'Sigue practicando — puedes mejorar',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textP,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'Calificación según estándares AHA 2025',
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 24),
 
-          // ── AHA Parameters ───────────────────────────────────────────────────
-          const SectionLabel('Parámetros evaluados AHA'),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: border, width: 0.5),
-              boxShadow: isDark ? null : AppShadows.card(false),
-            ),
-            child: Column(
-              children: [
-                _AhaRow(
-                    label: 'Profundidad promedio',
-                    value:
-                        '${metrics.averageDepthMm.toStringAsFixed(1)} mm',
-                    range: '50 – 60 mm',
-                    ok: metrics.depthOk),
-                Divider(color: border, height: 0.5),
-                _AhaRow(
-                    label: 'Frecuencia promedio',
-                    value:
-                        '${metrics.averageRatePerMin.toStringAsFixed(0)} /min',
-                    range: '100 – 120 /min',
-                    ok: metrics.rateOk),
-                Divider(color: border, height: 0.5),
-                _AhaRow(
-                    label: 'Compresiones correctas',
-                    value:
-                        '${metrics.correctCompressionsPct.toStringAsFixed(1)}%',
-                    range: 'Meta: 85%+',
-                    ok: metrics.correctCompressionsPct >= 85),
-                Divider(color: border, height: 0.5),
-                _AhaRow(
-                    label: 'Pausa máxima',
-                    value:
-                        '${metrics.maxPauseSeconds.toStringAsFixed(1)} s',
-                    range: 'Máx: 10 s',
-                    ok: metrics.maxPauseSeconds <= 10),
-                Divider(color: border, height: 0.5),
-                _AhaRow(
-                    label: 'Total compresiones',
-                    value: '${metrics.totalCompressions}',
-                    range: '',
-                    ok: true),
-                Divider(color: border, height: 0.5),
-                _AhaRow(
-                    label: 'Interrupciones',
-                    value: '${metrics.interruptionCount}',
-                    range: 'Meta: 0',
-                    ok: metrics.interruptionCount == 0),
-              ],
-            ),
-          ),
+            // AHA Parameters (Portrait)
+            const SectionLabel('Parámetros evaluados AHA'),
+            const SizedBox(height: 10),
+            _AhaParametersList(
+                metrics: metrics,
+                surface: surface,
+                border: border,
+                isDark: isDark),
+          ],
           const SizedBox(height: 20),
-
-          // ── Violations ────────────────────────────────────────────────────────
           if (metrics.violations.isNotEmpty) ...[
             const SectionLabel('Correcciones necesarias'),
             const SizedBox(height: 8),
             ...metrics.violations.map((v) => _ViolationCard(violation: v)),
             const SizedBox(height: 16),
           ],
-
-          // ── Export PDF Button ─────────────────────────────────────────────────
-          _ExportPdfAction(session: session, metrics: metrics),
-          const SizedBox(height: 12),
-
-          // ── Actions ──────────────────────────────────────────────────────────
-          ElevatedButton.icon(
-            onPressed: () => context.go('/scenarios'),
-            icon: const Icon(Icons.replay, size: 18),
-            label: const Text('Nueva sesión RCP'),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/history'),
-            icon: const Icon(Icons.bar_chart_outlined, size: 18),
-            label: const Text('Ver historial completo'),
+          if (!isLandscape) ...[
+            _ExportPdfAction(session: session, metrics: metrics),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => context.go('/scenarios'),
+                  icon: const Icon(Icons.replay, size: 18),
+                  label: const Text('Nueva sesión'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.go('/history'),
+                  icon: const Icon(Icons.bar_chart_outlined, size: 18),
+                  label: const Text('Historial'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 28),
         ],
@@ -362,7 +302,136 @@ class _ResultBody extends ConsumerWidget {
   }
 }
 
-// ─── Export PDF Action (botón prominente) ──────────────────────────────────────
+class _ScoreCircle extends StatelessWidget {
+  final SessionMetrics metrics;
+  final double size;
+  const _ScoreCircle({required this.metrics, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final border = Theme.of(context).colorScheme.outline;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: metrics.score / 100),
+      duration: const Duration(milliseconds: 1000),
+      curve: Curves.easeOutCubic,
+      builder: (_, value, __) => SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: size,
+              height: size,
+              child: CircularProgressIndicator(
+                value: value,
+                strokeWidth: size * 0.07,
+                backgroundColor: border,
+                valueColor: AlwaysStoppedAnimation(metrics.scoreColor),
+                strokeCap: StrokeCap.round,
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${(value * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: metrics.scoreColor,
+                    fontSize: size * 0.25,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'SpaceMono',
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      metrics.approved
+                          ? Icons.check_circle_outlined
+                          : Icons.cancel_outlined,
+                      color: metrics.scoreColor,
+                      size: size * 0.08,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      metrics.approved ? 'APROBADO' : 'REPROBADO',
+                      style: TextStyle(
+                        color: metrics.scoreColor,
+                        fontSize: size * 0.06,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AhaParametersList extends StatelessWidget {
+  final SessionMetrics metrics;
+  final Color surface, border;
+  final bool isDark;
+
+  const _AhaParametersList({
+    required this.metrics,
+    required this.surface,
+    required this.border,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: border, width: 0.5),
+        boxShadow: isDark ? null : AppShadows.card(false),
+      ),
+      child: Column(
+        children: [
+          _AhaRow(
+              label: 'Profundidad',
+              value: '${metrics.averageDepthMm.toStringAsFixed(1)} mm',
+              range: '50-60 mm',
+              ok: metrics.depthOk),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Frecuencia',
+              value: '${metrics.averageRatePerMin.toStringAsFixed(0)} /min',
+              range: '100-120 /min',
+              ok: metrics.rateOk),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Correctas',
+              value: '${metrics.correctCompressionsPct.toStringAsFixed(1)}%',
+              range: 'Meta: 85%+',
+              ok: metrics.correctCompressionsPct >= 85),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Pausa máx',
+              value: '${metrics.maxPauseSeconds.toStringAsFixed(1)} s',
+              range: 'Máx: 10 s',
+              ok: metrics.maxPauseSeconds <= 10),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Interrupciones',
+              value: '${metrics.interruptionCount}',
+              range: 'Meta: 0',
+              ok: metrics.interruptionCount == 0),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExportPdfAction extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -488,7 +557,6 @@ class _ExportPdfActionState extends ConsumerState<_ExportPdfAction> {
   }
 }
 
-// ─── Export button (top bar compact) ────────────────────────────────────────────
 class _ExportButton extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -538,8 +606,7 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border:
-              Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
@@ -572,7 +639,6 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────────────────────────────────
 class _AhaRow extends StatelessWidget {
   final String label;
   final String value;
@@ -599,8 +665,7 @@ class _AhaRow extends StatelessWidget {
               color: color, size: 18),
           const SizedBox(width: 12),
           Expanded(
-              child: Text(label,
-                  style: TextStyle(color: textP, fontSize: 13))),
+              child: Text(label, style: TextStyle(color: textP, fontSize: 13))),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -651,10 +716,7 @@ class _ViolationCard extends StatelessWidget {
                       )),
                   Text('${violation.count} ocurrencia(s)',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 11,
                       )),
                 ],

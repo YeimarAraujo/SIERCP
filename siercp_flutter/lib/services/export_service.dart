@@ -7,25 +7,26 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import '../models/session.dart';
+import '../models/alert_course.dart';
 
 final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
 class ExportService {
-  // ─── Exportar sesión individual como PDF ───────────────────────────────────
-  Future<void> exportSessionPDF(SessionModel session, SessionMetrics metrics) async {
+  Future<void> exportSessionPDF(
+      SessionModel session, SessionMetrics metrics) async {
     final pdf = pw.Document();
     final now = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
-    final sessionDate = DateFormat('dd/MM/yyyy HH:mm').format(session.startedAt);
+    final sessionDate =
+        DateFormat('dd/MM/yyyy HH:mm').format(session.startedAt);
 
-    // Colores de marca
     final brandColor = PdfColor.fromHex('1800AD');
     final greenColor = PdfColor.fromHex('00C853');
-    final redColor   = PdfColor.fromHex('FF3B5C');
+    final redColor = PdfColor.fromHex('FF3B5C');
     final amberColor = PdfColor.fromHex('FFAB00');
-    final greyLight  = PdfColor.fromHex('F2F4F8');
+    final greyLight = PdfColor.fromHex('F2F4F8');
     final greyBorder = PdfColor.fromHex('E5E7F0');
-    final textDark   = PdfColor.fromHex('1A1A2E');
-    final textMid    = PdfColor.fromHex('5A5C7A');
+    final textDark = PdfColor.fromHex('1A1A2E');
+    final textMid = PdfColor.fromHex('5A5C7A');
 
     final scoreColor = metrics.approved
         ? greenColor
@@ -38,7 +39,6 @@ class ExportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         build: (context) => [
-          // ── Header ──────────────────────────────────────────────────────────
           pw.Container(
             padding: const pw.EdgeInsets.all(20),
             decoration: pw.BoxDecoration(
@@ -94,8 +94,6 @@ class ExportService {
             ),
           ),
           pw.SizedBox(height: 20),
-
-          // ── Información de sesión ─────────────────────────────────────────
           pw.Container(
             padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
@@ -109,11 +107,15 @@ class ExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Escenario', style: pw.TextStyle(color: textMid, fontSize: 9)),
+                      pw.Text('Escenario',
+                          style: pw.TextStyle(color: textMid, fontSize: 9)),
                       pw.SizedBox(height: 2),
                       pw.Text(
                         session.scenarioTitle ?? 'Sesión RCP',
-                        style: pw.TextStyle(color: textDark, fontSize: 13, fontWeight: pw.FontWeight.bold),
+                        style: pw.TextStyle(
+                            color: textDark,
+                            fontSize: 13,
+                            fontWeight: pw.FontWeight.bold),
                       ),
                     ],
                   ),
@@ -122,9 +124,14 @@ class ExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('Fecha de sesión', style: pw.TextStyle(color: textMid, fontSize: 9)),
+                      pw.Text('Fecha de sesión',
+                          style: pw.TextStyle(color: textMid, fontSize: 9)),
                       pw.SizedBox(height: 2),
-                      pw.Text(sessionDate, style: pw.TextStyle(color: textDark, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(sessionDate,
+                          style: pw.TextStyle(
+                              color: textDark,
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -132,11 +139,15 @@ class ExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('Duración', style: pw.TextStyle(color: textMid, fontSize: 9)),
+                      pw.Text('Duración',
+                          style: pw.TextStyle(color: textMid, fontSize: 9)),
                       pw.SizedBox(height: 2),
                       pw.Text(
                         session.durationFormatted,
-                        style: pw.TextStyle(color: textDark, fontSize: 13, fontWeight: pw.FontWeight.bold),
+                        style: pw.TextStyle(
+                            color: textDark,
+                            fontSize: 13,
+                            fontWeight: pw.FontWeight.bold),
                       ),
                     ],
                   ),
@@ -145,11 +156,10 @@ class ExportService {
             ),
           ),
           pw.SizedBox(height: 20),
-
-          // ── Score ──────────────────────────────────────────────────────────
           pw.Center(
             child: pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 20),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: scoreColor, width: 2),
                 borderRadius: pw.BorderRadius.circular(12),
@@ -178,8 +188,6 @@ class ExportService {
             ),
           ),
           pw.SizedBox(height: 20),
-
-          // ── Parámetros AHA ─────────────────────────────────────────────────
           pw.Text(
             'PARÁMETROS EVALUADOS — AHA 2020',
             style: pw.TextStyle(
@@ -190,11 +198,9 @@ class ExportService {
             ),
           ),
           pw.SizedBox(height: 8),
-
-          ..._buildParamRows(metrics, textDark, textMid, greenColor, redColor, greyBorder),
+          ..._buildParamRows(
+              metrics, textDark, textMid, greenColor, redColor, greyBorder),
           pw.SizedBox(height: 20),
-
-          // ── Correcciones ───────────────────────────────────────────────────
           if (metrics.violations.isNotEmpty) ...[
             pw.Text(
               'CORRECCIONES NECESARIAS',
@@ -216,14 +222,21 @@ class ExportService {
                 ),
                 child: pw.Row(
                   children: [
-                    pw.Text('⚠', style: pw.TextStyle(color: redColor, fontSize: 14)),
+                    pw.Text('⚠',
+                        style: pw.TextStyle(color: redColor, fontSize: 14)),
                     pw.SizedBox(width: 8),
                     pw.Expanded(
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text(v.message, style: pw.TextStyle(color: textDark, fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                          pw.Text('${v.count} ocurrencia(s)', style: pw.TextStyle(color: textMid, fontSize: 10)),
+                          pw.Text(v.message,
+                              style: pw.TextStyle(
+                                  color: textDark,
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold)),
+                          pw.Text('${v.count} ocurrencia(s)',
+                              style:
+                                  pw.TextStyle(color: textMid, fontSize: 10)),
                         ],
                       ),
                     ),
@@ -232,8 +245,6 @@ class ExportService {
               ),
             ),
           ],
-
-          // ── Footer ──────────────────────────────────────────────────────────
           pw.SizedBox(height: 20),
           pw.Divider(color: greyBorder),
           pw.SizedBox(height: 8),
@@ -258,7 +269,6 @@ class ExportService {
     );
   }
 
-  // ─── Exportar historial como CSV ───────────────────────────────────────────
   Future<void> exportHistoryCSV(List<SessionModel> sessions) async {
     final buffer = StringBuffer();
 
@@ -356,52 +366,63 @@ class ExportService {
         ),
         child: pw.Row(
           children: [
-            pw.Text(ok ? '✓' : '✗', style: pw.TextStyle(color: color, fontSize: 14)),
+            pw.Text(ok ? '✓' : '✗',
+                style: pw.TextStyle(color: color, fontSize: 14)),
             pw.SizedBox(width: 10),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(label, style: pw.TextStyle(color: textDark, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(label,
+                      style: pw.TextStyle(
+                          color: textDark,
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold)),
                   if (range.isNotEmpty)
-                    pw.Text(range, style: pw.TextStyle(color: textMid, fontSize: 9)),
+                    pw.Text(range,
+                        style: pw.TextStyle(color: textMid, fontSize: 9)),
                 ],
               ),
             ),
             pw.Text(
               value,
-              style: pw.TextStyle(color: color, fontSize: 13, fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(
+                  color: color, fontSize: 13, fontWeight: pw.FontWeight.bold),
             ),
           ],
         ),
       );
     }).toList();
   }
-  // ─── Exportar notas de estudiantes de un curso como CSV ───────────────────
-  Future<void> exportCourseGradesCSV(dynamic course) async {
+
+  Future<void> exportCourseGradesCSV(
+    CourseModel course,
+    List<Map<String, dynamic>> students,
+  ) async {
     final buffer = StringBuffer();
     buffer.writeln('SIERCP — Notas del Curso: ${course.title}');
-    buffer.writeln('Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    buffer.writeln(
+        'Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
     buffer.writeln();
-    buffer.writeln('Estudiante,Identificación,Email,Sesiones,Promedio (%),Última sesión,Aprobado');
+    buffer.writeln(
+        'Estudiante,Identificación,Email,Sesiones,Promedio (%),Aprobado');
 
-    // course.students is List<Map<String,dynamic>> if available, else empty
-    final students = (course.students as List? ?? []);
     for (final s in students) {
-      final name  = '"${s['full_name'] ?? s['nombre'] ?? 'Estudiante'}"';
+      final name = '"${s['studentName'] ?? 'Estudiante'}"';
       final cedula = s['identificacion'] ?? '';
-      final email  = s['email'] ?? '';
-      final sessions = s['session_count'] ?? 0;
-      final avg   = s['avg_score']?.toStringAsFixed(1) ?? '0.0';
-      final last  = s['last_session'] ?? '';
-      final approved = (s['avg_score'] ?? 0) >= 85 ? 'Sí' : 'No';
-      buffer.writeln('$name,$cedula,$email,$sessions,$avg,$last,$approved');
+      final email = s['studentEmail'] ?? '';
+      final sessions = s['sessionCount'] ?? 0;
+      final avg = (s['avgScore'] as num?)?.toDouble() ?? 0.0;
+      final approved = avg >= 85 ? 'Sí' : 'No';
+
+      buffer.writeln(
+          '$name,$cedula,$email,$sessions,${avg.toStringAsFixed(1)},$approved');
     }
 
     final dir = await getTemporaryDirectory();
     final safe = course.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final now  = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final file = File('${dir.path}/SIERCP_Curso_${safe}_$now.csv');
+    final now = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final file = File('${dir.path}/SIERCP_Notas_${safe}_$now.csv');
     await file.writeAsString(buffer.toString());
 
     await Share.shareXFiles(

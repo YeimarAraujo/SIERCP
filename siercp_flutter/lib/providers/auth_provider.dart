@@ -4,7 +4,6 @@ import '../models/user.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/firestore_service.dart';
 
-// ─── Auth State ────────────────────────────────────────────────────────────────
 class AuthState {
   final UserModel? user;
   final bool isAuthenticated;
@@ -20,14 +19,14 @@ class AuthState {
     UserModel? user,
     bool? isAuthenticated,
     String? error,
-  }) => AuthState(
-    user:            user            ?? this.user,
-    isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-    error:           error,
-  );
+  }) =>
+      AuthState(
+        user: user ?? this.user,
+        isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+        error: error,
+      );
 }
 
-// ─── Auth Notifier ─────────────────────────────────────────────────────────────
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
@@ -36,7 +35,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     if (firebaseUser == null) return const AuthState();
 
     try {
-      final db   = ref.read(firestoreServiceProvider);
+      final db = ref.read(firestoreServiceProvider);
       final user = await db.getUser(firebaseUser.uid);
       if (user == null || !user.isActive) {
         await FirebaseAuth.instance.signOut();
@@ -69,11 +68,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final authService = ref.read(firebaseAuthServiceProvider);
     state = await AsyncValue.guard(() async {
       final user = await authService.register(
-        email:          email,
-        password:       password,
-        firstName:      firstName,
-        lastName:       lastName,
-        role:           role,
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+        role: role,
         identificacion: identificacion,
       );
       return AuthState(user: user, isAuthenticated: true);
@@ -96,7 +95,6 @@ final authStateProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
 
-// Selector de conveniencia
 final currentUserProvider = Provider<UserModel?>((ref) {
   return ref.watch(authStateProvider).value?.user;
 });

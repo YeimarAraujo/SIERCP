@@ -13,24 +13,23 @@ class LiveInstructorScreen extends ConsumerStatefulWidget {
   const LiveInstructorScreen({super.key, required this.courseId});
 
   @override
-  ConsumerState<LiveInstructorScreen> createState() => _LiveInstructorScreenState();
+  ConsumerState<LiveInstructorScreen> createState() =>
+      _LiveInstructorScreenState();
 }
 
 class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
-  // In a real application, we would subscribe to a WebSocket multiplexing all devices
-  // For the overhaul, we will mock the connection status of 2-3 devices for demonstration.
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    
-    // We fetch the course to get its name
+
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.value ?? [];
-    final course = courses.cast<CourseModel?>().firstWhere((c) => c?.id == widget.courseId, orElse: () => null);
+    final course = courses
+        .cast<CourseModel?>()
+        .firstWhere((c) => c?.id == widget.courseId, orElse: () => null);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -45,7 +44,8 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             const Text('Monitorización en Vivo'),
             Text(
               course?.title ?? 'Curso',
-              style: TextStyle(color: textS, fontSize: 12, fontWeight: FontWeight.normal),
+              style: TextStyle(
+                  color: textS, fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
@@ -54,19 +54,25 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-               color: AppColors.greenBg,
-               borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
+              color: AppColors.greenBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 6, height: 6,
-                  decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                      color: AppColors.green, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
-                const Text('CONECTADO', style: TextStyle(color: AppColors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                const Text('CONECTADO',
+                    style: TextStyle(
+                        color: AppColors.green,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ],
             ),
           )
@@ -80,8 +86,6 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             children: [
               const SectionLabel('Dispositivos Activos (Simulación)'),
               const SizedBox(height: 12),
-              
-              // Mock Device 1 - Perfect technique
               _DeviceMonitorCard(
                 studentName: 'Juan Pérez',
                 deviceId: 'ESP32-A1',
@@ -91,8 +95,6 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
                 isDark: isDark,
               ),
               const SizedBox(height: 16),
-              
-              // Mock Device 2 - Bad technique
               _DeviceMonitorCard(
                 studentName: 'María García',
                 deviceId: 'ESP32-B2',
@@ -102,9 +104,7 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
                 isDark: isDark,
               ),
               const SizedBox(height: 16),
-
-              // Mock Device 3 - Disconnected
-               _DeviceMonitorCard(
+              _DeviceMonitorCard(
                 studentName: 'Carlos López',
                 deviceId: 'ESP32-C3',
                 depthMm: 0,
@@ -159,8 +159,11 @@ class _DeviceMonitorCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: connected ? AppColors.brand.withValues(alpha: 0.05) : AppColors.cardBorder.withValues(alpha: 0.2),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+              color: connected
+                  ? AppColors.brand.withValues(alpha: 0.05)
+                  : AppColors.cardBorder.withValues(alpha: 0.2),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg)),
               border: Border(bottom: BorderSide(color: border, width: 0.5)),
             ),
             child: Row(
@@ -170,67 +173,86 @@ class _DeviceMonitorCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: connected ? AppColors.brand : AppColors.textTertiary,
-                      child: const Icon(Icons.person, size: 16, color: Colors.white),
+                      backgroundColor:
+                          connected ? AppColors.brand : AppColors.textTertiary,
+                      child: const Icon(Icons.person,
+                          size: 16, color: Colors.white),
                     ),
                     const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(studentName, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.bold)),
-                        Text('Maniquí: $deviceId', style: TextStyle(color: textS, fontSize: 10)),
+                        Text(studentName,
+                            style: TextStyle(
+                                color: textP,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold)),
+                        Text('Maniquí: $deviceId',
+                            style: TextStyle(color: textS, fontSize: 10)),
                       ],
                     ),
                   ],
                 ),
                 Icon(
-                  connected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                  connected
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
                   color: connected ? AppColors.brand : textT,
                   size: 16,
                 )
               ],
             ),
           ),
-          
+
           // Body (Gauges)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: connected ? Row(
-              children: [
-                Expanded(
-                  child: Column(
+            child: connected
+                ? Row(
                     children: [
-                      Text('PROFUNDIDAD', style: TextStyle(color: textS, fontSize: 9, fontWeight: FontWeight.bold)),
-                      SizedBox(
-                        height: 90,
-                        child: DepthGauge(depthMm: depthMm),
-                      )
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text('PROFUNDIDAD',
+                                style: TextStyle(
+                                    color: textS,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold)),
+                            SizedBox(
+                              height: 90,
+                              child: DepthGauge(depthMm: depthMm),
+                            )
+                          ],
+                        ),
+                      ),
+                      Container(width: 0.5, height: 70, color: border),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text('FRECUENCIA',
+                                style: TextStyle(
+                                    color: textS,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold)),
+                            SizedBox(
+                              height: 90,
+                              child: RateGauge(ratePerMin: ratePerMin),
+                            )
+                          ],
+                        ),
+                      ),
                     ],
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text('Esperando conexión del maniquí...',
+                          style: TextStyle(color: textT, fontSize: 12)),
+                    ),
                   ),
-                ),
-                Container(width: 0.5, height: 70, color: border),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('FRECUENCIA', style: TextStyle(color: textS, fontSize: 9, fontWeight: FontWeight.bold)),
-                      SizedBox(
-                        height: 90,
-                        child: RateGauge(ratePerMin: ratePerMin),
-                      )
-                    ],
-                  ),
-                ),
-              ],
-            ) : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Text('Esperando conexión del maniquí...', style: TextStyle(color: textT, fontSize: 12)),
-              ),
-            ),
           )
         ],
       ),
     );
   }
 }
-

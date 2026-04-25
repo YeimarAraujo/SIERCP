@@ -15,12 +15,12 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user         = ref.watch(currentUserProvider);
-    final isAdmin      = user?.isAdmin      ?? false;
+    final user = ref.watch(currentUserProvider);
+    final isAdmin = user?.isAdmin ?? false;
     final isInstructor = user?.isInstructor ?? false;
-    final alertsAsync  = ref.watch(recentAlertsProvider);
+    final alertsAsync = ref.watch(recentAlertsProvider);
     final coursesAsync = ref.watch(coursesProvider);
-    final deviceAsync  = ref.watch(deviceStatusProvider);
+    final deviceAsync = ref.watch(deviceStatusProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -34,7 +34,6 @@ class HomeScreen extends ConsumerWidget {
           color: AppColors.brand,
           child: CustomScrollView(
             slivers: [
-              // ── App bar ────────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -51,7 +50,8 @@ class HomeScreen extends ConsumerWidget {
                                     ? 'Bienvenido, ${user?.firstName ?? 'Instructor'}'
                                     : 'Bienvenido, ${user?.firstName ?? ''}',
                             style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge?.color,
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.5,
@@ -64,7 +64,8 @@ class HomeScreen extends ConsumerWidget {
                                     ? 'Instructor'
                                     : (user?.role ?? 'ESTUDIANTE'),
                             style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                              color:
+                                  Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 12,
                             ),
                           ),
@@ -110,9 +111,9 @@ class HomeScreen extends ConsumerWidget {
                                 const SectionLabel('Tus cursos activos'),
                                 const SizedBox(height: 8),
                                 ...courses.map((c) => _StudentCourseHero(
-                                  course: c,
-                                  deviceAsync: deviceAsync,
-                                )),
+                                      course: c,
+                                      deviceAsync: deviceAsync,
+                                    )),
                               ],
                             ),
                           )
@@ -136,8 +137,9 @@ class HomeScreen extends ConsumerWidget {
                     child: Consumer(
                       builder: (context, ref, child) {
                         final stats = ref.watch(userStatsProvider);
-                        final isLandscape = MediaQuery.of(context).orientation ==
-                            Orientation.landscape;
+                        final isLandscape =
+                            MediaQuery.of(context).orientation ==
+                                Orientation.landscape;
                         return GridView.count(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -156,7 +158,8 @@ class HomeScreen extends ConsumerWidget {
                             ),
                             MetricCard(
                               label: 'Prof. promedio',
-                              value: stats?.averageDepthMm.toStringAsFixed(0) ?? '0',
+                              value: stats?.averageDepthMm.toStringAsFixed(0) ??
+                                  '0',
                               suffix: 'mm',
                               status: (stats?.averageDepthMm ?? 0) >= 50 &&
                                       (stats?.averageDepthMm ?? 0) <= 60
@@ -166,7 +169,9 @@ class HomeScreen extends ConsumerWidget {
                             ),
                             MetricCard(
                               label: 'Frecuencia media',
-                              value: stats?.averageRatePerMin.toStringAsFixed(0) ?? '0',
+                              value:
+                                  stats?.averageRatePerMin.toStringAsFixed(0) ??
+                                      '0',
                               suffix: '/min',
                               status: (stats?.averageRatePerMin ?? 0) >= 100 &&
                                       (stats?.averageRatePerMin ?? 0) <= 120
@@ -176,7 +181,8 @@ class HomeScreen extends ConsumerWidget {
                             ),
                             MetricCard(
                               label: '% Compresiones OK',
-                              value: (stats?.averageScore ?? 0).toStringAsFixed(0),
+                              value:
+                                  (stats?.averageScore ?? 0).toStringAsFixed(0),
                               suffix: '%',
                               status: (stats?.averageScore ?? 0) >= 85
                                   ? MetricStatus.ok
@@ -191,11 +197,12 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
 
-              // ── Alertas (todos los roles) ───────────────────────────────────
+              // Alertas (todos los roles)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child: SectionLabel(isAdmin ? 'Alertas del sistema' : 'Últimas alertas'),
+                  child: SectionLabel(
+                      isAdmin ? 'Alertas del sistema' : 'Últimas alertas'),
                 ),
               ),
               SliverToBoxAdapter(
@@ -205,7 +212,8 @@ class HomeScreen extends ConsumerWidget {
                     loading: () => const Center(
                       child: SizedBox(
                         height: 40,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.brand),
                       ),
                     ),
                     error: (_, __) => const SizedBox.shrink(),
@@ -224,20 +232,29 @@ class HomeScreen extends ConsumerWidget {
                               child: Row(
                                 children: [
                                   Icon(Icons.notifications_none_outlined,
-                                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color,
                                       size: 18),
                                   const SizedBox(width: 10),
                                   Text(
                                     'Sin alertas recientes.',
                                     style: TextStyle(
-                                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color,
                                     ),
                                   ),
                                 ],
                               ),
                             )
                           : Column(
-                              children: alerts.take(4).map((a) => AlertCard(alert: a)).toList(),
+                              children: alerts
+                                  .take(4)
+                                  .map((a) => AlertCard(alert: a))
+                                  .toList(),
                             ),
                     ),
                   ),
@@ -252,7 +269,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ─── Admin dashboard ──────────────────────────────────────────────────────────
+//  Admin dashboard
 class _AdminDashboard extends StatelessWidget {
   final WidgetRef ref;
   const _AdminDashboard({required this.ref});
@@ -303,7 +320,7 @@ class _AdminDashboard extends StatelessWidget {
   }
 }
 
-// ─── Instructor dashboard ─────────────────────────────────────────────────────
+//  Instructor dashboard
 class _InstructorDashboard extends StatelessWidget {
   final WidgetRef ref;
   final AsyncValue<List> coursesAsync;
@@ -311,11 +328,11 @@ class _InstructorDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return SliverToBoxAdapter(
       child: Padding(
@@ -415,7 +432,7 @@ class _InstructorDashboard extends StatelessWidget {
   }
 }
 
-// ─── Admin tile ───────────────────────────────────────────────────────────────
+//  Admin tile
 class _AdminTile extends StatelessWidget {
   final IconData icon;
   final String label, sub;
@@ -432,12 +449,12 @@ class _AdminTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return Material(
       color: surface,
@@ -466,7 +483,9 @@ class _AdminTile extends StatelessWidget {
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(height: 12),
-              Text(label, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(label,
+                  style: TextStyle(
+                      color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               Text(sub, style: TextStyle(color: textS, fontSize: 10)),
             ],
@@ -477,7 +496,7 @@ class _AdminTile extends StatelessWidget {
   }
 }
 
-// ─── Quick action tile (instructor) ──────────────────────────────────────────
+//  Quick action tile (instructor)
 class _QuickActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -492,11 +511,11 @@ class _QuickActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return GestureDetector(
       onTap: onTap,
@@ -523,7 +542,8 @@ class _QuickActionTile extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: TextStyle(color: textP, fontSize: 10, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: textP, fontSize: 10, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -532,19 +552,22 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-// ─── Instructor course mini-card ──────────────────────────────────────────────
-class _InstructorCourseCard extends StatelessWidget {
+//  Instructor course mini-card
+class _InstructorCourseCard extends ConsumerWidget {
   final dynamic course;
   const _InstructorCourseCard({required this.course});
 
   @override
-  Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
+
+    final studentsAsync = ref.watch(courseStudentsProvider(course.id));
+    final count = studentsAsync.value?.length ?? course.studentCount ?? 0;
 
     return GestureDetector(
       onTap: () => context.go('/courses'),
@@ -566,7 +589,8 @@ class _InstructorCourseCard extends StatelessWidget {
                 color: AppColors.brand.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.menu_book_outlined, color: AppColors.brand, size: 20),
+              child: const Icon(Icons.menu_book_outlined,
+                  color: AppColors.brand, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -574,14 +598,26 @@ class _InstructorCourseCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(course.title,
-                      style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          color: textP,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
                   Row(
                     children: [
                       Icon(Icons.people_outline, size: 11, color: textS),
                       const SizedBox(width: 4),
-                      Text('${course.studentCount ?? 0} estudiantes',
-                          style: TextStyle(color: textS, fontSize: 11)),
+                      studentsAsync.when(
+                        loading: () => const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: AppColors.brand)),
+                        error: (_, __) => Text('${course.studentCount ?? 0}',
+                            style: TextStyle(color: textS, fontSize: 11)),
+                        data: (list) => Text('${list.length} estudiantes',
+                            style: TextStyle(color: textS, fontSize: 11)),
+                      ),
                     ],
                   ),
                 ],
@@ -595,16 +631,16 @@ class _InstructorCourseCard extends StatelessWidget {
   }
 }
 
-// ─── Not enrolled card (student) ─────────────────────────────────────────────
+//  Not enrolled card (student)
 class _NotEnrolledCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -625,15 +661,14 @@ class _NotEnrolledCard extends StatelessWidget {
                   color: AppColors.amber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: const Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 18),
+                child: const Icon(Icons.info_outline_rounded,
+                    color: AppColors.amber, size: 18),
               ),
               const SizedBox(width: 10),
               Text(
                 'Sin curso asignado',
                 style: TextStyle(
-                    color: textP,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
+                    color: textP, fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -657,7 +692,6 @@ class _NotEnrolledCard extends StatelessWidget {
   }
 }
 
-// ─── Per-course hero card (student) ──────────────────────────────────────────
 class _StudentCourseHero extends ConsumerWidget {
   final dynamic course;
   final AsyncValue<DeviceStatusData> deviceAsync;
@@ -672,12 +706,14 @@ class _StudentCourseHero extends ConsumerWidget {
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     final allSessions = sessionsAsync.value ?? <SessionModel>[];
     final courseSessions = allSessions
-        .where((s) => s.courseId == course.id && s.status == SessionStatus.completed)
+        .where((s) =>
+            s.courseId == course.id && s.status == SessionStatus.completed)
         .toList();
     final totalDone = courseSessions.length;
-    final approved  = courseSessions.where((s) => s.metrics?.approved == true).length;
-    final required  = course.totalModules > 0 ? course.totalModules : 4;
-    final progress  = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
+    final approved =
+        courseSessions.where((s) => s.metrics?.approved == true).length;
+    final required = course.totalModules > 0 ? course.totalModules : 4;
+    final progress = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
     final isComplete = approved >= required;
 
     final user = ref.read(currentUserProvider);
@@ -709,18 +745,21 @@ class _StudentCourseHero extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top: title + device badge
             Row(
               children: [
                 Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
-                    isComplete ? Icons.emoji_events_rounded : Icons.menu_book_outlined,
-                    color: Colors.white, size: 18,
+                    isComplete
+                        ? Icons.emoji_events_rounded
+                        : Icons.menu_book_outlined,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -729,31 +768,42 @@ class _StudentCourseHero extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(course.title,
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       Text(course.instructorName,
-                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                          style: const TextStyle(
+                              color: Colors.white60, fontSize: 11)),
                     ],
                   ),
                 ),
                 // Device badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (isConnected ? AppColors.green : AppColors.amber).withValues(alpha: 0.18),
+                    color: (isConnected ? AppColors.green : AppColors.amber)
+                        .withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(
-                      isConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_disabled_rounded,
-                      color: isConnected ? AppColors.green : AppColors.amber, size: 10,
+                      isConnected
+                          ? Icons.bluetooth_connected_rounded
+                          : Icons.bluetooth_disabled_rounded,
+                      color: isConnected ? AppColors.green : AppColors.amber,
+                      size: 10,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       isConnected ? 'Conectado' : 'Sin disp.',
                       style: TextStyle(
                         color: isConnected ? AppColors.green : AppColors.amber,
-                        fontSize: 9, fontWeight: FontWeight.w600,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ]),
@@ -768,7 +818,8 @@ class _StudentCourseHero extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
-                valueColor: AlwaysStoppedAnimation(isComplete ? AppColors.green : Colors.white),
+                valueColor: AlwaysStoppedAnimation(
+                    isComplete ? AppColors.green : Colors.white),
                 minHeight: 5,
               ),
             ),
@@ -777,10 +828,14 @@ class _StudentCourseHero extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('$approved/$required aprobadas · $totalDone sesiones',
-                    style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 10)),
                 Text('${(progress * 100).toInt()}%',
-                    style: const TextStyle(color: Colors.white, fontSize: 11,
-                        fontWeight: FontWeight.w800, fontFamily: 'SpaceMono')),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'SpaceMono')),
               ],
             ),
             const SizedBox(height: 12),
@@ -797,15 +852,23 @@ class _StudentCourseHero extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    isComplete ? Icons.visibility_outlined : Icons.play_arrow_rounded,
-                    color: Colors.white, size: 16,
+                    isComplete
+                        ? Icons.visibility_outlined
+                        : Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 16,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     isComplete
                         ? 'Ver detalle'
-                        : totalDone > 0 ? 'Continuar entrenamiento' : 'Comenzar entrenamiento',
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        : totalDone > 0
+                            ? 'Continuar entrenamiento'
+                            : 'Comenzar entrenamiento',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -821,14 +884,13 @@ class _CourseCardShimmer extends StatelessWidget {
   const _CourseCardShimmer();
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      height: 88,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          height: 88,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+        ),
+      );
 }
-

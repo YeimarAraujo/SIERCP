@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,16 +27,24 @@ void main() async {
   FirebaseDatabase.instance.databaseURL =
       'https://siercp-default-rtdb.firebaseio.com';
 
-  // Configurar notificaciones push
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await FirebaseMessaging.instance
-      .requestPermission(alert: true, badge: true, sound: true);
+  // Notificaciones push
+  try {
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+  } catch (e) {
+    debugPrint('FirebaseMessaging no disponible: $e');
+  }
 
-  // Inicializar almacenamiento local (SQLite)
+  // Almacenamiento local (SQLite)
   await LocalStorageService.init();
   await LocalStorageService().preloadCache();
 
-  // Mantener sincronización activa del nodo de telemetría para lectura rápida
   FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
 
   SystemChrome.setPreferredOrientations([
