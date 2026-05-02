@@ -8,6 +8,8 @@ enum PatientType   { adult, pediatric, infant }
 class SessionModel {
   final String id;
   final String studentId;
+  final String studentName;
+  final String? manikinId;
   final String? scenarioId;
   final String? scenarioTitle;
   final PatientType patientType;
@@ -20,6 +22,8 @@ class SessionModel {
   const SessionModel({
     required this.id,
     required this.studentId,
+    required this.studentName,
+    this.manikinId,
     this.scenarioId,
     this.scenarioTitle,
     required this.patientType,
@@ -47,6 +51,8 @@ class SessionModel {
     return SessionModel(
       id:             doc.id,
       studentId:      d['studentId']     ?? '',
+      studentName:    d['studentName']   ?? 'Estudiante',
+      manikinId:      d['manikinId'],
       scenarioId:     d['scenarioId'],
       scenarioTitle:  d['scenarioTitle'],
       patientType:    _parsePatientType(d['patientType']),
@@ -171,6 +177,7 @@ class SessionMetrics {
     'recoilPct':            recoilPct,
     'interruptionCount':    interruptionCount,
     'maxPauseSeconds':      maxPauseSeconds,
+    'ccfPct':               ccfPct,
     'depthScore':           depthScore,
     'rateScore':            rateScore,
     'recoilScore':          recoilScore,

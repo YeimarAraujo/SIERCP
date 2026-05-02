@@ -176,7 +176,7 @@ class ScenarioSelectScreen extends ConsumerWidget {
                                 gridDelegate:
                                     const SliverGridDelegateWithMaxCrossAxisExtent(
                                   maxCrossAxisExtent: 400,
-                                  mainAxisExtent: 95,
+                                  mainAxisExtent: 115,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 0,
                                 ),
@@ -284,7 +284,7 @@ class _OfflineScenarios extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 0,
-          childAspectRatio: 2.8,
+          childAspectRatio: 2.5,
         ),
         itemCount: _demos.length,
         itemBuilder: (ctx, i) {

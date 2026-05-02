@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/guide_provider.dart';
 import '../core/theme.dart';
 
@@ -9,25 +10,14 @@ class DeviceConnectionWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(deviceConnectionProvider);
+    final status = ref.watch(deviceConnectionProvider);
 
-    return statusAsync.when(
-      loading: () => _buildChip(
+    return InkWell(
+      onTap: () => context.push('/session/device-select'),
+      borderRadius: BorderRadius.circular(20),
+      child: _buildChip(
         context,
-        label: 'Buscando...',
-        color: AppColors.amber,
-        icon: Icons.bluetooth_searching_rounded,
-        pulsing: true,
-      ),
-      error: (_, __) => _buildChip(
-        context,
-        label: 'Error',
-        color: AppColors.red,
-        icon: Icons.error_outline_rounded,
-      ),
-      data: (status) => _buildChip(
-        context,
-        label: status.isConnected ? 'Maniquí conectado' : 'Sin maniquí',
+        label: status.isConnected ? 'Maniquí conectado' : 'Sin maniquí (Tocar para conectar)',
         color: status.isConnected ? AppColors.green : AppColors.red,
         icon: status.isConnected
             ? Icons.sensors_rounded
@@ -145,25 +135,15 @@ class DeviceStatusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(deviceConnectionProvider);
+    final status = ref.watch(deviceConnectionProvider);
 
-    return statusAsync.when(
-      loading: () => _banner(
-        context,
-        msg: 'Buscando maniquí...',
-        color: AppColors.amber,
-        icon: Icons.bluetooth_searching_rounded,
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (status) {
-        if (status.isConnected) return const SizedBox.shrink();
-        return _banner(
-          context,
-          msg: '⚠️ Maniquí no detectado. Verificar conexión del ESP32.',
-          color: AppColors.red,
-          icon: Icons.sensors_off_rounded,
-        );
-      },
+    if (status.isConnected) return const SizedBox.shrink();
+    
+    return _banner(
+      context,
+      msg: '⚠️ Maniquí no detectado. Verificar conexión del ESP32.',
+      color: AppColors.red,
+      icon: Icons.sensors_off_rounded,
     );
   }
 

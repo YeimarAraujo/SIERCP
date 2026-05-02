@@ -4,11 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   AppColors._();
 
-  // Marca
-  static const brand = Color(0xFF1800AD);
-  static const brand2 = Color(0xFF3020D4);
-  static const brand3 = Color(0xFF0D0070);
-  static const brandLight = Color(0xFF4B3EFF);
+  // Marca - Más vibrante y profesional
+  static const brand = Color(0xFF1E40AF); // Blue-800
+  static const brand2 = Color(0xFF3B82F6); // Blue-500
+  static const brand3 = Color(0xFF1E3A8A); // Blue-900
+  static const brandLight = Color(0xFFDBEAFE); // Blue-100
+  static const brandBg = Color(0x1A1E40AF);
 
   // Semánticos
   static const green = Color(0xFF00E676);
@@ -19,33 +20,35 @@ class AppColors {
   static const amberBg = Color(0x1FFFAB00);
   static const cyan = Color(0xFF00D4FF);
   static const cyanBg = Color(0x1A00D4FF);
+  static const blue = Color(0xFF2196F3);
+  static const orange = Color(0xFFFF8A00);
 
-  // Dark Mode — Fondos
-  static const darkBg = Color(0xFF06051E);
-  static const darkBg2 = Color(0xFF0C0B30);
-  static const darkBg3 = Color(0xFF131246);
-  static const darkSurface = Color(0xFF0F0E34);
-  static const darkSurface2 = Color(0xFF161545);
-  static const darkCard = Color(0x14FFFFFF);
-  static const darkBorder = Color(0x1AFFFFFF);
+  // Dark Mode — Fondos - Estilo Deep Navy
+  static const darkBg = Color(0xFF020617); // Slate-950
+  static const darkBg2 = Color(0xFF0F172A); // Slate-900
+  static const darkBg3 = Color(0xFF1E293B); // Slate-800
+  static const darkSurface = Color(0xFF1E293B);
+  static const darkSurface2 = Color(0xFF334155);
+  static const darkCard = Color(0xFF1E293B);
+  static const darkBorder = Color(0xFF334155);
 
   // Dark Mode — Texto
-  static const darkTextPrimary = Color(0xFFF0EEFF);
-  static const darkTextSecondary = Color(0x8CF0EEFF);
-  static const darkTextTertiary = Color(0x4DF0EEFF);
+  static const darkTextPrimary = Color(0xFFFFFFFF);
+  static const darkTextSecondary = Color(0xFFB0B8C4);
+  static const darkTextTertiary = Color(0xFF717D8A);
 
   // Light Mode — Fondos
-  static const lightBg = Color(0xFFF2F4F8);
-  static const lightBg2 = Color(0xFFE8EBFF);
+  static const lightBg = Color(0xFFF8FAFC); // Slate-50
+  static const lightBg2 = Color(0xFFF1F5F9); // Slate-100
   static const lightSurface = Color(0xFFFFFFFF);
-  static const lightSurface2 = Color(0xFFF7F8FC);
+  static const lightSurface2 = Color(0xFFF8FAFC);
   static const lightCard = Color(0xFFFFFFFF);
   static const lightBorder = Color(0xFFE5E7F0);
 
   // Light Mode — Texto
-  static const lightTextPrimary = Color(0xFF1A1A2E);
-  static const lightTextSecondary = Color(0xFF5A5C7A);
-  static const lightTextTertiary = Color(0xFF9598BB);
+  static const lightTextPrimary = Color(0xFF0F172A);
+  static const lightTextSecondary = Color(0xFF334155);
+  static const lightTextTertiary = Color(0xFF64748B);
 
   // Acento compartido
   static const accent = Color(0xFF8B7CF8);
@@ -325,26 +328,28 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: isDark ? AppColors.darkBg2 : AppColors.lightSurface,
-        indicatorColor: AppColors.brand.withValues(alpha: isDark ? 0.25 : 0.12),
+        indicatorColor: AppColors.brand.withValues(alpha: isDark ? 0.35 : 0.1),
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        height: 64,
+        height: 70,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return GoogleFonts.dmSans(
             color: selected
-                ? (isDark ? AppColors.accent : AppColors.brand)
+                ? (isDark ? AppColors.cyan : AppColors.brand)
                 : textT,
-            fontSize: 10,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            letterSpacing: 0.1,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected
-                ? (isDark ? AppColors.accent : AppColors.brand)
-                : textT,
-            size: 22,
+                ? (isDark ? AppColors.cyan : AppColors.brand)
+                : textT.withValues(alpha: 0.7),
+            size: 24,
           );
         }),
       ),

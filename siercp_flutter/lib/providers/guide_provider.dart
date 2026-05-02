@@ -3,6 +3,7 @@ import '../models/guide.dart';
 import '../services/guide_service.dart';
 import '../services/device_service.dart';
 import 'auth_provider.dart';
+import '../services/ble_service.dart';
 
 final courseGuidesProvider =
     StreamProvider.family<List<GuideModel>, String>((ref, courseId) {
@@ -29,8 +30,12 @@ final selectedGuideCategoryProvider =
 
 final guideUploadProgressProvider = StateProvider<double>((ref) => 0.0);
 
-final deviceConnectionProvider = StreamProvider<DeviceStatus>((ref) {
-  return ref.read(deviceServiceProvider).streamConnectionStatus();
+final deviceConnectionProvider = Provider<DeviceStatus>((ref) {
+  final ble = ref.watch(bleServiceProvider);
+  return DeviceStatus(
+    isConnected: ble.isConnected,
+    macAddress: ble.connectedDevice?.remoteId.str,
+  );
 });
 final availableDevicesProvider = StreamProvider<List<DeviceInfo>>((ref) {
   return ref.read(deviceServiceProvider).streamAvailableDevices();

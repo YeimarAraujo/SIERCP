@@ -26,73 +26,103 @@ class MetricCard extends StatelessWidget {
       case MetricStatus.ok: return AppColors.green;
       case MetricStatus.warning: return AppColors.amber;
       case MetricStatus.error: return AppColors.red;
-      case MetricStatus.neutral: return AppColors.textPrimary;
-    }
-  }
-
-  Color get _borderColor {
-    switch (status) {
-      case MetricStatus.ok: return AppColors.green.withValues(alpha: 0.3);
-      case MetricStatus.warning: return AppColors.amber.withValues(alpha: 0.3);
-      case MetricStatus.error: return AppColors.red.withValues(alpha: 0.3);
-      case MetricStatus.neutral: return AppColors.cardBorder;
+      case MetricStatus.neutral: return const Color(0xFF00D4FF);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: _borderColor, width: 0.5),
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? AppColors.darkBg2 : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: _color.withValues(alpha: isDark ? 0.2 : 0.1),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _color.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.07,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_getStatusIcon(), size: 12, color: _color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: TextStyle(
-                    color: _color,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'SpaceMono',
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                  fontFamily: 'SpaceMono',
                 ),
-                if (suffix.isNotEmpty)
-                  TextSpan(
-                    text: suffix,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontFamily: 'SpaceMono',
-                    ),
-                  ),
-              ],
-            ),
+              ),
+              Text(
+                suffix,
+                style: TextStyle(
+                  color: _color.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-          if (hint != null)
-            Text(
-              hint!,
-              style: const TextStyle(color: AppColors.textTertiary, fontSize: 9),
-            ),
         ],
       ),
     );
+  }
+
+  IconData _getStatusIcon() {
+    switch (status) {
+      case MetricStatus.ok: return Icons.check_circle_outline;
+      case MetricStatus.warning: return Icons.warning_amber_rounded;
+      case MetricStatus.error: return Icons.error_outline_rounded;
+      case MetricStatus.neutral: return Icons.analytics_outlined;
+    }
   }
 }
 
@@ -123,15 +153,15 @@ class AlertCard extends StatelessWidget {
               children: [
                 Text(
                   alert.title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   alert.message,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7), fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -140,7 +170,7 @@ class AlertCard extends StatelessWidget {
           ),
           Text(
             _timeAgo(alert.timestamp),
-            style: const TextStyle(color: AppColors.textTertiary, fontSize: 10),
+            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.5), fontSize: 10),
           ),
         ],
       ),
@@ -164,8 +194,8 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text.toUpperCase(),
-    style: const TextStyle(
-      color: AppColors.textTertiary,
+    style: TextStyle(
+      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
       fontSize: 10,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.08,

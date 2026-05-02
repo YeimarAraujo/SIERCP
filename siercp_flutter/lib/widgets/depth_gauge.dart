@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_gauges/gauges.dart';
 import '../core/theme.dart';
-import '../core/constants.dart';
 
 class DepthGauge extends StatelessWidget {
   final double depthMm;
@@ -9,87 +7,119 @@ class DepthGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isOk = depthMm >= AppConstants.ahaMinDepthMm && depthMm <= AppConstants.ahaMaxDepthMm;
-    final color = depthMm == 0 
-        ? AppColors.textTertiary 
-        : (isOk ? const Color(0xFF00FF41) : const Color(0xFFFF3131));
+    final depthCm = depthMm / 10;
+    const maxCm = 8.0;
+    const segments = 20; // Más segmentos para mayor fluidez
+    
+    final isInTarget = depthCm >= 5.0 && depthCm <= 6.0;
+    final accentColor = isInTarget ? AppColors.green : const Color(0xFFFF8A00);
 
-    return SfRadialGauge(
-      axes: <RadialAxis>[
-        RadialAxis(
-          minimum: 0,
-          maximum: 80,
-          startAngle: 180,
-          endAngle: 0,
-          canScaleToFit: true,
-          showLabels: false,
-          showTicks: false,
-          radiusFactor: 1.0,
-          axisLineStyle: AxisLineStyle(
-            thickness: 0.15,
-            thicknessUnit: GaugeSizeUnit.factor,
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'DEPTH PRECISION',
+            style: TextStyle(
+              color: Colors.white38,
+              fontSize: 8,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
           ),
-          pointers: <GaugePointer>[
-            RangePointer(
-              value: depthMm,
-              width: 0.15,
-              sizeUnit: GaugeSizeUnit.factor,
-              color: color,
-              cornerStyle: CornerStyle.bothCurve,
-            ),
-            MarkerPointer(
-              value: depthMm,
-              markerHeight: 12,
-              markerWidth: 12,
-              markerType: MarkerType.circle,
-              color: Colors.white,
-              borderWidth: 2,
-              borderColor: color,
-            ),
-          ],
-          ranges: [
-            GaugeRange(
-              startValue: AppConstants.ahaMinDepthMm,
-              endValue: AppConstants.ahaMaxDepthMm,
-              color: AppColors.green.withValues(alpha: 0.3),
-              startWidth: 0.15,
-              endWidth: 0.15,
-              sizeUnit: GaugeSizeUnit.factor,
-            ),
-          ],
-          annotations: <GaugeAnnotation>[
-            GaugeAnnotation(
-              angle: 90,
-              positionFactor: 0.1,
-              widget: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    depthMm.toStringAsFixed(0),
-                    style: TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                      fontFamily: 'SpaceMono',
-                      height: 1.0,
-                    ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              children: [
+                // Digital Vertical Meter
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: List.generate(segments, (index) {
+                      final reverseIndex = segments - 1 - index;
+                      final val = (reverseIndex + 1) * (maxCm / segments);
+                      final isActive = depthCm >= val;
+                      final isTargetZone = val >= 5.0 && val <= 6.0;
+
+                      return Expanded(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(vertical: 0.5, horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: isActive 
+                                ? accentColor 
+                                : (isTargetZone ? AppColors.green.withValues(alpha: 0.1) : Colors.white10),
+                            borderRadius: BorderRadius.circular(1),
+                            boxShadow: isActive ? [BoxShadow(color: accentColor.withValues(alpha: 0.4), blurRadius: 4)] : null,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                  Text(
-                    'mm',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontFamily: 'SpaceMono',
-                    ),
+                ),
+                const SizedBox(width: 12),
+                // Numeric Display
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        depthCm.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: accentColor,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const Text(
+                        'CENTIMETERS',
+                        style: TextStyle(color: Colors.white24, fontSize: 7, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      _TargetStatusBadge(isInTarget: isInTarget),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TargetStatusBadge extends StatelessWidget {
+  final bool isInTarget;
+  const _TargetStatusBadge({required this.isInTarget});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: (isInTarget ? AppColors.green : Colors.white10).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: (isInTarget ? AppColors.green : Colors.white24).withValues(alpha: 0.3),
         ),
-      ],
+      ),
+      child: Text(
+        isInTarget ? 'OPTIMAL' : 'ADJUST',
+        style: TextStyle(
+          color: isInTarget ? AppColors.green : Colors.white38,
+          fontSize: 8,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

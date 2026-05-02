@@ -7,8 +7,10 @@ import '../providers/session_provider.dart';
 import '../models/session.dart';
 import '../services/session_service.dart';
 import '../widgets/metric_card.dart';
-import '../widgets/alert_card.dart';
-import '../widgets/section_label.dart';
+import '../providers/device_provider.dart';
+import '../providers/notification_provider.dart';
+import '../providers/ble_session_provider.dart';
+import '../services/ble_service.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -18,252 +20,250 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final isAdmin = user?.isAdmin ?? false;
     final isInstructor = user?.isInstructor ?? false;
-    final alertsAsync = ref.watch(recentAlertsProvider);
+    final theme = Theme.of(context);
+    
+    // BLE State
+    final bleService = ref.watch(bleServiceProvider);
+    final isConnected = bleService.isConnected;
+
     final coursesAsync = ref.watch(coursesProvider);
-    final deviceAsync = ref.watch(deviceStatusProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(recentAlertsProvider);
             ref.invalidate(coursesProvider);
             ref.invalidate(deviceStatusProvider);
+            ref.invalidate(userStatsProvider);
           },
           color: AppColors.brand,
           child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: [
+              // ── Header Section ─────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAdmin
-                                ? 'Panel de Control'
-                                : isInstructor
-                                    ? 'Bienvenido, ${user?.firstName ?? 'Instructor'}'
-                                    : 'Bienvenido, ${user?.firstName ?? ''}',
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context).textTheme.bodyLarge?.color,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SIERCP'.toUpperCase(),
+                              style: TextStyle(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.5,
+                              ),
                             ),
-                          ),
-                          Text(
-                            isAdmin
-                                ? 'Administrador SIERCP'
-                                : isInstructor
-                                    ? 'Instructor'
-                                    : (user?.role ?? 'ESTUDIANTE'),
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context).textTheme.bodyMedium?.color,
-                              fontSize: 12,
+                            const SizedBox(height: 4),
+                            Text(
+                              isAdmin
+                                  ? 'Panel de Control'
+                                  : 'Hola, ${user?.firstName ?? 'Bienvenido'}',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      GestureDetector(
-                        onTap: () => context.go('/profile'),
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppColors.brand,
-                          child: Text(
-                            user?.initials ?? 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          ],
                         ),
                       ),
+                      // Notifications Icon
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final unreadCount = ref.watch(unreadNotificationsCountProvider);
+                          return IconButton(
+                            onPressed: () => context.push('/notifications'),
+                            icon: Stack(
+                              children: [
+                                const Icon(Icons.notifications_none_rounded, size: 28),
+                                if (unreadCount > 0)
+                                  Positioned(
+                                    right: 2,
+                                    top: 2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(color: AppColors.red, shape: BoxShape.circle),
+                                      child: Text(
+                                        unreadCount > 9 ? '9+' : '$unreadCount',
+                                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _HeaderAvatar(user: user),
                     ],
                   ),
                 ),
               ),
 
-              // ── Vistas por rol ─────────────────────────────────────────────
+              // ── Dynamic Dashboard Content ──────────────────────────────────
               if (isAdmin)
                 _AdminDashboard(ref: ref)
               else if (isInstructor)
-                _InstructorDashboard(ref: ref, coursesAsync: coursesAsync)
-              else ...[
-                // ── ESTUDIANTE: Per-course training cards ────────────────────
-                SliverToBoxAdapter(
-                  child: coursesAsync.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (courses) => courses.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SectionLabel('Tus cursos activos'),
-                                const SizedBox(height: 8),
-                                ...courses.map((c) => _StudentCourseHero(
-                                      course: c,
-                                      deviceAsync: deviceAsync,
-                                    )),
-                              ],
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: _NotEnrolledCard(),
-                          ),
-                  ),
+                _InstructorDashboard(
+                  ref: ref,
+                  coursesAsync: coursesAsync,
+                )
+              else
+                _StudentDashboard(
+                  ref: ref,
+                  coursesAsync: coursesAsync,
+                  isConnected: isConnected,
                 ),
+              
+              // ... reste del contenido ...
 
-                // Métricas históricas
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: const SectionLabel('Resumen histórico'),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverToBoxAdapter(
-                    child: Consumer(
-                      builder: (context, ref, child) {
-                        final stats = ref.watch(userStatsProvider);
-                        final isLandscape =
-                            MediaQuery.of(context).orientation ==
-                                Orientation.landscape;
-                        return GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: isLandscape ? 4 : 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: isLandscape ? 1.4 : 1.6,
+                  
+                  // ── Metrics / Activity (Ocultar para Admin si se prefiere) ───
+                  if (!isAdmin) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            MetricCard(
-                              label: 'Sesiones hoy',
-                              value: '${stats?.sessionsToday ?? 0}',
-                              suffix: '',
-                              status: (stats?.sessionsToday ?? 0) > 0
-                                  ? MetricStatus.ok
-                                  : MetricStatus.neutral,
-                            ),
-                            MetricCard(
-                              label: 'Prof. promedio',
-                              value: stats?.averageDepthMm.toStringAsFixed(0) ??
-                                  '0',
-                              suffix: 'mm',
-                              status: (stats?.averageDepthMm ?? 0) >= 50 &&
-                                      (stats?.averageDepthMm ?? 0) <= 60
-                                  ? MetricStatus.ok
-                                  : MetricStatus.warning,
-                              hint: 'Rango: 50–60mm',
-                            ),
-                            MetricCard(
-                              label: 'Frecuencia media',
-                              value:
-                                  stats?.averageRatePerMin.toStringAsFixed(0) ??
-                                      '0',
-                              suffix: '/min',
-                              status: (stats?.averageRatePerMin ?? 0) >= 100 &&
-                                      (stats?.averageRatePerMin ?? 0) <= 120
-                                  ? MetricStatus.ok
-                                  : MetricStatus.warning,
-                              hint: 'Meta: 100–120',
-                            ),
-                            MetricCard(
-                              label: '% Compresiones OK',
-                              value:
-                                  (stats?.averageScore ?? 0).toStringAsFixed(0),
-                              suffix: '%',
-                              status: (stats?.averageScore ?? 0) >= 85
-                                  ? MetricStatus.ok
-                                  : MetricStatus.warning,
-                              hint: 'Meta: 85%+',
-                            ),
+                            const SectionLabel('Actividad Reciente'),
+                            Icon(Icons.insights_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
                           ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-
-              // Alertas (todos los roles)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child: SectionLabel(
-                      isAdmin ? 'Alertas del sistema' : 'Últimas alertas'),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: alertsAsync.when(
-                    loading: () => const Center(
-                      child: SizedBox(
-                        height: 40,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.brand),
-                      ),
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (alerts) => Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outline,
-                          width: 0.5,
                         ),
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
-                      child: alerts.isEmpty
-                          ? Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.notifications_none_outlined,
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color,
-                                      size: 18),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Sin alertas recientes.',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Column(
-                              children: alerts
-                                  .take(4)
-                                  .map((a) => AlertCard(alert: a))
-                                  .toList(),
-                            ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      sliver: SliverToBoxAdapter(
+                        child: Consumer(
+                          builder: (context, ref, child) {
+                            final stats = ref.watch(userStatsProvider);
+                            final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                            return GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: isLandscape ? 4 : 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: isLandscape ? 1.4 : 1.5,
+                              children: [
+                                MetricCard(
+                                  label: 'Sesiones hoy',
+                                  value: '${stats?.sessionsToday ?? 0}',
+                                  suffix: '',
+                                  status: (stats?.sessionsToday ?? 0) > 0 ? MetricStatus.ok : MetricStatus.neutral,
+                                ),
+                                MetricCard(
+                                  label: 'Prof. promedio',
+                                  value: stats?.averageDepthMm.toStringAsFixed(0) ?? '0',
+                                  suffix: 'mm',
+                                  status: (stats?.averageDepthMm ?? 0) >= 50 && (stats?.averageDepthMm ?? 0) <= 60 ? MetricStatus.ok : MetricStatus.warning,
+                                ),
+                                MetricCard(
+                                  label: 'Frecuencia media',
+                                  value: '${stats?.averageRatePerMin.toInt() ?? 0}',
+                                  suffix: '/min',
+                                  status: (stats?.averageRatePerMin ?? 0) >= 100 && (stats?.averageRatePerMin ?? 0) <= 120 ? MetricStatus.ok : MetricStatus.warning,
+                                ),
+                                MetricCard(
+                                  label: '% Compresiones OK',
+                                  value: '${(stats?.averageScore ?? 0).toInt()}',
+                                  suffix: '%',
+                                  status: (stats?.averageScore ?? 0) >= 85 ? MetricStatus.ok : MetricStatus.warning,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                  
+                  // ── AHA 2025 Tips & More ─────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                      child: _TipCard(),
                     ),
                   ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+}
+
+class _TipCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark 
+            ? [AppColors.brand.withValues(alpha: 0.2), AppColors.accent.withValues(alpha: 0.1)]
+            : [AppColors.brandLight, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brand.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.brand,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Consejo AHA 2025',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          const Text(
+            'Recuerda que la profundidad de las compresiones debe ser de al menos 5 cm (2 pulgadas) pero no más de 6 cm (2.4 pulgadas). Permite la expansión torácica completa después de cada compresión.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -278,41 +278,155 @@ class _AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    return SliverPadding(
-      padding: const EdgeInsets.all(20),
-      sliver: SliverGrid.count(
-        crossAxisCount: isLandscape ? 4 : 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: isLandscape ? 1.0 : 1.1,
+    
+    return SliverList(
+      delegate: SliverChildListDelegate([
+        // ── Admin Stats Summary ──────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _AdminStatPill(
+                  label: 'Estudiantes',
+                  value: '...', 
+                  icon: Icons.people_outline,
+                  color: AppColors.brand,
+                  stream: ref.watch(usersStreamProvider).whenData((u) => u.where((x) => x.isStudent).length.toString()),
+                ),
+                const SizedBox(width: 12),
+                _AdminStatPill(
+                  label: 'Maniquíes',
+                  value: '...',
+                  icon: Icons.developer_board,
+                  color: AppColors.cyan,
+                  stream: ref.watch(devicesStreamProvider).whenData((d) => d.where((x) => x.status == 'online').length.toString()),
+                ),
+                const SizedBox(width: 12),
+                _AdminStatPill(
+                  label: 'Alertas Hoy',
+                  value: '...',
+                  icon: Icons.warning_amber_rounded,
+                  color: AppColors.amber,
+                  stream: ref.watch(recentAlertsProvider).whenData((a) => a.length.toString()),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Management Grid ──────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: isLandscape ? 4 : 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: isLandscape ? 1.0 : 1.1,
+            children: [
+              _AdminTile(
+                icon: Icons.people_alt_outlined,
+                label: 'Usuarios',
+                sub: 'Instructores y Alumnos',
+                color: AppColors.brand,
+                onTap: () => context.go('/admin/users'),
+              ),
+              _AdminTile(
+                icon: Icons.bluetooth_searching_rounded,
+                label: 'Maniquíes',
+                sub: 'Estado de conexión',
+                color: AppColors.cyan,
+                onTap: () => context.go('/admin/devices'),
+              ),
+              _AdminTile(
+                icon: Icons.menu_book_outlined,
+                label: 'Cursos',
+                sub: 'Gestionar programas',
+                color: AppColors.accent,
+                onTap: () => context.go('/courses'),
+              ),
+              _AdminTile(
+                icon: Icons.bar_chart_outlined,
+                label: 'Reportes',
+                sub: 'Estadísticas globales',
+                color: AppColors.green,
+                onTap: () => context.go('/history'),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _AdminStatPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final AsyncValue<String>? stream;
+
+  const _AdminStatPill({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.stream,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.card : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.1), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _AdminTile(
-            icon: Icons.people_alt_outlined,
-            label: 'Usuarios',
-            sub: 'Instructores y Estudiantes',
-            color: AppColors.brand,
-            onTap: () => context.go('/admin/users'),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16),
           ),
-          _AdminTile(
-            icon: Icons.bluetooth_searching_rounded,
-            label: 'Maniquíes',
-            sub: 'Estado de conexión',
-            color: AppColors.cyan,
-            onTap: () => context.go('/admin/devices'),
-          ),
-          _AdminTile(
-            icon: Icons.menu_book_outlined,
-            label: 'Cursos',
-            sub: 'Gestionar programas',
-            color: AppColors.accent,
-            onTap: () => context.go('/courses'),
-          ),
-          _AdminTile(
-            icon: Icons.bar_chart_outlined,
-            label: 'Reportes',
-            sub: 'Estadísticas globales',
-            color: AppColors.green,
-            onTap: () => context.go('/history'),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              stream?.when(
+                data: (v) => Text(v, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900, fontFamily: 'SpaceMono')),
+                loading: () => const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand)),
+                error: (_, __) => Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900)),
+              ) ?? Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900)),
+            ],
           ),
         ],
       ),
@@ -359,7 +473,7 @@ class _InstructorDashboard extends StatelessWidget {
                     icon: Icons.groups_2_outlined,
                     label: 'Mis Estudiantes',
                     color: AppColors.accent,
-                    onTap: () => context.go('/courses'),
+                    onTap: () => context.go('/instructor/students'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -567,8 +681,7 @@ class _InstructorCourseCard extends ConsumerWidget {
     final border = theme.colorScheme.outline;
 
     final studentsAsync = ref.watch(courseStudentsProvider(course.id));
-    final count = studentsAsync.value?.length ?? course.studentCount ?? 0;
-
+    
     return GestureDetector(
       onTap: () => context.go('/courses'),
       child: Container(
@@ -694,15 +807,13 @@ class _NotEnrolledCard extends StatelessWidget {
 
 class _StudentCourseHero extends ConsumerWidget {
   final dynamic course;
-  final AsyncValue<DeviceStatusData> deviceAsync;
-  const _StudentCourseHero({required this.course, required this.deviceAsync});
+  final bool isConnected;
+  const _StudentCourseHero({required this.course, required this.isConnected});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isConnected = deviceAsync.value?.isConnected ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Per-course progress
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     final allSessions = sessionsAsync.value ?? <SessionModel>[];
     final courseSessions = allSessions
@@ -712,9 +823,10 @@ class _StudentCourseHero extends ConsumerWidget {
     final totalDone = courseSessions.length;
     final approved =
         courseSessions.where((s) => s.metrics?.approved == true).length;
-    final required = course.totalModules > 0 ? course.totalModules : 4;
-    final progress = required > 0 ? (approved / required).clamp(0.0, 1.0) : 0.0;
-    final isComplete = approved >= required;
+    final requiredCount = course.totalModules > 0 ? course.totalModules : 4;
+
+    final progress = requiredCount > 0 ? (approved / requiredCount).clamp(0.0, 1.0) : 0.0;
+    final isComplete = approved >= requiredCount;
 
     final user = ref.read(currentUserProvider);
 
@@ -780,7 +892,6 @@ class _StudentCourseHero extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Device badge
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -811,8 +922,6 @@ class _StudentCourseHero extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(3),
               child: LinearProgressIndicator(
@@ -827,7 +936,7 @@ class _StudentCourseHero extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('$approved/$required aprobadas · $totalDone sesiones',
+                Text('$approved/$requiredCount aprobadas · $totalDone sesiones',
                     style:
                         const TextStyle(color: Colors.white54, fontSize: 10)),
                 Text('${(progress * 100).toInt()}%',
@@ -839,8 +948,6 @@ class _StudentCourseHero extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // CTA
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
@@ -893,4 +1000,81 @@ class _CourseCardShimmer extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _HeaderAvatar extends StatelessWidget {
+  final dynamic user;
+  const _HeaderAvatar({this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/profile'),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.2), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brand.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: CircleAvatar(
+          radius: 24,
+          backgroundColor: AppColors.brand,
+          backgroundImage: user?.avatarUrl != null ? NetworkImage(user!.avatarUrl!) : null,
+          child: user?.avatarUrl == null
+              ? Text(
+                  user?.initials ?? 'U',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentDashboard extends StatelessWidget {
+  final WidgetRef ref;
+  final AsyncValue<List> coursesAsync;
+  final bool isConnected;
+  const _StudentDashboard({required this.ref, required this.coursesAsync, required this.isConnected});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: coursesAsync.when(
+        loading: () => const _CourseCardShimmer(),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (courses) => courses.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SectionLabel('Continuar Aprendizaje'),
+                    const SizedBox(height: 12),
+                    ...courses.take(2).map((c) => _StudentCourseHero(
+                          course: c,
+                          isConnected: isConnected,
+                        )),
+                  ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _NotEnrolledCard(),
+              ),
+      ),
+    );
+  }
 }

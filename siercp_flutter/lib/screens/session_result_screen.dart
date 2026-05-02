@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -177,7 +178,17 @@ class _ResultBody extends ConsumerWidget {
                 onPressed: () => context.go('/history'),
               ),
               const Spacer(),
-              _ExportButton(session: session, metrics: metrics),
+              Text(
+                'RESULTADOS',
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(width: 48), // Balance for back button
             ],
           ),
           const SizedBox(height: 12),
@@ -204,8 +215,6 @@ class _ResultBody extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _ExportPdfAction(session: session, metrics: metrics),
                     ],
                   ),
                 ),
@@ -216,6 +225,10 @@ class _ResultBody extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const SectionLabel('Recomendaciones de Mejora'),
+                      const SizedBox(height: 8),
+                      _ClinicalFeedback(metrics: metrics),
+                      const SizedBox(height: 20),
                       const SectionLabel('Parámetros AHA'),
                       const SizedBox(height: 10),
                       _AhaParametersList(
@@ -223,6 +236,8 @@ class _ResultBody extends ConsumerWidget {
                           surface: surface,
                           border: border,
                           isDark: isDark),
+                      const SizedBox(height: 20),
+                      _ExportPdfAction(session: session, metrics: metrics),
                     ],
                   ),
                 ),
@@ -245,15 +260,11 @@ class _ResultBody extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                'Calificación según estándares AHA 2025',
-                style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 12),
-              ),
-            ),
+            const SizedBox(height: 24),
+            
+            const SectionLabel('Recomendaciones de Mejora'),
+            const SizedBox(height: 8),
+            _ClinicalFeedback(metrics: metrics),
             const SizedBox(height: 24),
 
             // AHA Parameters (Portrait)
@@ -264,17 +275,16 @@ class _ResultBody extends ConsumerWidget {
                 surface: surface,
                 border: border,
                 isDark: isDark),
+            const SizedBox(height: 24),
+            _ExportPdfAction(session: session, metrics: metrics),
+            const SizedBox(height: 24),
           ],
           const SizedBox(height: 20),
           if (metrics.violations.isNotEmpty) ...[
-            const SectionLabel('Correcciones necesarias'),
+            const SectionLabel('Alertas de Desempeño'),
             const SizedBox(height: 8),
             ...metrics.violations.map((v) => _ViolationCard(violation: v)),
-            const SizedBox(height: 16),
-          ],
-          if (!isLandscape) ...[
-            _ExportPdfAction(session: session, metrics: metrics),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
           ],
           Row(
             children: [
@@ -295,9 +305,122 @@ class _ResultBody extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+}
+
+class _ClinicalFeedback extends StatelessWidget {
+  final SessionMetrics metrics;
+  const _ClinicalFeedback({required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> tips = [];
+
+    if (metrics.totalCompressions == 0) {
+      tips.add({
+        'icon': Icons.warning_amber_rounded,
+        'color': Colors.orange,
+        'title': 'Sin actividad detectada',
+        'desc': 'Asegúrate de que el maniquí esté encendido y calibrado antes de iniciar.',
+      });
+    } else {
+      if (metrics.averageDepthMm < 50) {
+        tips.add({
+          'icon': Icons.arrow_downward_rounded,
+          'color': Colors.redAccent,
+          'title': 'Presiona más fuerte',
+          'desc': 'Debes alcanzar al menos 5 cm (50 mm) de profundidad para un flujo sanguíneo efectivo.',
+        });
+      } else if (metrics.averageDepthMm > 60) {
+        tips.add({
+          'icon': Icons.back_hand_rounded,
+          'color': Colors.orangeAccent,
+          'title': 'Demasiada profundidad',
+          'desc': 'Estás excediendo los 6 cm. Controla la fuerza para evitar lesiones internas.',
+        });
+      }
+
+      if (metrics.averageRatePerMin < 100) {
+        tips.add({
+          'icon': Icons.speed_rounded,
+          'color': Colors.redAccent,
+          'title': 'Aumenta el ritmo',
+          'desc': 'El ritmo ideal es entre 100 y 120 compresiones por minuto. ¡Sigue el metrónomo!',
+        });
+      } else if (metrics.averageRatePerMin > 120) {
+        tips.add({
+          'icon': Icons.slow_motion_video_rounded,
+          'color': Colors.orangeAccent,
+          'title': 'Ritmo muy acelerado',
+          'desc': 'Estás yendo demasiado rápido. El corazón necesita tiempo para llenarse entre compresiones.',
+        });
+      }
+
+      if (metrics.recoilPct < 90) {
+        tips.add({
+          'icon': Icons.unfold_more_rounded,
+          'color': Colors.blueAccent,
+          'title': 'Permite la expansión total',
+          'desc': 'No te apoyes en el pecho. Deja que el tórax regrese a su posición original completamente.',
+        });
+      }
+
+      if (metrics.interruptionCount > 0) {
+        tips.add({
+          'icon': Icons.timer_off_rounded,
+          'color': Colors.purpleAccent,
+          'title': 'Minimiza las pausas',
+          'desc': 'Cada segundo sin RCP reduce las probabilidades. Intenta mantener una fracción de compresión alta.',
+        });
+      }
+    }
+
+    if (tips.isEmpty && metrics.approved) {
+      tips.add({
+        'icon': Icons.stars_rounded,
+        'color': Colors.greenAccent,
+        'title': '¡Técnica Maestra!',
+        'desc': 'Has mantenido todos los parámetros según la AHA 2025. Mantén este estándar.',
+      });
+    }
+
+    return Column(
+      children: tips.map((tip) => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: (tip['color'] as Color).withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: (tip['color'] as Color).withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(tip['icon'] as IconData, color: tip['color'] as Color, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tip['title'] as String,
+                    style: TextStyle(color: tip['color'] as Color, fontWeight: FontWeight.w900, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    tip['desc'] as String,
+                    style: TextStyle(color: (tip['color'] as Color).withValues(alpha: 0.8), fontSize: 12, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )).toList(),
     );
   }
 }
@@ -336,11 +459,10 @@ class _ScoreCircle extends StatelessWidget {
               children: [
                 Text(
                   '${(value * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
+                  style: GoogleFonts.spaceMono(
                     color: metrics.scoreColor,
                     fontSize: size * 0.25,
                     fontWeight: FontWeight.w700,
-                    fontFamily: 'SpaceMono',
                   ),
                 ),
                 Row(
@@ -426,6 +548,12 @@ class _AhaParametersList extends StatelessWidget {
               value: '${metrics.interruptionCount}',
               range: 'Meta: 0',
               ok: metrics.interruptionCount == 0),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Fracción (CCF)',
+              value: '${metrics.ccfPct.toStringAsFixed(1)}%',
+              range: 'Meta: 60%+',
+              ok: metrics.ccfPct >= 60),
         ],
       ),
     );
@@ -670,11 +798,11 @@ class _AhaRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(value,
-                  style: TextStyle(
+                  style: GoogleFonts.spaceMono(
                       color: color,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      fontFamily: 'SpaceMono')),
+                  )),
               if (range.isNotEmpty)
                 Text(range, style: TextStyle(color: textS, fontSize: 10)),
             ],

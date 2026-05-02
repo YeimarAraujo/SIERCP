@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/user.dart';
+import '../services/bulk_upload_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/firestore_service.dart';
 import '../services/admin_service.dart';
 import '../providers/auth_provider.dart';
 
@@ -17,6 +20,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
   String _selectedFilter = 'TODOS';
   String _searchQuery = '';
   final _searchCtrl = TextEditingController();
+  bool _isImporting = false;
 
   static const _filters = ['TODOS', 'ADMIN', 'INSTRUCTOR', 'ESTUDIANTE'];
 
@@ -24,6 +28,39 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleCsvImport() async {
+    setState(() => _isImporting = true);
+    try {
+      final bulkService = BulkUploadService(
+        ref.read(firestoreServiceProvider),
+        ref.read(firebaseAuthServiceProvider),
+      );
+      
+      final result = await bulkService.uploadStudentsFromCsv();
+      
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        ref.invalidate(allUsersProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: AppColors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
   }
 
   @override
@@ -46,6 +83,21 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
           onPressed: () => context.go('/home'),
         ),
         actions: [
+          if (_isImporting)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.upload_file_outlined),
+              onPressed: _handleCsvImport,
+              tooltip: 'Importar Estudiantes (CSV)',
+            ),
           IconButton(
             icon: Icon(Icons.refresh_outlined, color: textP),
             onPressed: () => ref.invalidate(allUsersProvider),
@@ -231,6 +283,17 @@ class _UserCard extends StatelessWidget {
     }
   }
 
+  String _formatLastActive(DateTime? date) {
+    if (date == null) return 'Nunca';
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Hace poco';
+    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
+    if (diff.inHours < 24) return 'Hace ${diff.inHours}h';
+    if (diff.inDays == 1) return 'Ayer';
+    return 'Hace ${diff.inDays}d';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -289,7 +352,23 @@ class _UserCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(user.email, style: TextStyle(color: textS, fontSize: 11)),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: user.isOnline ? AppColors.green : AppColors.darkTextTertiary.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          user.isOnline ? 'En línea' : _formatLastActive(user.lastActive),
+                          style: TextStyle(color: textS, fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
                     if (user.identificacion != null && user.identificacion!.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Row(

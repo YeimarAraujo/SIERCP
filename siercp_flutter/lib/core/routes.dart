@@ -25,6 +25,7 @@ import '../screens/create_user_screen.dart';
 import '../screens/device_selection_screen.dart';
 import '../screens/reports_screen.dart';
 import '../analytics/presentation/dashboard/analytics_screen.dart';
+import '../screens/edit_profile_screen.dart';
 import '../models/guide.dart';
 import '../models/course_module.dart';
 import '../screens/Courses/Teacher/course_editor_screen.dart';
@@ -33,23 +34,47 @@ import '../screens/Courses/Student/student_module_viewer_screen.dart';
 import '../screens/Courses/Student/module_practica_screen.dart';
 import '../screens/Courses/Student/module_quiz_screen.dart';
 import '../screens/Courses/Student/module_certificacion_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../screens/instructor_students_screen.dart';
+
+import '../screens/student_detail_screen.dart';
+
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-
+  final authNotifier = ref.watch(authStateProvider.notifier);
+  
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
+    refreshListenable: _AuthListenable(ref),
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
       final isAuth = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
       final location = state.matchedLocation;
 
-      if (isLoading) return location == '/splash' ? null : '/splash';
-      if (location == '/splash') return isAuth ? '/home' : '/login';
+      // Si todavía está cargando el estado inicial, nos quedamos en splash
+      if (isLoading) {
+        return location == '/splash' ? null : '/splash';
+      }
+
+      // Lógica de redirección basada en autenticación
+      if (location == '/splash') {
+        return isAuth ? '/home' : '/login';
+      }
 
       final isPublic = location == '/login' || location == '/register';
-      if (!isAuth) return isPublic ? null : '/login';
-      if (isAuth && isPublic) return '/home';
+      
+      if (!isAuth) {
+        return isPublic ? null : '/login';
+      }
+
+      if (isAuth && isPublic) {
+        return '/home';
+      }
+
       return null;
     },
     routes: [
@@ -57,6 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       ShellRoute(
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => MainShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
@@ -80,7 +106,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
           GoRoute(path: '/scenarios', builder: (_, __) => const ScenarioSelectScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
           GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsDashboardScreen()),
+          GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+          GoRoute(
+            path: '/instructor/students',
+            builder: (_, __) => const InstructorStudentsScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => StudentDetailScreen(
+                  userId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
 
           // ── Editor de curso (Instructor/Admin) ───────────────────────────
           GoRoute(
@@ -107,18 +147,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/student-course/:courseId',
-            builder: (context, state) {
-              final user = ref.read(currentUserProvider);
-              return StudentCourseDetailScreen(
-                courseId: state.pathParameters['courseId']!,
-                studentId: user?.id ?? '',
-                courseTitle: 'Detalle del Curso',
-                instructorName: '',
-              );
-            },
-          ),
-          GoRoute(
-            path: '/students-course/:courseId',
             builder: (context, state) {
               final user = ref.read(currentUserProvider);
               return StudentCourseDetailScreen(
@@ -273,3 +301,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+/// Clase auxiliar para notificar cambios de autenticación al GoRouter sin recrearlo.
+class _AuthListenable extends ChangeNotifier {
+  _AuthListenable(Ref ref) {
+    _subscription = ref.listen(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  late final ProviderSubscription _subscription;
+
+  @override
+  void dispose() {
+    _subscription.close();
+    super.dispose();
+  }
+}

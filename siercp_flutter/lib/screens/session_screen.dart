@@ -1,8 +1,10 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../providers/session_provider.dart';
+import '../providers/ble_session_provider.dart';
 import '../widgets/compression_wave.dart';
 import '../widgets/depth_gauge.dart';
 import '../widgets/rate_gauge.dart';
@@ -19,6 +21,8 @@ class SessionScreen extends ConsumerStatefulWidget {
 
 class _SessionScreenState extends ConsumerState<SessionScreen> {
   bool _starting = true;
+  int _countdown = 4;
+  bool _isCountdownActive = false;
   String? _error;
 
   @override
@@ -29,14 +33,40 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
 
   Future<void> _startSession() async {
     try {
-      await ref.read(activeSessionProvider.notifier).startSession(
+      // 1. Preparar el servicio de audio
+      final audioService = ref.read(audioServiceProvider);
+      await audioService.init();
+
+      // 2. Iniciar el contador de preparación y cuenta regresiva
+      setState(() {
+        _starting = false;
+        _isCountdownActive = true;
+        _countdown = 5;
+      });
+
+      // Reproducir el audio de inicio/preparación
+      audioService.playStart();
+
+      // Esperar los primeros 2 segundos en "Prepárate" (ajustado a la duración del audio)
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Cuenta regresiva visual de 3 a 1 (Segundos 3, 4 y 5)
+      for (int i = 3; i >= 1; i--) {
+        if (!mounted) return;
+        setState(() => _countdown = i);
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      if (!mounted) return;
+      setState(() => _isCountdownActive = false);
+
+      // 3. Iniciar la sesión real (telemetría y cronómetro)
+      await ref.read(bleActiveSessionProvider.notifier).startSession(
             widget.scenarioId ?? 'default',
             courseId: widget.courseId,
           );
     } catch (e) {
       if (mounted) setState(() => _error = 'Error al iniciar la sesión: $e');
-    } finally {
-      if (mounted) setState(() => _starting = false);
     }
   }
 
@@ -69,11 +99,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     // Mostrar loading mientras se guarda
     setState(() => _starting = true);
 
-    final sessionId = ref.read(activeSessionProvider).session?.id;
+    final sessionId = ref.read(bleActiveSessionProvider).session?.id;
 
     try {
       final session = await ref
-          .read(activeSessionProvider.notifier)
+          .read(bleActiveSessionProvider.notifier)
           .endSession()
           .timeout(const Duration(seconds: 15));
 
@@ -102,8 +132,51 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             children: [
               CircularProgressIndicator(color: AppColors.brand),
               SizedBox(height: 16),
-              Text('Iniciando sesión RCP...',
+              Text('Preparando equipo...',
                   style: TextStyle(color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isCountdownActive) {
+      final theme = Theme.of(context);
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'PREPÁRATE',
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 4,
+                ),
+              ),
+              const SizedBox(height: 40),
+              if (_countdown <= 3)
+                TweenAnimationBuilder<double>(
+                  key: ValueKey(_countdown),
+                  tween: Tween(begin: 2.0, end: 1.0),
+                  duration: const Duration(milliseconds: 500),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Text(
+                        '$_countdown',
+                        style: GoogleFonts.spaceMono(
+                          color: AppColors.brand,
+                          fontSize: 120,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -134,7 +207,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       );
     }
 
-    final state = ref.watch(activeSessionProvider);
+    final state = ref.watch(bleActiveSessionProvider);
+    final mode = ref.watch(sessionModeProvider);
+
     final live = state.liveData;
     final elapsed = state.elapsed;
     final history = state.depthHistory;
@@ -147,311 +222,281 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
+    // Colores dinámicos basados en el puntaje (Si es modo evaluación, ocultamos el color)
+    final Color scoreColor;
+    if (mode == SessionMode.evaluation) {
+      scoreColor = const Color(0xFF00D4FF); // Color neutro clínico
+    } else {
+      scoreColor = live.sessionScore >= 80
+          ? const Color(0xFF00FF94)
+          : live.sessionScore >= 60
+              ? const Color(0xFFFFD600)
+              : const Color(0xFFFF4B4B);
+    }
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.5,
+            colors: [
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: isDark ? 1.0 : 0.5),
+              theme.scaffoldBackgroundColor,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // --- TOP CLINICAL HEADER ---
+              _buildModernHeader(session, live, elapsedStr, scoreColor),
+
+              // --- MAIN MONITORING AREA ---
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: isLandscape
+                      ? _buildLandscapeLayout(history, live)
+                      : _buildPortraitLayout(history, live),
+                ),
+              ),
+
+              // --- BOTTOM ACTION BAR ---
+              _buildBottomBar(alerts, live),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernHeader(dynamic session, dynamic live, String elapsedStr, Color scoreColor) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF00D4FF),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Color(0xFF00D4FF), blurRadius: 8)
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'MONITOR DE SESIÓN',
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  session?.scenarioTitle?.toUpperCase() ?? 'RCP ENTRENAMIENTO',
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // CRITICAL TIMER CARD
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00D4FF).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: const Color(0xFF00D4FF).withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.timer_outlined,
+                    color: Color(0xFF00D4FF), size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  elapsedStr,
+                  style: GoogleFonts.spaceMono(
+                    color: const Color(0xFF00D4FF),
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout(List<double> history, dynamic live) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        // Waveform takes most space
+        Expanded(
+          flex: 5,
+          child: _MonitorCard(
+            title: 'DINÁMICA DE COMPRESIÓN',
+            subtitle: 'PROFUNDIDAD (mm) / TIEMPO',
+            icon: Icons.show_chart,
+            child:
+                CompressionWave(history: history, ratePerMin: live.ratePerMin),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Side Metrics
+        Expanded(
+          flex: 3,
+          child: Column(
+            children: [
+              Expanded(
+                child: _MonitorCard(
+                  title: 'FRECUENCIA',
+                  subtitle: 'CPM (OBJETIVO 100-120)',
+                  child: RateGauge(ratePerMin: live.ratePerMin),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _MonitorCard(
+                  title: 'PROFUNDIDAD',
+                  subtitle: 'MM (OBJETIVO 50-60)',
+                  child: DepthGauge(depthMm: live.depthMm),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPortraitLayout(List<double> history, dynamic live) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Expanded(
+          flex: 3,
+          child: _MonitorCard(
+            title: 'DINÁMICA DE COMPRESIÓN',
+            child:
+                CompressionWave(history: history, ratePerMin: live.ratePerMin),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          flex: 4,
+          child: Row(
+            children: [
+              Expanded(
+                child: _MonitorCard(
+                  title: 'FRECUENCIA',
+                  child: RateGauge(ratePerMin: live.ratePerMin),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MonitorCard(
+                  title: 'PROFUNDIDAD',
+                  child: DepthGauge(depthMm: live.depthMm),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomBar(dynamic alerts, dynamic live) {
+    final theme = Theme.of(context);
+    final mode = ref.watch(sessionModeProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+            top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5))),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Sesión activa',
-                          style: TextStyle(
-                              color:
-                                  Theme.of(context).textTheme.bodyLarge?.color,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600)),
-                      Row(
-                        children: [
-                          Text(
-                              'Escenario: ${session?.scenarioTitle ?? 'RCP Adulto'}',
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
-                                  fontSize: 11)),
-                          const SizedBox(width: 8),
-                          Text(elapsedStr,
-                              style: const TextStyle(
-                                  color: AppColors.brand,
-                                  fontSize: 11,
-                                  fontFamily: 'SpaceMono',
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (mode != SessionMode.evaluation)
+                  _MetricPill(
+                    label: 'SCORE',
+                    value: '${live.sessionScore.toStringAsFixed(0)}%',
+                    color: live.sessionScore >= 80
+                        ? const Color(0xFF00FF94)
+                        : Colors.orange,
+                  )
+                else
+                  _MetricPill(
+                    label: 'MODO',
+                    value: 'EVALUACIÓN',
+                    color: const Color(0xFF00D4FF),
                   ),
-                  Row(
-                    children: [
-                      if (isLandscape)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: SizedBox(
-                            height: 36,
-                            child: ElevatedButton.icon(
-                              onPressed: _endSession,
-                              icon: const Icon(Icons.stop_circle_outlined,
-                                  size: 14),
-                              label: const Text('Finalizar',
-                                  style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    AppColors.red.withValues(alpha: 0.1),
-                                foregroundColor: AppColors.red,
-                                side: const BorderSide(
-                                    color: AppColors.red, width: 0.5),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      _LiveBadge(),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Monitor Area (Forced Dark)
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0B0E),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 15)
-                  ],
+                _MetricPill(
+                  label: 'TOTAL CP',
+                  value: live.compressionCount.toString(),
+                  color: const Color(0xFF00D4FF),
                 ),
-                child: isLandscape
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            // Left: Gauges
-                            Expanded(
-                              flex: 4,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _MonitorPanel(
-                                          label: 'PROFUNDIDAD',
-                                          widget: SizedBox(
-                                            height: 120,
-                                            child: DepthGauge(
-                                                depthMm: live.depthMm),
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: _MonitorPanel(
-                                          label: 'FRECUENCIA',
-                                          widget: SizedBox(
-                                            height: 120,
-                                            child: RateGauge(
-                                                ratePerMin: live.ratePerMin),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                                width: 1,
-                                height: double.infinity,
-                                color: Colors.white10,
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 16)),
-                            // Right: Stats & Wave
-                            Expanded(
-                              flex: 6,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                    children: [
-                                      _MonitorStat(
-                                          label: 'COMPRESIONES',
-                                          value: '${live.compressionCount}',
-                                          color: Colors.white),
-                                      _MonitorStat(
-                                          label: 'OXÍGENO %',
-                                          value: live.oxygen.toStringAsFixed(0),
-                                          color: const Color(0xFF00E5FF)),
-                                      _MonitorStat(
-                                          label: 'CALIDAD %',
-                                          value: live.sessionScore
-                                              .toStringAsFixed(0),
-                                          color: const Color(0xFF00FF41)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  if (history.isNotEmpty)
-                                    Container(
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.03),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child:
-                                            CompressionWave(history: history),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 12),
-                                  Theme(
-                                    data: ThemeData.dark(),
-                                    child: AhaStatusBar(
-                                      depthMm: live.depthMm,
-                                      ratePerMin: live.ratePerMin,
-                                      decompressedFully: live.decompressedFully,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  // Gauges Row
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _MonitorPanel(
-                                          label: 'PROFUNDIDAD',
-                                          widget: SizedBox(
-                                            height: 130,
-                                            child: DepthGauge(
-                                                depthMm: live.depthMm),
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                          width: 1,
-                                          height: 100,
-                                          color: Colors.white10),
-                                      Expanded(
-                                        child: _MonitorPanel(
-                                          label: 'FRECUENCIA',
-                                          widget: SizedBox(
-                                            height: 130,
-                                            child: RateGauge(
-                                                ratePerMin: live.ratePerMin),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  // Stats Row
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                    children: [
-                                      _MonitorStat(
-                                          label: 'COMPRESIONES',
-                                          value: '${live.compressionCount}',
-                                          color: Colors.white),
-                                      _MonitorStat(
-                                          label: 'OXÍGENO %',
-                                          value: live.oxygen.toStringAsFixed(0),
-                                          color: const Color(0xFF00E5FF)),
-                                      _MonitorStat(
-                                          label: 'CALIDAD %',
-                                          value: live.sessionScore
-                                              .toStringAsFixed(0),
-                                          color: const Color(0xFF00FF41)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  // Waveform
-                                  if (history.isNotEmpty)
-                                    Container(
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.03),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child:
-                                            CompressionWave(history: history),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 12),
-
-                                  // AHA Status (Themed Dark)
-                                  Theme(
-                                    data: ThemeData.dark(),
-                                    child: AhaStatusBar(
-                                      depthMm: live.depthMm,
-                                      ratePerMin: live.ratePerMin,
-                                      decompressedFully: live.decompressedFully,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
+              ],
             ),
-
-            // Alerts & Button Area (App Theme)
-            if (!isLandscape || alerts.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Column(
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _endSession,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF4B4B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 4,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (alerts.isNotEmpty) _AlertBanner(alert: alerts.first),
-                    if (!isLandscape) ...[
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: _endSession,
-                        icon: const Icon(Icons.stop_circle_outlined, size: 18),
-                        label: const Text('Finalizar sesión'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.red.withValues(alpha: 0.1),
-                          foregroundColor: AppColors.red,
-                          minimumSize: const Size(double.infinity, 50),
-                          side: const BorderSide(
-                              color: AppColors.red, width: 0.5),
-                        ),
-                      ),
-                    ],
+                    Icon(Icons.stop_rounded, size: 24),
+                    SizedBox(width: 12),
+                    Text('FINALIZAR SESIÓN',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900, letterSpacing: 1.2)),
                   ],
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -459,99 +504,108 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }
 }
 
-class _MonitorPanel extends StatelessWidget {
-  final String label;
-  final Widget widget;
-  const _MonitorPanel({required this.label, required this.widget});
+class _MonitorCard extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Widget child;
+
+  const _MonitorCard({
+    required this.title,
+    this.subtitle,
+    this.icon,
+    required this.child,
+  });
 
   @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0)),
-          const SizedBox(height: 10),
-          widget,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
-      );
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5), size: 14),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                title,
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+              const Spacer(),
+              Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.2), size: 14),
+            ],
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: TextStyle(color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4), fontSize: 8),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Expanded(child: Center(child: child)),
+        ],
+      ),
+    );
+  }
 }
 
-class _MonitorStat extends StatelessWidget {
-  final String label, value;
+class _MetricPill extends StatelessWidget {
+  final String label;
+  final String value;
   final Color color;
-  const _MonitorStat(
+
+  const _MetricPill(
       {required this.label, required this.value, required this.color});
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: 'SpaceMono')),
           Text(label,
-              style: const TextStyle(
-                  color: Colors.white38,
+              style: GoogleFonts.inter(
+                  color: color.withValues(alpha: 0.6),
                   fontSize: 8,
                   fontWeight: FontWeight.bold)),
+          Text(value,
+              style: GoogleFonts.spaceMono(
+                  color: color, fontSize: 16, fontWeight: FontWeight.w900)),
         ],
-      );
-}
-
-class _LiveBadge extends StatefulWidget {
-  @override
-  State<_LiveBadge> createState() => _LiveBadgeState();
-}
-
-class _LiveBadgeState extends State<_LiveBadge>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800))
-      ..repeat(reverse: true);
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+      ),
+    );
   }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-            color: AppColors.greenBg, borderRadius: BorderRadius.circular(20)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FadeTransition(
-                opacity: _anim,
-                child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                        color: AppColors.green, shape: BoxShape.circle))),
-            const SizedBox(width: 5),
-            const Text('EN VIVO',
-                style: TextStyle(
-                    color: AppColors.green,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700)),
-          ],
-        ),
-      );
 }
 
 class _AlertBanner extends StatelessWidget {
@@ -559,27 +613,37 @@ class _AlertBanner extends StatelessWidget {
   const _AlertBanner({required this.alert});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-            color: alert.bgColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: alert.color.withValues(alpha: 0.2))),
-        child: Row(
-          children: [
-            Icon(alert.icon, color: alert.color, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(alert.title,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.bold)),
-                    Text(alert.message, style: const TextStyle(fontSize: 11)),
-                  ]),
-            ),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final Color color =
+        alert.type == 'error' ? Colors.redAccent : Colors.orangeAccent;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2))),
+      child: Row(
+        children: [
+          Icon(
+              alert.type == 'error'
+                  ? Icons.error_outline
+                  : Icons.warning_amber_outlined,
+              color: color,
+              size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(alert.title ?? 'Atención',
+                  style: TextStyle(
+                      color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(alert.message,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
 }

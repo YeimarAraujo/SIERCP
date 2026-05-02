@@ -10,6 +10,17 @@ import '../services/audio_service.dart';
 import '../core/constants.dart';
 import 'auth_provider.dart';
 import 'guide_provider.dart';
+import 'report_cache_provider.dart';
+import '../services/firestore_service.dart';
+import 'ble_session_provider.dart';
+
+final courseActiveSessionsProvider = StreamProvider.family<List<SessionModel>, String>((ref, courseId) {
+  return ref.watch(firestoreServiceProvider).watchCourseActiveSessions(courseId);
+});
+
+final studentSessionsProvider = FutureProvider.family<List<SessionModel>, String>((ref, studentId) {
+  return ref.read(firestoreServiceProvider).getStudentSessions(studentId);
+});
 
 final audioServiceProvider = Provider((ref) => AudioService());
 
@@ -86,7 +97,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     DeviceInfo? activeDevice;
 
     if (selectedMac != null && selectedMac.isNotEmpty) {
-      activeDevice = await deviceService.streamDevice(selectedMac).first;
+      activeDevice = await deviceService.streamDevice(selectedMac).first.timeout(const Duration(seconds: 3), onTimeout: () => null);
     } else {
       final devices = await deviceService.getAvailableDevices();
       if (devices.isNotEmpty) {
@@ -106,10 +117,10 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       courseId: courseId,
     );
 
-    // Audio de inicio del escenario
+    // Audio de inicio del escenario (ahora manejado por la UI con el contador)
     final audioService = ref.read(audioServiceProvider);
     await audioService.init();
-    audioService.playStart();
+    // audioService.playStart(); // Se movió a session_screen.dart para sincronizar con 3, 2, 1
 
     state = state.copyWith(session: session, isConnected: true);
 
@@ -181,10 +192,14 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
         deviceInfo.compresiones % 5 == 0) {
       if (deviceInfo.profundidadMm < AppConstants.ahaMinDepthMm) {
         audioService.playFeedback('mas_profundo');
+      } else if (deviceInfo.profundidadMm > AppConstants.ahaMaxDepthMm) {
+        audioService.playFeedback('menos_profundo');
       } else if (deviceInfo.frecuenciaCpm < AppConstants.ahaMinRatePerMin) {
         audioService.playFeedback('mas_rapido');
+      } else if (deviceInfo.frecuenciaCpm > AppConstants.ahaMaxRatePerMin) {
+        audioService.playFeedback('mas_lento');
       } else {
-        audioService.playFeedback('bien');
+        audioService.playFeedback('excelente');
       }
     }
 
@@ -248,7 +263,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
 
     final metrics = _computeSessionMetrics(
         state.lastDeviceInfo ??
-            DeviceInfo(
+            const DeviceInfo(
                 macAddress: '',
                 fuerzaKg: 0,
                 profundidadMm: 0,
@@ -291,6 +306,15 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
 
     // Forzar la actualización del historial de sesiones para que aparezca la recién finalizada
     ref.invalidate(sessionsHistoryProvider);
+
+    // Invalidad cache de reportes (Requerimiento: cada vez que haya novedad borrar el guardado)
+    try {
+      final cache = ref.read(reportCacheProvider.notifier);
+      cache.invalidateStudentReport(currentSession.studentId, currentSession.courseId ?? '');
+      if (currentSession.courseId != null) {
+        cache.invalidateCourseReport(currentSession.courseId!);
+      }
+    } catch (_) {}
 
     return finished;
   }
@@ -392,8 +416,12 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       iScore = (iScore - (pausas * 10)).clamp(0.0, 100.0);
     }
 
-    final totalScore =
-        (depthScore + rateScore + rScore + iScore).clamp(0.0, 100.0);
+    double totalScore = (depthScore + rateScore + rScore + iScore).clamp(0.0, 100.0);
+    
+    // Si no se hizo nada, el puntaje debe ser 0
+    if (count == 0) {
+      totalScore = 0.0;
+    }
 
     // Violaciones
     final List<AhaViolation> violations = [];
@@ -484,6 +512,8 @@ extension SessionModelCopy on SessionModel {
     return SessionModel(
       id: id,
       studentId: studentId,
+      studentName: studentName,
+      manikinId: manikinId,
       scenarioId: scenarioId,
       scenarioTitle: scenarioTitle,
       patientType: patientType,
@@ -496,10 +526,8 @@ extension SessionModelCopy on SessionModel {
   }
 }
 
-final activeSessionProvider =
-    NotifierProvider<ActiveSessionNotifier, ActiveSessionState>(
-  ActiveSessionNotifier.new,
-);
+// REDIRECCIONAR AL PROVEEDOR BLE UNIFICADO
+final activeSessionProvider = bleActiveSessionProvider;
 
 // ─── Sessions History ────────────────────────────────────────────────────────
 final sessionsHistoryProvider = FutureProvider<List<SessionModel>>((ref) async {
@@ -587,7 +615,20 @@ final courseStudentsProvider =
   return ref.read(sessionServiceProvider).watchCourseStudents(courseId);
 });
 
-// ─── Device Status ────────────────────────────────────────────────────────────
+// ─── Course Attendance ────────────────────────────────────────────────────────
+final courseAttendanceProvider = StreamProvider.family<List<Map<String, dynamic>>, ({String courseId, DateTime date})>((ref, arg) {
+  return ref.read(sessionServiceProvider).watchAttendance(arg.courseId, arg.date);
+});
+
+final courseAttendanceHistoryProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, courseId) {
+  return ref.read(sessionServiceProvider).watchCourseAttendanceHistory(courseId);
+});
+
+// ─── Users Status ────────────────────────────────────────────────────────────
+final usersStatusProvider = StreamProvider.family<List<UserModel>, List<String>>((ref, userIds) {
+  return ref.read(sessionServiceProvider).watchUsersStatus(userIds);
+});
+
 final deviceStatusProvider = FutureProvider<DeviceStatusData>((ref) async {
   try {
     return await ref.read(sessionServiceProvider).getDeviceStatus();
