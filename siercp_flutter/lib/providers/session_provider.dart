@@ -110,6 +110,9 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
           'Sensor de profundidad no disponible en el maniquí. Requerido para sesión válida.');
     }
 
+    // RESET de estado para nueva sesión
+    state = const ActiveSessionState();
+
     final session = await sessionService.startSession(
       studentId: user.id,
       studentName: user.fullName,
@@ -187,19 +190,28 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
         '[Telemetry] MAC: ${deviceInfo.macAddress} | Raw CP: $rawCompressions | Correct: ${deviceInfo.compresionesCorrectas} | isActive: ${deviceInfo.isActive}');
 
     // Audio Feedback de Flutter (opcional, el ESP32 también lo tiene con JQ8900)
-    if (nuevaCompresion &&
-        deviceInfo.compresiones > 0 &&
-        deviceInfo.compresiones % 5 == 0) {
-      if (deviceInfo.profundidadMm < AppConstants.ahaMinDepthMm) {
-        audioService.playFeedback('mas_profundo');
-      } else if (deviceInfo.profundidadMm > AppConstants.ahaMaxDepthMm) {
-        audioService.playFeedback('menos_profundo');
-      } else if (deviceInfo.frecuenciaCpm < AppConstants.ahaMinRatePerMin) {
-        audioService.playFeedback('mas_rapido');
-      } else if (deviceInfo.frecuenciaCpm > AppConstants.ahaMaxRatePerMin) {
-        audioService.playFeedback('mas_lento');
-      } else {
-        audioService.playFeedback('excelente');
+    if (nuevaCompresion && deviceInfo.compresiones > 0) {
+      // Usar lógica unificada de intervalos (3 para error, 10 para excelente)
+      final bool isCorrect = deviceInfo.compresionCorrecta;
+      final int interval = isCorrect ? 10 : 3;
+
+      if (deviceInfo.compresiones % interval == 0) {
+        if (!isCorrect) {
+          // Prioridad 1: Profundidad
+          if (deviceInfo.profundidadMm < AppConstants.ahaMinDepthMm) {
+            audioService.playFeedback('mas_profundo');
+          } else if (deviceInfo.profundidadMm > AppConstants.ahaMaxDepthMm) {
+            audioService.playFeedback('menos_profundo');
+          } 
+          // Prioridad 2: Frecuencia
+          else if (deviceInfo.frecuenciaCpm < AppConstants.ahaMinRatePerMin) {
+            audioService.playFeedback('mas_rapido');
+          } else if (deviceInfo.frecuenciaCpm > AppConstants.ahaMaxRatePerMin) {
+            audioService.playFeedback('mas_lento');
+          }
+        } else {
+          audioService.playFeedback('excelente');
+        }
       }
     }
 
