@@ -40,6 +40,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     final engine = ref.read(rcpEngineProvider);
     
     engine.reset();
+    _lastCount = 0; // RESET CRÍTICO para que el audio funcione en sesiones subsiguientes
 
     final session = await sessionService.startSession(
       studentId: user.id,
@@ -84,14 +85,29 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     // Audio Feedback local instantáneo (sólo en modo entrenamiento)
     if (nuevaComp && mode == SessionMode.training) {
-      if (engine.compresionesTotales % 5 == 0) {
-        if (!engine.compresionCorrecta) {
-          if (engine.picoProfundidad < RcpEngine.ahaMinDepthMm) {
+      // Si la compresión fue incorrecta, dar feedback más seguido (cada 3)
+      // Si fue excelente, dar feedback cada 10 para no saturar
+      final bool isCorrect = engine.lastCompresionCorrecta;
+      final int interval = isCorrect ? 10 : 3;
+
+      if (engine.compresionesTotales % interval == 0) {
+        if (!isCorrect) {
+          // Prioridad 1: Profundidad (Crítico)
+          if (engine.lastPicoProfundidad < RcpEngine.ahaMinDepthMm) {
             audioService.playFeedback('mas_profundo');
-          } else if (engine.picoProfundidad > RcpEngine.ahaMaxDepthMm) {
+          } else if (engine.lastPicoProfundidad > RcpEngine.ahaMaxDepthMm) {
             audioService.playFeedback('menos_profundo');
-          } else if (engine.currentCpm < RcpEngine.ahaMinRateCpm) {
+          } 
+          // Prioridad 2: Frecuencia
+          else if (engine.lastBpm < RcpEngine.ahaMinRateCpm) {
             audioService.playFeedback('mas_rapido');
+          } else if (engine.lastBpm > RcpEngine.ahaMaxRateCpm) {
+            audioService.playFeedback('mas_lento');
+          }
+          // Prioridad 3: Recoil (Si profundidad y frecuencia están bien pero falló algo, suele ser recoil)
+          else if (!engine.recoilOk) {
+            // No hay audio específico para recoil en AudioService aún, 
+            // pero podríamos añadirlo o simplemente no decir nada.
           }
         } else {
           audioService.playFeedback('excelente');

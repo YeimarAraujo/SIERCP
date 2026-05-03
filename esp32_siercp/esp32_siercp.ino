@@ -129,10 +129,10 @@ class ControlCallbacks : public BLECharacteristicCallbacks {
 
         // START
         if (cmd == 0x01) {
-            resetSession();          // limpia estado base
+            resetSession();       
             sessionActive = true;
 
-            resetPending = false;    // cancela resets pendientes
+            resetPending = false;    
             Serial.println("[SESSION] START");
         }
 
@@ -141,7 +141,7 @@ class ControlCallbacks : public BLECharacteristicCallbacks {
             sessionActive = false;
 
             resetPending = true;
-            resetTime = millis() + 300;  // delay seguro
+            resetTime = millis() + 300;  
 
             Serial.println("[SESSION] STOP - RESET PENDING");
         }

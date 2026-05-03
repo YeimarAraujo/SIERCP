@@ -18,19 +18,16 @@ import 'providers/report_cache_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Manejar mensajes en background (alertas de sesión, etc.)
-}
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicialización de Firebase con protección contra duplicados
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
     // Configuración global de Firestore
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
@@ -74,7 +71,6 @@ void main() async {
   ]);
 
   final container = ProviderContainer();
-  // Limpiar reportes viejos del cache (1-3 días)
   try {
     container.read(reportCacheProvider.notifier).clearOldReports();
   } catch (e) {
@@ -118,7 +114,8 @@ class LifecycleObserver extends ConsumerStatefulWidget {
   ConsumerState<LifecycleObserver> createState() => _LifecycleObserverState();
 }
 
-class _LifecycleObserverState extends ConsumerState<LifecycleObserver> with WidgetsBindingObserver {
+class _LifecycleObserverState extends ConsumerState<LifecycleObserver>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -139,20 +136,22 @@ class _LifecycleObserverState extends ConsumerState<LifecycleObserver> with Widg
     final firestore = ref.read(firestoreServiceProvider);
     if (state == AppLifecycleState.resumed) {
       firestore.updateUserStatus(user.id, isOnline: true);
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       firestore.updateUserStatus(user.id, isOnline: false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Escuchar cambios de usuario para marcar online al iniciar sesión
     ref.listen(currentUserProvider, (prev, next) {
       if (next != null && prev == null) {
-        ref.read(firestoreServiceProvider).updateUserStatus(next.id, isOnline: true);
+        ref
+            .read(firestoreServiceProvider)
+            .updateUserStatus(next.id, isOnline: true);
       }
     });
-    
+
     return widget.child;
   }
 }

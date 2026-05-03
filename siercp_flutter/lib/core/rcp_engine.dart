@@ -44,6 +44,11 @@ class RcpEngine extends ChangeNotifier {
   // Picos para Audio Feedback
   double picoProfundidad = 0.0;
   double picoFuerza = 0.0;
+  
+  // Métricas de la última compresión completada
+  double lastPicoProfundidad = 0.0;
+  double lastPicoFuerza = 0.0;
+  int lastBpm = 0;
 
   int compresionesTotales = 0;
   int compresionesCorrectas = 0;
@@ -62,6 +67,7 @@ class RcpEngine extends ChangeNotifier {
 
   bool recoilOk = false;
   bool compresionCorrecta = false;
+  bool lastCompresionCorrecta = false;
   int currentCpm = 0;
 
   /// ACTUALIZACIÓN DESDE HARDWARE (Senior Logic)
@@ -71,6 +77,11 @@ class RcpEngine extends ChangeNotifier {
     required int bpm,
   }) {
     if (compressions > compresionesTotales) {
+      // Guardar métricas de la compresión que acaba de terminar
+      lastPicoProfundidad = picoProfundidad;
+      lastPicoFuerza = picoFuerza;
+      lastBpm = bpm;
+
       // 1. Validar Profundidad (AHA 50-60mm)
       bool profOk = picoProfundidad >= ahaMinDepthMm && picoProfundidad <= ahaMaxDepthMm;
       if (profOk) compresionesCorrectas++;
@@ -88,9 +99,11 @@ class RcpEngine extends ChangeNotifier {
       // 3. Validar Recoil (Liberación)
       if (recoilOk) recoilCorrectos++;
 
-      compresionCorrecta = profOk && freqOk && recoilOk;
+      lastCompresionCorrecta = profOk && freqOk && recoilOk;
+      compresionCorrecta = lastCompresionCorrecta;
 
       // Reset de picos para la siguiente compresión
+      // Importante: No resetear a 0 absoluto si ya hay profundidad en el buffer (aunque usualmente es < 8mm aquí)
       picoProfundidad = 0;
       picoFuerza = 0;
     }
@@ -114,6 +127,9 @@ class RcpEngine extends ChangeNotifier {
   void reset() {
     picoProfundidad = 0.0;
     picoFuerza = 0.0;
+    lastPicoProfundidad = 0.0;
+    lastPicoFuerza = 0.0;
+    lastBpm = 0;
     compresionesTotales = 0;
     compresionesCorrectas = 0;
     recoilCorrectos = 0;
@@ -125,6 +141,7 @@ class RcpEngine extends ChangeNotifier {
     sumBpm = 0.0;
     recoilOk = false;
     compresionCorrecta = false;
+    lastCompresionCorrecta = false;
     currentCpm = 0;
   }
 }

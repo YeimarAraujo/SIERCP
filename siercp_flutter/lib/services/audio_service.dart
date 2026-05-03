@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 class AudioService {
   final AudioPlayer _player = AudioPlayer();
 
+  bool _isInitialized = false;
+  
   Future<void> init() async {
+    if (_isInitialized) return;
     try {
       // Configurar el contexto global para asegurar salida por altavoz y modo ruidoso
       await AudioPlayer.global.setAudioContext(AudioContext(
@@ -21,6 +24,7 @@ class AudioService {
           audioFocus: AndroidAudioFocus.gainTransientMayDuck,
         ),
       ));
+      _isInitialized = true;
     } catch (e) {
       debugPrint('Error initializing AudioContext: $e');
     }
@@ -29,10 +33,13 @@ class AudioService {
   /// Plays a specific audio asset from `assets/audio/`
   Future<void> playAsset(String assetName) async {
     try {
-      if (_player.state == PlayerState.playing) {
-        await _player.stop();
-      }
-      await _player.play(AssetSource('audio/$assetName'));
+      // Detener cualquier audio previo inmediatamente
+      await _player.stop();
+      // Reproducir con modo de baja latencia para feedback instantáneo
+      await _player.play(
+        AssetSource('audio/$assetName'),
+        mode: PlayerMode.lowLatency,
+      );
     } catch (e) {
       debugPrint('Error playing audio $assetName: $e');
     }
