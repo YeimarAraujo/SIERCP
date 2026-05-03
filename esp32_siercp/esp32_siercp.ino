@@ -6,134 +6,262 @@
 #include <HX711.h>
 #include <Adafruit_VL53L0X.h>
 
-// UUIDs Estándar del Proyecto
+// UUIDs
 #define SERVICE_UUID        "12345678-1234-5678-1234-56789abcdef0"
 #define CHAR_TELEMETRY_UUID "12345678-1234-5678-1234-56789abcdef1"
+#define CHAR_CTRL_UUID      "12345678-1234-5678-1234-56789abcdef2"
 
-// Estructura de Telemetría (44 bytes)
+// TELEMETRÍA
 struct __attribute__((packed)) TelemetryBatch {
     uint32_t timestamp;
     struct Sample { float force; float depth; } samples[5];
+    uint16_t compressions;
+    uint8_t bpm;
 };
 
-// Sensores y Estado
+// HARDWARE
 HX711 scale;
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
-bool deviceConnected = false;
-BLECharacteristic* pTelemetryChar = NULL;
 
-// Variables de Filtrado y Calibración
+// BLE
+BLECharacteristic* pTelemetryChar = NULL;
+bool deviceConnected = false;
+bool sessionActive = false;
+
+// VARIABLES CLÍNICAS
 float baselineDepth = 0;
 float filteredDepth = 0;
 float filteredForce = 0;
-const float EMA_ALPHA = 0.3; // Factor de suavizado (0.1 muy suave, 0.9 muy ruidoso)
 
-// Lógica de Compresiones (Máquina de Estados básica para diagnóstico)
-int compressionCount = 0;
+enum State { IDLE, PRESSING, HOLDING, RELEASING };
 bool inCompression = false;
+State state = IDLE;
+bool resetPending = false;
+uint32_t resetTime = 0;
+uint8_t confirmCount = 0;
+uint32_t lastCompressionTime = 0;
 
-class MyServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) { 
-        deviceConnected = true; 
-        printf(">>> CLINICAL MONITOR: CONECTADO\n"); 
+int compressionCount = 0;
+unsigned long lastCompMs = 0;
+float currentBPM = 0;
+
+// PARÁMETROS
+const float DEPTH_DOWN = 15.0;
+const float DEPTH_UP   = 8.0;
+const uint8_t CONFIRM  = 2;
+const uint32_t COOLDOWN = 180;
+
+// RESET TOTAL
+void resetSession() {
+
+    compressionCount = 0;
+    currentBPM = 0;
+    lastCompMs = 0;
+
+    state = IDLE;
+    confirmCount = 0;
+
+    filteredDepth = 0;
+    filteredForce = 0;
+
+    inCompression = false;
+
+    Serial.println("[SYSTEM] RESET COMPLETO SEGURO");
+}
+// FSM
+void updateFSM(float depth, uint32_t now) {
+
+    bool down = depth > DEPTH_DOWN;
+    bool up   = depth < DEPTH_UP;
+
+    switch (state) {
+
+        case IDLE:
+            if (down) { confirmCount = 1; state = PRESSING; }
+        break;
+
+        case PRESSING:
+            if (down) {
+                if (++confirmCount >= CONFIRM) {
+                    state = HOLDING;
+                    confirmCount = 0;
+                }
+            } else { state = IDLE; confirmCount = 0; }
+        break;
+
+        case HOLDING:
+            if (up) { confirmCount = 1; state = RELEASING; }
+        break;
+
+        case RELEASING:
+            if (up) {
+                if (++confirmCount >= CONFIRM) {
+
+                    if (now - lastCompressionTime > COOLDOWN) {
+
+                        compressionCount++;
+
+                        if (lastCompMs > 0) {
+                            float bpmRaw = 60000.0 / (now - lastCompMs);
+                            currentBPM = (0.7 * currentBPM) + (0.3 * bpmRaw);
+                        }
+
+                        lastCompMs = now;
+                        lastCompressionTime = now;
+                    }
+
+                    state = IDLE;
+                    confirmCount = 0;
+                }
+            } else { state = HOLDING; confirmCount = 0; }
+        break;
     }
-    void onDisconnect(BLEServer* pServer) { 
-        deviceConnected = false; 
-        printf(">>> CLINICAL MONITOR: DESCONECTADO\n"); 
-        BLEDevice::startAdvertising(); 
+}
+
+// BLE CONTROL
+class ControlCallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* pChar) {
+
+        String val = pChar->getValue();
+        if (val.length() == 0) return;
+
+        uint8_t cmd = val[0];
+
+        // START
+        if (cmd == 0x01) {
+            resetSession();          // limpia estado base
+            sessionActive = true;
+
+            resetPending = false;    // cancela resets pendientes
+            Serial.println("[SESSION] START");
+        }
+
+        // STOP (solo detiene streaming + agenda reset)
+        else if (cmd == 0x00) {
+            sessionActive = false;
+
+            resetPending = true;
+            resetTime = millis() + 300;  // delay seguro
+
+            Serial.println("[SESSION] STOP - RESET PENDING");
+        }
     }
 };
 
+// BLE SERVER
+class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer* pS) { 
+        deviceConnected = true; 
+    }
+    void onDisconnect(BLEServer* pS) { 
+        deviceConnected = false;
+        resetSession();
+        BLEDevice::startAdvertising();
+    }
+};
+void handleReset() {
+    if (resetPending && millis() > resetTime) {
+        resetSession();
+        resetPending = false;
+    }
+}
 void setup() {
     Serial.begin(115200);
     pinMode(2, OUTPUT);
-    printf("\n--- SIERCP PROFESSIONAL FIRMWARE V2.0 ---\n");
-    
-    // 1. Inicializar I2C y Láser
+
     Wire.begin(17, 18);
-    if (lox.begin()) {
-        lox.setMeasurementTimingBudgetMicroSeconds(20000); // 20ms para alta velocidad
-        lox.startRangeContinuous();
-        printf("[OK] VL53L0X: Modo Alta Velocidad activado\n");
-    }
+    lox.begin();
+    lox.startRangeContinuous();
 
-    // 2. Inicializar Celda de Carga
     scale.begin(4, 5);
-    scale.set_scale(2280.f); // Ajustar según calibración física
-    if (scale.wait_ready_timeout(1000)) {
-        scale.tare();
-        printf("[OK] HX711: Tara completada\n");
-    }
+    scale.set_scale(2280.f);
+    scale.tare();
 
-    // 3. Calibración de Punto Cero (Promedio de 20 muestras)
-    printf("Calibrando superficie... No tocar el maniquí.\n");
+    // Calibración inicial
     long sum = 0;
-    for(int i=0; i<20; i++) { sum += lox.readRange(); delay(30); }
-    baselineDepth = (float)sum / 20.0f;
-    filteredDepth = 0;
-    printf("[OK] Baseline establecida: %.2f mm\n", baselineDepth);
+    for(int i=0;i<20;i++){ sum += lox.readRange(); delay(20); }
+    baselineDepth = sum / 20.0;
 
-    // 4. Configuración BLE Profesional
-    BLEDevice::init("SIERCP_MANIQUI");
-    BLEDevice::setMTU(512); 
+    // BLE
+    BLEDevice::init("SIERCP_PRO");
     BLEServer *pServer = BLEDevice::createServer();
     pServer->setCallbacks(new MyServerCallbacks());
 
     BLEService *pService = pServer->createService(SERVICE_UUID);
+
     pTelemetryChar = pService->createCharacteristic(
-        CHAR_TELEMETRY_UUID, 
-        BLECharacteristic::PROPERTY_NOTIFY
+        CHAR_TELEMETRY_UUID, BLECharacteristic::PROPERTY_NOTIFY
     );
     pTelemetryChar->addDescriptor(new BLE2902());
-    pService->start();
 
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(SERVICE_UUID);
-    pAdvertising->setScanResponse(true);
-    pAdvertising->start();
-    
-    printf("--- SISTEMA PROFESIONAL LISTO ---\n");
+    BLECharacteristic* pCtrlChar = pService->createCharacteristic(
+        CHAR_CTRL_UUID, BLECharacteristic::PROPERTY_WRITE
+    );
+    pCtrlChar->setCallbacks(new ControlCallbacks());
+
+    pService->start();
+    BLEDevice::getAdvertising()->addServiceUUID(SERVICE_UUID);
+    BLEDevice::startAdvertising();
+
+    Serial.println("SYSTEM READY");
 }
 
 void loop() {
-    if (deviceConnected) {
+
+    static uint32_t lastSample = 0;
+    static uint32_t lastBLE = 0;
+
+    const uint32_t SAMPLE_INTERVAL = 10; // 100Hz
+    const uint32_t BLE_INTERVAL = 50;    // 20Hz
+
+    uint32_t now = millis();
+
+    static float f = 0;
+    static float d = 0;
+
+    // ───── LECTURA + FSM ─────
+
+    handleReset();  
+
+    if (deviceConnected && sessionActive && now - lastSample >= SAMPLE_INTERVAL) {
+        lastSample = now;
+
+        float rawForce = scale.is_ready() ? scale.get_units(1) : 0;
+        if (rawForce < 0) rawForce = 0;
+
+        uint16_t range = lox.readRange();
+        float rawDepth = (baselineDepth - (float)range);
+        if (rawDepth < 0) rawDepth = 0;
+
+        // FILTRO
+        filteredDepth = (0.5 * rawDepth) + (0.5 * filteredDepth);
+        filteredForce = (0.4 * rawForce) + (0.6 * filteredForce);
+
+        d = filteredDepth;
+        f = filteredForce;
+
+        updateFSM(d, now);
+    }
+
+    // ───── ENVÍO BLE ─────
+    if (deviceConnected && sessionActive && now - lastBLE >= BLE_INTERVAL) {
+        lastBLE = now;
+
         TelemetryBatch batch;
-        batch.timestamp = millis();
+        batch.timestamp = now;
 
-        for(int i=0; i<5; i++) {
-            // A. Lectura Raw
-            float rawForce = scale.is_ready() ? scale.get_units(1) : 0;
-            if(rawForce < 0) rawForce = 0;
-
-            uint16_t range = lox.readRange();
-            float rawDepth = (range < 8000) ? (baselineDepth - (float)range) : 0;
-            if(rawDepth < 0) rawDepth = 0;
-
-            // B. Filtrado EMA (Suavizado de señal)
-            filteredDepth = (EMA_ALPHA * rawDepth) + ((1.0 - EMA_ALPHA) * filteredDepth);
-            filteredForce = (EMA_ALPHA * rawForce) + ((1.0 - EMA_ALPHA) * filteredForce);
-
-            // C. Lógica de Conteo (Detección de flanco de bajada)
-            if (!inCompression && filteredDepth > 15.0) {
-                inCompression = true;
-            } else if (inCompression && filteredDepth < 8.0) {
-                inCompression = false;
-                compressionCount++;
-                printf("Compresión detectada! Total: %d\n", compressionCount);
-            }
-
-            batch.samples[i].force = filteredForce;
-            batch.samples[i].depth = filteredDepth;
-            
-            delay(15); // Estabilidad de muestreo
+        for(int i=0;i<5;i++){
+            batch.samples[i].force = f;
+            batch.samples[i].depth = d;
         }
 
-        pTelemetryChar->setValue((uint8_t*)&batch, sizeof(TelemetryBatch));
+        batch.compressions = compressionCount;
+        batch.bpm = (now - lastCompMs > 3000) ? 0 : (uint8_t)currentBPM;
+
+        pTelemetryChar->setValue((uint8_t*)&batch, sizeof(batch));
         pTelemetryChar->notify();
-        digitalWrite(2, HIGH);
-    } else {
-        digitalWrite(2, (millis() / 500) % 2); // Parpadeo de espera
-        if (compressionCount > 0) compressionCount = 0; // Reset al desconectar
-        delay(10);
     }
+
+    // LED
+    digitalWrite(2, sessionActive ? HIGH : (now/500)%2);
 }

@@ -35,13 +35,14 @@ class BleService extends ChangeNotifier {
       // El valor por defecto de 23 bytes fragmentaría el paquete.
       if (defaultTargetPlatform == TargetPlatform.android) {
         try {
-          await device.requestMtu(247); 
+          await device.requestMtu(247);
           debugPrint("MTU negociado exitosamente");
         } catch (e) {
-          debugPrint("No se pudo negociar MTU, se usará el valor por defecto: $e");
+          debugPrint(
+              "No se pudo negociar MTU, se usará el valor por defecto: $e");
         }
       }
-      
+
       // Escuchar desconexiones
       _connectionSub?.cancel();
       _connectionSub = device.connectionState.listen((state) {
@@ -53,7 +54,8 @@ class BleService extends ChangeNotifier {
 
       final services = await device.discoverServices();
       for (var service in services) {
-        if (service.uuid.toString().toLowerCase() == serviceUuid.toLowerCase()) {
+        if (service.uuid.toString().toLowerCase() ==
+            serviceUuid.toLowerCase()) {
           for (var char in service.characteristics) {
             final charUuid = char.uuid.toString().toLowerCase();
             if (charUuid == telemetryCharUuid.toLowerCase()) {
@@ -69,18 +71,17 @@ class BleService extends ChangeNotifier {
         await _telemetryChar!.setNotifyValue(true);
         // Usar onValueReceived para asegurar que recibimos el flujo constante
         _notifySub = _telemetryChar!.onValueReceived.listen((value) {
-          if (value.length != 44) {
-            debugPrint("⚠️ Paquete BLE corrupto o fragmentado: ${value.length} bytes (esperados 44)");
-            return;
+          if (value.isNotEmpty) {
+            _parsePayload(value);
           }
-          _parsePayload(value);
         });
-        
-        debugPrint("📡 Conexión establecida y notificaciones activadas");
+
+        debugPrint("Conexión establecida y notificaciones activadas");
         notifyListeners(); // Notificar a la UI
       } else {
         await disconnect();
-        throw Exception("No se encontró el servicio o característica de telemetría.");
+        throw Exception(
+            "No se encontró el servicio o característica de telemetría.");
       }
     } catch (e) {
       debugPrint("Error connecting to BLE: $e");
@@ -90,23 +91,55 @@ class BleService extends ChangeNotifier {
   }
 
   void _parsePayload(List<int> value) {
-    final byteData = ByteData.sublistView(Uint8List.fromList(value));
-    final timestamp = byteData.getUint32(0, Endian.little);
+    try {
+      if (value.length >= 47) {
+        final byteData = ByteData.sublistView(Uint8List.fromList(value));
 
-    for (int i = 0; i < 5; i++) {
-      int offset = 4 + (i * 8);
-      double force = byteData.getFloat32(offset, Endian.little);
-      double depth = byteData.getFloat32(offset + 4, Endian.little);
+        final timestamp = byteData.getUint32(0, Endian.little);
 
-      // Enviamos cada muestra individual al stream para que la app reaccione rápido
-      _telemetryController.add(RcpTelemetry(
-        depthMm: depth,
-        forceKg: force,
-        timestamp: timestamp + (i * 10), 
-      ));
+        for (int i = 0; i < 5; i++) {
+          int offset = 4 + (i * 8);
+
+          double force = byteData.getFloat32(offset, Endian.little);
+          double depth = byteData.getFloat32(offset + 4, Endian.little);
+
+          _telemetryController.add(RcpTelemetry(
+            depthMm: depth,
+            forceKg: force,
+            timestamp: timestamp + (i * 20),
+          ));
+        }
+
+        int compressions = byteData.getUint16(44, Endian.little);
+        int bpm = byteData.getUint8(46);
+
+        RcpEngine.instance.updateFromHardware(
+          compressions: compressions,
+          bpm: bpm,
+        );
+
+        debugPrint("ESP32 → Comp: $compressions | BPM: $bpm");
+      }
+    } catch (e) {
+      debugPrint("Error en recepción BLE: $e");
     }
   }
 
+  /// Inicia la sesión en el Hardware
+  Future<void> startHardwareSession() async {
+    if (_audioChar != null) {
+      await _audioChar!.write([0x01], withoutResponse: false);
+      debugPrint("Hardware Session Started");
+    }
+  }
+
+  /// Detiene y resetea el Hardware
+  Future<void> resetHardwareCounters() async {
+    if (_audioChar != null) {
+      await _audioChar!.write([0x00], withoutResponse: false);
+      debugPrint("Hardware Session Reset/Stop");
+    }
+  }
 
   Future<void> triggerAudio(int track) async {
     if (_audioChar != null) {

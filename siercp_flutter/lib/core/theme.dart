@@ -329,15 +329,15 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: isDark ? AppColors.darkBg2 : AppColors.lightSurface,
         indicatorColor: AppColors.brand.withValues(alpha: isDark ? 0.35 : 0.1),
-        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        indicatorShape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         height: 70,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return GoogleFonts.dmSans(
-            color: selected
-                ? (isDark ? AppColors.cyan : AppColors.brand)
-                : textT,
+            color:
+                selected ? (isDark ? AppColors.cyan : AppColors.brand) : textT,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             letterSpacing: 0.1,

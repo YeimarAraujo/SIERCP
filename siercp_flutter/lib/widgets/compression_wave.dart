@@ -5,8 +5,14 @@ import '../core/theme.dart';
 class CompressionWave extends StatelessWidget {
   final List<double> history;
   final int ratePerMin;
+  final int score;
 
-  const CompressionWave({super.key, required this.history, this.ratePerMin = 0});
+  const CompressionWave({
+    super.key,
+    required this.history,
+    this.ratePerMin = 0,
+    this.score = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -114,9 +120,9 @@ class CompressionWave extends StatelessWidget {
                   LineChartBarData(
                     spots: spots,
                     isCurved: true,
-                    curveSmoothness: 0.4,
+                    curveSmoothness: 0.35, // Suavizado premium
                     color: waveColor,
-                    barWidth: 3,
+                    barWidth: 4,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
@@ -125,7 +131,7 @@ class CompressionWave extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          waveColor.withValues(alpha: 0.2),
+                          waveColor.withValues(alpha: 0.3),
                           waveColor.withValues(alpha: 0.0),
                         ],
                       ),
@@ -133,7 +139,9 @@ class CompressionWave extends StatelessWidget {
                   ),
                 ],
               ),
-              duration: Duration.zero,
+              // Solo animar si no estamos en tiempo real extremo para ganar FPS
+              duration: const Duration(milliseconds: 50),
+              curve: Curves.linear,
             ),
           ),
           const SizedBox(height: 16),
@@ -152,11 +160,11 @@ class CompressionWave extends StatelessWidget {
                 unit: 'cpm',
                 color: _getRateColor(ratePerMin),
               ),
-              const _MetricInfo(
+              _MetricInfo(
                 label: 'AHA SCORE',
-                value: '98', // TODO: Vincular con cálculo real
+                value: '$score',
                 unit: '%',
-                color: AppColors.green,
+                color: score >= 80 ? AppColors.green : AppColors.amber,
               ),
             ],
           ),
@@ -187,16 +195,16 @@ class CompressionWave extends StatelessWidget {
   }
 
   Color _getWaveColor(double depth) {
-    if (depth < 4.0) return AppColors.blue; // Superficial
+    if (depth < 4.0) return AppColors.cyan; // Superficial
     if (depth >= 5.0 && depth <= 6.0) return AppColors.green; // Ideal
     if (depth > 6.0) return AppColors.red; // Muy fuerte
-    return AppColors.orange; // Medio
+    return AppColors.amber; // Medio
   }
 
   Color _getRateColor(int rate) {
     if (rate >= 100 && rate <= 120) return AppColors.green;
     if (rate > 120) return AppColors.red;
-    return AppColors.orange;
+    return AppColors.amber;
   }
 }
 
@@ -238,7 +246,7 @@ class _MetricInfo extends StatelessWidget {
             const SizedBox(width: 2),
             Text(
               unit,
-              style: TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ],
         ),

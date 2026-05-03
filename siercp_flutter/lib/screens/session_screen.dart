@@ -8,7 +8,7 @@ import '../providers/ble_session_provider.dart';
 import '../widgets/compression_wave.dart';
 import '../widgets/depth_gauge.dart';
 import '../widgets/rate_gauge.dart';
-import '../widgets/aha_status_bar.dart';
+import '../services/ble_service.dart';
 
 class SessionScreen extends ConsumerStatefulWidget {
   final String? scenarioId;
@@ -61,6 +61,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       setState(() => _isCountdownActive = false);
 
       // 3. Iniciar la sesión real (telemetría y cronómetro)
+      await ref.read(bleServiceProvider).startHardwareSession();
       await ref.read(bleActiveSessionProvider.notifier).startSession(
             widget.scenarioId ?? 'default',
             courseId: widget.courseId,
@@ -106,6 +107,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           .read(bleActiveSessionProvider.notifier)
           .endSession()
           .timeout(const Duration(seconds: 15));
+      
+      await ref.read(bleServiceProvider).resetHardwareCounters();
 
       if (mounted) context.go('/session-result/${session.id}');
     } catch (e) {
@@ -354,7 +357,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }
 
   Widget _buildLandscapeLayout(List<double> history, dynamic live) {
-    final theme = Theme.of(context);
     return Row(
       children: [
         // Waveform takes most space
@@ -365,7 +367,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             subtitle: 'PROFUNDIDAD (mm) / TIEMPO',
             icon: Icons.show_chart,
             child:
-                CompressionWave(history: history, ratePerMin: live.ratePerMin),
+                CompressionWave(
+                  history: history,
+                  ratePerMin: live.ratePerMin,
+                  score: live.sessionScore.toInt(),
+                ),
           ),
         ),
         const SizedBox(width: 12),
@@ -397,7 +403,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }
 
   Widget _buildPortraitLayout(List<double> history, dynamic live) {
-    final theme = Theme.of(context);
     return Column(
       children: [
         Expanded(
@@ -405,7 +410,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           child: _MonitorCard(
             title: 'DINÁMICA DE COMPRESIÓN',
             child:
-                CompressionWave(history: history, ratePerMin: live.ratePerMin),
+                CompressionWave(
+                  history: history,
+                  ratePerMin: live.ratePerMin,
+                  score: live.sessionScore.toInt(),
+                ),
           ),
         ),
         const SizedBox(height: 12),
@@ -460,10 +469,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                         : Colors.orange,
                   )
                 else
-                  _MetricPill(
+                  const _MetricPill(
                     label: 'MODO',
                     value: 'EVALUACIÓN',
-                    color: const Color(0xFF00D4FF),
+                    color: Color(0xFF00D4FF),
                   ),
                 _MetricPill(
                   label: 'TOTAL CP',
@@ -602,46 +611,6 @@ class _MetricPill extends StatelessWidget {
           Text(value,
               style: GoogleFonts.spaceMono(
                   color: color, fontSize: 16, fontWeight: FontWeight.w900)),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertBanner extends StatelessWidget {
-  final dynamic alert;
-  const _AlertBanner({required this.alert});
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color =
-        alert.type == 'error' ? Colors.redAccent : Colors.orangeAccent;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2))),
-      child: Row(
-        children: [
-          Icon(
-              alert.type == 'error'
-                  ? Icons.error_outline
-                  : Icons.warning_amber_outlined,
-              color: color,
-              size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(alert.title ?? 'Atención',
-                  style: TextStyle(
-                      color: color, fontSize: 13, fontWeight: FontWeight.bold)),
-              Text(alert.message,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
-            ]),
-          ),
         ],
       ),
     );

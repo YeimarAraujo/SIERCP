@@ -12,11 +12,12 @@ import 'session_provider.dart';
 enum SessionMode { training, evaluation }
 
 final sessionModeProvider = StateProvider<SessionMode>((ref) => SessionMode.training);
-final rcpEngineProvider = Provider((ref) => RcpEngine());
+final rcpEngineProvider = Provider((ref) => RcpEngine.instance);
 
 class BleSessionNotifier extends Notifier<ActiveSessionState> {
   Timer? _timer;
   StreamSubscription<RcpTelemetry>? _telemetrySub;
+  int _lastCount = 0;
 
   @override
   ActiveSessionState build() {
@@ -72,7 +73,14 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     final engine = ref.read(rcpEngineProvider);
     final mode = ref.read(sessionModeProvider);
     
-    bool nuevaComp = engine.evaluate(data);
+    engine.evaluate(data);
+    bool nuevaComp = false;
+
+    // Detectar si el hardware incrementó el contador
+    if (engine.compresionesTotales > _lastCount) {
+      nuevaComp = true;
+      _lastCount = engine.compresionesTotales;
+    }
 
     // Audio Feedback local instantáneo (sólo en modo entrenamiento)
     if (nuevaComp && mode == SessionMode.training) {
@@ -98,9 +106,8 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
         : newHistory;
 
     // Actualizar UI periódicamente (o si hay nueva compresión)
-    if (nuevaComp || data.timestamp % 100 < 20) { 
-      _updateMetricsState(engine, data, trimmed);
-    }
+    // Siempre actualizamos el estado para que los contadores del hardware se reflejen de inmediato
+    _updateMetricsState(engine, data, trimmed);
   }
 
   void _updateMetricsState(RcpEngine engine, RcpTelemetry data, List<double> history) {
@@ -162,9 +169,9 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       totalCompressions: engine.compresionesTotales,
       correctCompressions: engine.compresionesCorrectas,
       averageDepthMm: engine.compresionesTotales > 0 ? (engine.sumProfundidad / engine.compresionesTotales) : 0,
-      averageRatePerMin: engine.currentCpm.toDouble(),
+      averageRatePerMin: engine.compresionesTotales > 0 ? (engine.sumBpm / engine.compresionesTotales) : 0,
       correctCompressionsPct: depthScore,
-      averageForcKg: engine.compresionesTotales > 0 ? (engine.sumFuerza / engine.compresionesTotales) : 0,
+      averageForcKg: engine.compresionesTotales > 0 ? (engine.sumFuerza / (state.depthHistory.length > 0 ? state.depthHistory.length : 1)) : 0,
       recoilPct: recoilScore,
       interruptionCount: engine.pausasCount,
       maxPauseSeconds: engine.maxPausaSeg,
