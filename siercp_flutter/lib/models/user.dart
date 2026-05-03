@@ -9,7 +9,11 @@ class UserModel {
   final String? avatarUrl;
   final String? identificacion;
   final bool isActive;
+  final DateTime? lastActive;
+  final bool isOnline;
   final UserStats? stats;
+
+  final List<String>? memberships; // IDs of membership documents
 
   const UserModel({
     required this.id,
@@ -20,8 +24,40 @@ class UserModel {
     this.avatarUrl,
     this.identificacion,
     this.isActive = true,
+    this.lastActive,
+    this.isOnline = false,
     this.stats,
+    this.memberships,
   });
+
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? firstName,
+    String? lastName,
+    String? role,
+    String? avatarUrl,
+    String? identificacion,
+    bool? isActive,
+    DateTime? lastActive,
+    bool? isOnline,
+    UserStats? stats,
+    List<String>? memberships,
+  }) =>
+      UserModel(
+        id: id ?? this.id,
+        email: email ?? this.email,
+        firstName: firstName ?? this.firstName,
+        lastName: lastName ?? this.lastName,
+        role: role ?? this.role,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        identificacion: identificacion ?? this.identificacion,
+        isActive: isActive ?? this.isActive,
+        lastActive: lastActive ?? this.lastActive,
+        isOnline: isOnline ?? this.isOnline,
+        stats: stats ?? this.stats,
+        memberships: memberships ?? this.memberships,
+      );
 
   String get fullName => '$firstName $lastName'.trim();
 
@@ -48,7 +84,10 @@ class UserModel {
       avatarUrl: d['avatarUrl'],
       identificacion: d['identificacion'],
       isActive: d['isActive'] ?? true,
+      lastActive: (d['lastActive'] as Timestamp?)?.toDate(),
+      isOnline: d['isOnline'] ?? false,
       stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
+      memberships: (d['memberships'] as List?)?.map((e) => e.toString()).toList(),
     );
   }
 
@@ -61,6 +100,8 @@ class UserModel {
         'avatarUrl': avatarUrl,
         'identificacion': identificacion,
         'isActive': isActive,
+        'lastActive': lastActive != null ? Timestamp.fromDate(lastActive!) : null,
+        'isOnline': isOnline,
         'stats': {
           'totalSessions': stats?.totalSessions ?? 0,
           'sessionsToday': stats?.sessionsToday ?? 0,
@@ -71,6 +112,7 @@ class UserModel {
           'averageDepthMm': stats?.averageDepthMm ?? 0.0,
           'averageRatePerMin': stats?.averageRatePerMin ?? 0.0,
         },
+        'memberships': memberships,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };

@@ -1,0 +1,20 @@
+{
+    "organisation": "",
+    "contact": "",
+    "gitConfig": {
+        "owner": "YeimarAraujo",
+        "repo": "SIERCP",
+        "branch": "master",
+        "publishUrl": "https://YeimarAraujo.github.io/SIERCP/"
+    },
+    "repoConfig": {
+        "assetFolderName": "δ steps",
+        "variableFolderName": "Ω variables",
+        "publishFolderName": "pub",
+        "docsFolderName": "docs",
+        "mapsFolderName": "tsmaps"
+    },
+    "devConfig": {
+        "forceJsDelivr": false
+    }
+}

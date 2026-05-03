@@ -1,4 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/firebase_auth_service.dart';
@@ -30,20 +32,40 @@ class AuthState {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    // Escuchar cambios de Firebase Auth
-    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final authStream = FirebaseAuth.instance.authStateChanges();
+    final firebaseUser = await authStream.first;
+    
     if (firebaseUser == null) return const AuthState();
 
+    return _fetchUserProfile(firebaseUser.uid);
+  }
+
+  Future<AuthState> _fetchUserProfile(String uid) async {
     try {
-      final db = ref.read(firestoreServiceProvider);
-      final user = await db.getUser(firebaseUser.uid);
-      if (user == null || !user.isActive) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      
+      if (!doc.exists) {
         await FirebaseAuth.instance.signOut();
         return const AuthState();
       }
+
+      final user = UserModel.fromFirestore(doc);
+      
+      if (!user.isActive) {
+        await FirebaseAuth.instance.signOut();
+        return const AuthState(error: 'Cuenta desactivada');
+      }
+      
+      // Update activity on successful profile fetch
+      await ref.read(firestoreServiceProvider).updateUserActivity(uid);
+      
       return AuthState(user: user, isAuthenticated: true);
-    } catch (_) {
-      return const AuthState();
+    } catch (e) {
+      debugPrint('Error al obtener perfil de usuario: $e');
+      return const AuthState(error: 'Error de conexión');
     }
   }
 
@@ -52,6 +74,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final authService = ref.read(firebaseAuthServiceProvider);
     state = await AsyncValue.guard(() async {
       final user = await authService.login(email: email, password: password);
+      // Update activity on login
+      await ref.read(firestoreServiceProvider).updateUserActivity(user.id);
       return AuthState(user: user, isAuthenticated: true);
     });
   }
@@ -81,6 +105,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> logout() async {
     final authService = ref.read(firebaseAuthServiceProvider);
+    final uid = state.value?.user?.id;
+    if (uid != null) {
+      await ref.read(firestoreServiceProvider).updateUserPresence(uid, false);
+    }
     await authService.logout();
     state = const AsyncData(AuthState());
   }
@@ -95,6 +123,19 @@ final authStateProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
 
+final usersStreamProvider = StreamProvider<List<UserModel>>((ref) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .snapshots()
+      .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
+});
+
+final currentUserStreamProvider = StreamProvider<UserModel?>((ref) {
+  final authState = ref.watch(authStateProvider).value;
+  if (authState?.user == null) return Stream.value(null);
+  return ref.read(firestoreServiceProvider).watchUser(authState!.user!.id);
+});
+
 final currentUserProvider = Provider<UserModel?>((ref) {
-  return ref.watch(authStateProvider).value?.user;
+  return ref.watch(currentUserStreamProvider).valueOrNull ?? ref.watch(authStateProvider).value?.user;
 });

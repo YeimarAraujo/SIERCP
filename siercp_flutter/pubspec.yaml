@@ -60,6 +60,7 @@ dependencies:
 
   # ── Exportación PDF / CSV ────────────────────────────────────────────────
   pdf: ^3.10.8
+  csv: ^6.0.0
   share_plus: ^10.1.4 
   printing: ^5.13.1
 
@@ -73,6 +74,8 @@ dependencies:
   # ── Para abrir archivos guardados / Capturas ──────────────────────────────
   open_filex: ^4.5.0
   screenshot: ^3.0.0
+  image_picker: ^1.1.2
+  sqflite_common_ffi: ^2.4.0+3
 
 dev_dependencies:
   flutter_test:

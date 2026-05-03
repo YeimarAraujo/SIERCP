@@ -226,24 +226,32 @@ class DeviceService {
 
   // ── Verificar si un dispositivo especifico esta activo ────────────────────
   Future<bool> isDeviceActive(String macAddress) async {
-    final snap = await _telemetria.child(macAddress).get();
-    if (!snap.exists || snap.value == null) return false;
-    final data = Map<dynamic, dynamic>.from(snap.value as Map);
-    final ts = (data['timestamp'] as num?)?.toInt() ?? 0;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    return ts > 0 && (nowMs - ts) < 5000;
+    try {
+      final snap = await _telemetria.child(macAddress).get().timeout(const Duration(seconds: 3));
+      if (!snap.exists || snap.value == null) return false;
+      final data = Map<dynamic, dynamic>.from(snap.value as Map);
+      final ts = (data['timestamp'] as num?)?.toInt() ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      return ts > 0 && (nowMs - ts) < 5000;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ── Obtener lista actual de dispositivos activos ──────────────────────────
   Future<List<DeviceInfo>> getAvailableDevices() async {
-    final snap = await _telemetria.get();
-    if (!snap.exists || snap.value == null) return [];
-    final raw = Map<String, dynamic>.from(snap.value as Map);
-    final List<DeviceInfo> devices = [];
-    raw.forEach((mac, data) {
-      if (data is Map) devices.add(DeviceInfo.fromMap(mac, data));
-    });
-    devices.sort((a, b) => b.isActive ? 1 : -1);
-    return devices;
+    try {
+      final snap = await _telemetria.get().timeout(const Duration(seconds: 3));
+      if (!snap.exists || snap.value == null) return [];
+      final raw = Map<String, dynamic>.from(snap.value as Map);
+      final List<DeviceInfo> devices = [];
+      raw.forEach((mac, data) {
+        if (data is Map) devices.add(DeviceInfo.fromMap(mac, data));
+      });
+      devices.sort((a, b) => b.isActive ? 1 : -1);
+      return devices;
+    } catch (_) {
+      return [];
+    }
   }
 }

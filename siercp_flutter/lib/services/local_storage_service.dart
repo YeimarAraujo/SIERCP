@@ -21,12 +21,14 @@ class LocalStorageService {
 
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE sessions (
             id TEXT PRIMARY KEY,
             studentId TEXT NOT NULL,
+            studentName TEXT NOT NULL DEFAULT 'Estudiante',
+            manikinId TEXT,
             scenarioId TEXT,
             scenarioTitle TEXT,
             patientType TEXT NOT NULL DEFAULT 'adult',
@@ -100,6 +102,12 @@ class LocalStorageService {
             createdAt TEXT NOT NULL
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE sessions ADD COLUMN studentName TEXT NOT NULL DEFAULT "Estudiante"');
+          await db.execute('ALTER TABLE sessions ADD COLUMN manikinId TEXT');
+        }
       },
     );
   }
@@ -481,6 +489,8 @@ class LocalStorageService {
   Map<String, dynamic> _sessionToRow(SessionModel s) => {
         'id': s.id,
         'studentId': s.studentId,
+        'studentName': s.studentName,
+        'manikinId': s.manikinId,
         'scenarioId': s.scenarioId,
         'scenarioTitle': s.scenarioTitle,
         'patientType': s.patientType.name,
@@ -501,6 +511,8 @@ class LocalStorageService {
     return SessionModel(
       id: r['id'] as String,
       studentId: r['studentId'] as String? ?? '',
+      studentName: r['studentName'] as String? ?? 'Estudiante',
+      manikinId: r['manikinId'] as String?,
       scenarioId: r['scenarioId'] as String?,
       scenarioTitle: r['scenarioTitle'] as String?,
       patientType: _parsePatientType(r['patientType'] as String?),

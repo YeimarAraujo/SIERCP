@@ -10,9 +10,12 @@ import '../models/session.dart';
 import '../models/alert_course.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_provider.dart';
+import '../providers/report_cache_provider.dart';
 import '../services/local_storage_service.dart';
 import '../services/report_pdf_service.dart';
 import '../services/firestore_service.dart';
+import '../models/report_data.dart';
+import 'report_preview_screen.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -198,6 +201,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           SnackBar(
             content: Text('Reporte generado: ${record.title}'),
             backgroundColor: AppColors.green,
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'Abrir',
               textColor: Colors.white,
@@ -209,7 +213,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.red),
+          SnackBar(
+            content: Text('Error: $e'), 
+            backgroundColor: AppColors.red,
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     } finally {
@@ -275,16 +283,99 @@ class _GenerateTab extends ConsumerWidget {
               canGenerate: canGenerate,
               onGenerateCourse: () => onGenerate('course',
                   courseId: course.id, courseName: course.title),
+              onViewCourse: () {
+                // Show loading or just fetch and navigate
+                _showReportPreview(context, ref, 'course', courseId: course.id, courseName: course.title);
+              },
               onGenerateStudent: (sid, sname) => onGenerate('student',
                   courseId: course.id,
                   courseName: course.title,
                   studentId: sid,
                   studentName: sname),
+              onViewStudent: (sid, sname) {
+                _showReportPreview(context, ref, 'student', 
+                  courseId: course.id, courseName: course.title, 
+                  studentId: sid, studentName: sname);
+              },
             );
           },
         );
       },
     );
+  }
+
+  void _showReportPreview(BuildContext context, WidgetRef ref, String type, 
+      {required String courseId, required String courseName, String? studentId, String? studentName}) async {
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+    );
+
+    try {
+      final cache = ref.read(reportCacheProvider.notifier);
+      dynamic reportData;
+
+      if (type == 'course') {
+        reportData = cache.getCourseReport(courseId);
+        if (reportData == null) {
+          final firestoreSvc = ref.read(firestoreServiceProvider);
+          final students = await firestoreSvc.getCourseStudents(courseId);
+          final studentSessionsMap = <String, List<SessionModel>>{};
+          for (final st in students) {
+            final sid = st['studentId'] as String? ?? '';
+            if (sid.isNotEmpty) {
+              final sessions = await firestoreSvc.getStudentSessions(sid);
+              studentSessionsMap[sid] = sessions.where((s) => s.courseId == courseId).toList();
+            }
+          }
+          reportData = CourseReportData.fromData(
+            courseId: courseId,
+            courseTitle: courseName,
+            students: students,
+            studentSessions: studentSessionsMap,
+          );
+          cache.cacheCourseReport(reportData);
+        }
+      } else {
+        reportData = cache.getStudentReport(studentId!, courseId);
+        if (reportData == null) {
+          final firestoreSvc = ref.read(firestoreServiceProvider);
+          final sessions = await firestoreSvc.getStudentSessions(studentId);
+          final courseSessions = sessions.where((s) => s.courseId == courseId).toList();
+          reportData = StudentReportData.fromSessions(
+            studentId: studentId,
+            studentName: studentName ?? 'Estudiante',
+            courseId: courseId,
+            courseName: courseName,
+            sessions: courseSessions,
+          );
+          cache.cacheStudentReport(reportData);
+        }
+      }
+
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // Cerrar el diálogo de carga
+        
+        // Usar microtask para asegurar que el Navigator no esté bloqueado
+        Future.microtask(() {
+          if (context.mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ReportPreviewScreen(reportData: reportData)),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar reporte: $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
   }
 }
 
@@ -293,8 +384,8 @@ class _CourseReportCard extends ConsumerStatefulWidget {
   final bool isDark;
   final Color surface, border, textP, textS;
   final bool generating, canGenerate;
-  final VoidCallback onGenerateCourse;
-  final void Function(String studentId, String studentName) onGenerateStudent;
+  final VoidCallback onGenerateCourse, onViewCourse;
+  final void Function(String studentId, String studentName) onGenerateStudent, onViewStudent;
 
   const _CourseReportCard({
     required this.course,
@@ -306,7 +397,9 @@ class _CourseReportCard extends ConsumerStatefulWidget {
     required this.generating,
     required this.canGenerate,
     required this.onGenerateCourse,
+    required this.onViewCourse,
     required this.onGenerateStudent,
+    required this.onViewStudent,
   });
 
   @override
@@ -371,7 +464,12 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
                     ),
                   ],
                 )),
-                if (widget.canGenerate)
+                if (widget.canGenerate) ...[
+                  IconButton(
+                    icon: const Icon(Icons.visibility_outlined, color: AppColors.cyan, size: 20),
+                    tooltip: 'Vista previa del reporte',
+                    onPressed: widget.onViewCourse,
+                  ),
                   widget.generating
                       ? const SizedBox(
                           width: 20,
@@ -381,9 +479,10 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
                       : IconButton(
                           icon: const Icon(Icons.picture_as_pdf_rounded,
                               color: AppColors.brand, size: 20),
-                          tooltip: 'Reporte consolidado del curso',
+                          tooltip: 'Generar reporte consolidado del curso',
                           onPressed: widget.onGenerateCourse,
                         ),
+                ],
                 Icon(_expanded ? Icons.expand_less : Icons.expand_more,
                     color: widget.textS, size: 20),
               ]),
@@ -398,6 +497,7 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
               textS: widget.textS,
               generating: widget.generating,
               onGenerate: widget.onGenerateStudent,
+              onView: widget.onViewStudent,
             ),
         ],
       ),
@@ -409,7 +509,7 @@ class _StudentsList extends ConsumerWidget {
   final String courseId;
   final Color textP, textS;
   final bool generating;
-  final void Function(String studentId, String studentName) onGenerate;
+  final void Function(String studentId, String studentName) onGenerate, onView;
 
   const _StudentsList({
     required this.courseId,
@@ -417,6 +517,7 @@ class _StudentsList extends ConsumerWidget {
     required this.textS,
     required this.generating,
     required this.onGenerate,
+    required this.onView,
   });
 
   @override
@@ -475,11 +576,22 @@ class _StudentsList extends ConsumerWidget {
                         height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 1.5, color: AppColors.brand))
-                    : IconButton(
-                        icon: const Icon(Icons.description_outlined,
-                            color: AppColors.cyan, size: 18),
-                        tooltip: 'Generar reporte de $name',
-                        onPressed: () => onGenerate(sid, name),
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.visibility_outlined,
+                                color: AppColors.brand, size: 18),
+                            tooltip: 'Vista previa de $name',
+                            onPressed: () => onView(sid, name),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.description_outlined,
+                                color: AppColors.cyan, size: 18),
+                            tooltip: 'Generar reporte de $name',
+                            onPressed: () => onGenerate(sid, name),
+                          ),
+                        ],
                       ),
               );
             }),

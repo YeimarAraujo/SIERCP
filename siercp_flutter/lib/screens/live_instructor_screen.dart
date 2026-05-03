@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/alert_course.dart';
+import '../models/session.dart';
+import '../services/device_service.dart';
 import '../providers/session_provider.dart';
-import '../widgets/section_label.dart';
 import '../widgets/depth_gauge.dart';
 import '../widgets/rate_gauge.dart';
 
@@ -31,6 +32,8 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
         .cast<CourseModel?>()
         .firstWhere((c) => c?.id == widget.courseId, orElse: () => null);
 
+    final activeSessionsAsync = ref.watch(courseActiveSessionsProvider(widget.courseId));
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -49,73 +52,80 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.greenBg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                      color: AppColors.green, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                const Text('CONECTADO',
-                    style: TextStyle(
-                        color: AppColors.green,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-          )
-        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionLabel('Dispositivos Activos (Simulación)'),
-              const SizedBox(height: 12),
-              _DeviceMonitorCard(
-                studentName: 'Juan Pérez',
-                deviceId: 'ESP32-A1',
-                depthMm: 55,
-                ratePerMin: 110,
-                connected: true,
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-              _DeviceMonitorCard(
-                studentName: 'María García',
-                deviceId: 'ESP32-B2',
-                depthMm: 35,
-                ratePerMin: 140,
-                connected: true,
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-              _DeviceMonitorCard(
-                studentName: 'Carlos López',
-                deviceId: 'ESP32-C3',
-                depthMm: 0,
-                ratePerMin: 0,
-                connected: false,
-                isDark: isDark,
-              ),
-            ],
-          ),
+        child: activeSessionsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (sessions) {
+            if (sessions.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.videocam_off_outlined, size: 64, color: textS.withValues(alpha: 0.2)),
+                    const SizedBox(height: 16),
+                    Text('No hay sesiones activas en este momento', 
+                      style: TextStyle(color: textS, fontSize: 14)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: sessions.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, i) {
+                final session = sessions[i];
+                return _RealtimeSessionCard(session: session, isDark: isDark);
+              },
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+class _RealtimeSessionCard extends ConsumerWidget {
+  final SessionModel session;
+  final bool isDark;
+
+  const _RealtimeSessionCard({required this.session, required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Escuchar telemetría del maniquí asociado a esta sesión
+    final manikinId = session.manikinId;
+    if (manikinId == null || manikinId.isEmpty) {
+      return _DeviceMonitorCard(
+        studentName: session.studentName,
+        deviceId: 'Sin dispositivo',
+        depthMm: 0,
+        ratePerMin: 0,
+        connected: false,
+        isDark: isDark,
+      );
+    }
+
+    final deviceStream = ref.watch(deviceServiceProvider).streamDevice(manikinId);
+
+    return StreamBuilder<DeviceInfo?>(
+      stream: deviceStream,
+      builder: (context, snapshot) {
+        final device = snapshot.data;
+        final isConnected = device != null && device.isActive;
+
+        return _DeviceMonitorCard(
+          studentName: session.studentName,
+          deviceId: manikinId,
+          depthMm: device?.profundidadMm ?? 0,
+          ratePerMin: device?.frecuenciaCpm ?? 0,
+          connected: isConnected,
+          isDark: isDark,
+        );
+      },
     );
   }
 }

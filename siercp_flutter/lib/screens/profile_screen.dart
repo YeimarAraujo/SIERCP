@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/device_provider.dart'; // Added for device status
 import '../widgets/section_label.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -26,72 +28,96 @@ class ProfileScreen extends ConsumerWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
+              // Header with Edit button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () => context.push('/profile/edit'),
+                      icon: const Icon(Icons.edit_note_rounded, color: AppColors.brand),
+                      tooltip: 'Editar perfil',
+                    ),
+                  ],
+                ),
+              ),
+              
               // Avatar + info
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.brand, AppColors.brand2],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.brand.withValues(alpha: 0.35),
-                            blurRadius: 20,
-                            spreadRadius: 2,
+                    Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppColors.brand, AppColors.brand2],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.brand.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            image: user?.avatarUrl != null 
+                                ? DecorationImage(image: NetworkImage(user!.avatarUrl!), fit: BoxFit.cover)
+                                : null,
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          user?.initials ?? 'A',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700),
+                          child: user?.avatarUrl == null 
+                            ? Center(
+                                child: Text(
+                                  user?.initials ?? 'A',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w800),
+                                ),
+                              )
+                            : null,
                         ),
-                      ),
+                        if (user?.isOnline == true)
+                          Positioned(
+                            bottom: 5,
+                            right: 5,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: AppColors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 18),
                     Text(
-                      // Si el nombre está vacío (típico del Admin), mostrar 'Administrador'
                       user?.fullName.isNotEmpty == true
                           ? user!.fullName
                           : (user?.isAdmin == true ? 'Administrador' : 'Usuario'),
                       style: TextStyle(
                           color: textColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user?.email ?? '',
                       style: TextStyle(
-                          color: secondaryTextColor, fontSize: 12),
+                          color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
-                    // Mostrar cédula si está disponible
-                    if (user?.identificacion != null && (user?.identificacion?.isNotEmpty ?? false)) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.badge_outlined, size: 12, color: secondaryTextColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            user!.identificacion!,
-                            style: TextStyle(color: secondaryTextColor, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -108,8 +134,8 @@ class ProfileScreen extends ConsumerWidget {
                                   ? AppColors.accent
                                   : AppColors.cyan).withValues(alpha: 0.12),
                         ),
-                        const SizedBox(width: 6),
-                        _Badge(label: 'SIERCP', color: AppColors.cyan, bg: AppColors.cyanBg),
+                        const SizedBox(width: 8),
+                        _Badge(label: 'SIERCP v2.0', color: AppColors.brand, bg: AppColors.brandBg),
                       ],
                     ),
                   ],
@@ -117,58 +143,59 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Stats grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final isLandscape = MediaQuery.of(context).orientation ==
-                        Orientation.landscape;
-                    return GridView.count(
-                      crossAxisCount: isLandscape ? 4 : 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: isLandscape ? 2.2 : 1.9,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _StatCard(
-                            label: 'Sesiones totales',
-                            value: '${realStats?.totalSessions ?? 0}',
-                            color: textColor,
-                            cardColor: cardColor,
-                            borderColor: borderColor),
-                        _StatCard(
-                            label: 'Promedio global',
-                            value:
-                                '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%',
-                            color: AppColors.green,
-                            cardColor: cardColor,
-                            borderColor: borderColor),
-                        _StatCard(
-                            label: 'Horas práctica',
-                            value:
-                                '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
-                            color: AppColors.cyan,
-                            cardColor: cardColor,
-                            borderColor: borderColor),
-                        _StatCard(
-                            label: 'Racha actual',
-                            value: '${realStats?.streakDays ?? 0}d',
-                            color: AppColors.amber,
-                            cardColor: cardColor,
-                            borderColor: borderColor),
-                      ],
-                    );
-                  },
+              // Stats grid (Ocultar para Admin)
+              if (user?.isAdmin != true)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final isLandscape = MediaQuery.of(context).orientation ==
+                          Orientation.landscape;
+                      return GridView.count(
+                        crossAxisCount: isLandscape ? 4 : 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: isLandscape ? 2.2 : 1.9,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _StatCard(
+                              label: 'Sesiones totales',
+                              value: '${realStats?.totalSessions ?? 0}',
+                              color: textColor,
+                              cardColor: cardColor,
+                              borderColor: borderColor),
+                          _StatCard(
+                              label: 'Promedio global',
+                              value:
+                                  '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%',
+                              color: AppColors.green,
+                              cardColor: cardColor,
+                              borderColor: borderColor),
+                          _StatCard(
+                              label: 'Horas práctica',
+                              value:
+                                  '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
+                              color: AppColors.cyan,
+                              cardColor: cardColor,
+                              borderColor: borderColor),
+                          _StatCard(
+                              label: 'Racha actual',
+                              value: '${realStats?.streakDays ?? 0}d',
+                              color: AppColors.amber,
+                              cardColor: cardColor,
+                              borderColor: borderColor),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: 24),
 
               // Settings
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: const SectionLabel('Configuración'),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: SectionLabel('Configuración'),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -183,20 +210,51 @@ class ProfileScreen extends ConsumerWidget {
                       _ToggleTile(label: 'Modo Escuro', value: isDark, onChanged: (v) {
                         ref.read(themeModeProvider.notifier).toggleTheme(v);
                       }, textColor: textColor, trackColor: borderColor),
-                      Divider(color: borderColor, height: 0.5),
-                      _ToggleTile(label: 'Notificaciones de alerta', value: true, onChanged: (_) {}, textColor: textColor, trackColor: borderColor),
-                      Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: 'Idioma', value: 'Español', onTap: () {}, textColor: textColor, secondaryColor: secondaryTextColor),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
+              // Admin/Instructor Section: Equipment
+              if (user?.isAdmin == true || user?.isInstructor == true) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: SectionLabel('Equipos y Conectividad'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      border: Border.all(color: borderColor, width: 0.5),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Consumer(builder: (context, ref, child) {
+                          final devices = ref.watch(devicesStreamProvider).valueOrNull ?? [];
+                          final connectedCount = devices.where((d) => d.status == 'online').length;
+                          return _NavTile(
+                            label: 'Maniquíes SIERCP',
+                            value: connectedCount > 0 ? '$connectedCount conectados' : 'Desconectados',
+                            onTap: () => context.push('/admin/devices'),
+                            textColor: textColor,
+                            secondaryColor: connectedCount > 0 ? AppColors.green : secondaryTextColor,
+                            icon: Icons.developer_board,
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // About
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: const SectionLabel('Acerca de'),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: SectionLabel('Acerca de'),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -325,7 +383,8 @@ class _NavTile extends StatelessWidget {
   final VoidCallback onTap;
   final Color? textColor;
   final Color? secondaryColor;
-  const _NavTile({required this.label, required this.value, required this.onTap, this.textColor, this.secondaryColor});
+  final IconData? icon;
+  const _NavTile({required this.label, required this.value, required this.onTap, this.textColor, this.secondaryColor, this.icon});
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -335,7 +394,15 @@ class _NavTile extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: textColor ?? AppColors.textPrimary, fontSize: 13)),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: textColor?.withValues(alpha: 0.7) ?? AppColors.textPrimary.withValues(alpha: 0.7)),
+                const SizedBox(width: 12),
+              ],
+              Text(label, style: TextStyle(color: textColor ?? AppColors.textPrimary, fontSize: 13)),
+            ],
+          ),
           Row(children: [
             if (value.isNotEmpty)
               Text(value, style: TextStyle(color: secondaryColor ?? AppColors.accent, fontSize: 12)),
