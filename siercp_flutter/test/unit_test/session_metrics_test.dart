@@ -5,7 +5,7 @@
 // Ejecutar con: flutter test test/unit_test/session_metrics_test.dart
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:siercp/models/session.dart';
+import 'package:siercp/features/session/data/models/session.dart';
 
 void main() {
   // ── 1. Score dentro del rango AHA ─────────────────────────────────────────

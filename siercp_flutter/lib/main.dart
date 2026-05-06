@@ -7,14 +7,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'firebase_options.dart';
-import 'core/theme.dart';
-import 'core/routes.dart';
-import 'providers/theme_provider.dart';
-import 'services/local_storage_service.dart';
-import 'services/firestore_service.dart';
-import 'providers/auth_provider.dart';
-import 'providers/report_cache_provider.dart';
+import 'package:siercp/firebase_options.dart';
+import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/core/routes.dart';
+import 'package:siercp/core/theme/theme_provider.dart';
+import 'package:siercp/core/services/local_storage_service.dart';
+import 'package:siercp/core/services/firestore_service.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 @pragma('vm:entry-point')
