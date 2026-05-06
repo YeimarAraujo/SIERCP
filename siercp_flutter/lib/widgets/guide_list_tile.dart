@@ -3,7 +3,6 @@ import '../models/guide.dart';
 import '../core/theme.dart';
 import 'package:intl/intl.dart';
 
-// ─── GuideListTile ────────────────────────────────────────────────────────────
 class GuideListTile extends StatelessWidget {
   final GuideModel guide;
   final GuideProgress? progress;
@@ -20,15 +19,15 @@ class GuideListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme   = Theme.of(context);
-    final isDark  = theme.brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
-    final textP   = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS   = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT   = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
+    final border = theme.colorScheme.outline;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
 
-    final isCompleted  = progress?.completed ?? false;
+    final isCompleted = progress?.completed ?? false;
     final isInProgress = !isCompleted && (progress?.timeSpentSeconds ?? 0) > 0;
 
     // Color según categoría
@@ -139,7 +138,8 @@ class GuideListTile extends StatelessWidget {
                               size: 10, color: AppColors.green),
                           const SizedBox(width: 3),
                           Text(
-                            DateFormat('dd/MM/yy').format(progress!.completedAt!),
+                            DateFormat('dd/MM/yy')
+                                .format(progress!.completedAt!),
                             style: const TextStyle(
                               color: AppColors.green,
                               fontSize: 10,
@@ -174,16 +174,20 @@ class GuideListTile extends StatelessWidget {
 
   Color _catColor(GuideCategory cat) {
     switch (cat) {
-      case GuideCategory.tecnica:      return AppColors.brand;
-      case GuideCategory.teoria:       return const Color(0xFF8B5CF6);
-      case GuideCategory.seguridad:    return AppColors.green;
-      case GuideCategory.emergencias:  return AppColors.red;
-      case GuideCategory.equipamiento: return AppColors.amber;
+      case GuideCategory.tecnica:
+        return AppColors.brand;
+      case GuideCategory.teoria:
+        return const Color(0xFF8B5CF6);
+      case GuideCategory.seguridad:
+        return AppColors.green;
+      case GuideCategory.emergencias:
+        return AppColors.red;
+      case GuideCategory.equipamiento:
+        return AppColors.amber;
     }
   }
 }
 
-// ─── Status Icon ──────────────────────────────────────────────────────────────
 class _StatusIcon extends StatelessWidget {
   final bool completed;
   final bool inProgress;

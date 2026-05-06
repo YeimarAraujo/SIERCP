@@ -11,6 +11,9 @@ import '../core/theme.dart';
 import '../widgets/guide_progress_card.dart';
 import '../widgets/guide_list_tile.dart';
 import '../widgets/category_filter_chips.dart';
+import '../services/bulk_upload_service.dart';
+import '../services/session_service.dart';
+import '../models/user.dart';
 
 class CourseDetailScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -27,7 +30,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -79,11 +82,14 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                 unselectedLabelStyle: const TextStyle(fontSize: 11),
                 tabs: const [
                   Tab(
-                      icon: Icon(Icons.menu_book_outlined, size: 18),
-                      text: 'Guías'),
+                      icon: Icon(Icons.grid_view_outlined, size: 18),
+                      text: 'Módulos'),
                   Tab(
                       icon: Icon(Icons.people_outline, size: 18),
                       text: 'Estudiantes'),
+                  Tab(
+                      icon: Icon(Icons.how_to_reg_outlined, size: 18),
+                      text: 'Asistencia'),
                   Tab(
                       icon: Icon(Icons.sports_score_outlined, size: 18),
                       text: 'Escenarios'),
@@ -104,10 +110,13 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
             // ── Tab 2: Estudiantes ────────────────────────────────────────────
             _StudentsTab(courseId: widget.courseId, canEdit: canEdit),
 
-            // ── Tab 3: Escenarios ─────────────────────────────────────────────
+            // ── Tab 3: Asistencia ─────────────────────────────────────────────
+            _AttendanceTab(courseId: widget.courseId, canEdit: canEdit),
+
+            // ── Tab 4: Escenarios ─────────────────────────────────────────────
             _ScenariosTab(courseId: widget.courseId),
 
-            // ── Tab 4: Estadísticas ───────────────────────────────────────────
+            // ── Tab 5: Estadísticas ───────────────────────────────────────────
             _StatsTab(courseId: widget.courseId),
           ],
         ),
@@ -210,7 +219,16 @@ class _InstructorHeaderCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                if (course?.description?.isNotEmpty == true) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    course!.description!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: textS, fontSize: 11, height: 1.3),
+                  ),
+                ],
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     _MetaBadge(
@@ -359,38 +377,148 @@ class _StudentsTab extends ConsumerWidget {
   final bool canEdit;
   const _StudentsTab({required this.courseId, required this.canEdit});
 
+  Future<void> _handleBulkUpload(BuildContext context, WidgetRef ref) async {
+    final bulkService = ref.read(bulkUploadServiceProvider);
+    
+    try {
+      final students = await bulkService.pickAndParseCsv();
+      if (students.isEmpty) return;
+
+      if (!context.mounted) return;
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmar Carga Masiva'),
+          content: Text('Se procesarán ${students.length} estudiantes. Se crearán cuentas para los nuevos y se inscribirán a todos en este curso.\n\n¿Deseas continuar?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Procesar')),
+          ],
+        ),
+      );
+
+      if (confirm != true || !context.mounted) return;
+
+      // Mostrar diálogo de progreso
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Procesando estudiantes...'),
+            ],
+          ),
+        ),
+      );
+
+      final result = await bulkService.processBulkEnrollment(
+        courseId: courseId,
+        students: students,
+      );
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Cerrar progreso
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Proceso Finalizado'),
+          content: Text('Total: ${result.total}\nCreados: ${result.created}\nInscritos: ${result.enrolled}\nErrores: ${result.errors}'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(courseStudentsProvider(courseId));
-    final textS         = Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final studentIds = studentsAsync.value?.map((s) => s['studentId'] as String).toList() ?? [];
+    final statusAsync = ref.watch(usersStatusProvider(studentIds));
+    final statusMap = {for (var u in statusAsync.valueOrNull ?? []) u.id: u};
 
-    return studentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
-      error:   (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textS))),
-      data: (students) => students.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.person_off_outlined, size: 52,
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
-                  const SizedBox(height: 12),
-                  Text('Sin estudiantes inscritos', style: TextStyle(color: textS, fontSize: 13)),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: () async => ref.invalidate(courseStudentsProvider(courseId)),
-              color: AppColors.brand,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: students.length,
-                itemBuilder: (ctx, i) => _StudentProgressTile(
-                  student: students[i] as Map<String, dynamic>,
-                  courseId: courseId,
+    final textS = Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+
+    return Column(
+      children: [
+        if (canEdit)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleBulkUpload(context, ref),
+                    icon: const Icon(Icons.upload_file_rounded, size: 18),
+                    label: const Text('Carga Masiva (CSV)'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.brand,
+                      side: const BorderSide(color: AppColors.brand),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Implementar creación individual si se desea
+                    },
+                    icon: const Icon(Icons.person_add_outlined, size: 18),
+                    label: const Text('Nuevo Estudiante'),
+                  ),
+                ),
+              ],
             ),
+          ),
+        Expanded(
+          child: studentsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            error:   (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textS))),
+            data: (students) => students.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_off_outlined, size: 52,
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
+                        const SizedBox(height: 12),
+                        Text('Sin estudiantes inscritos', style: TextStyle(color: textS, fontSize: 13)),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async => ref.invalidate(courseStudentsProvider(courseId)),
+                    color: AppColors.brand,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: students.length,
+                      itemBuilder: (ctx, i) {
+                        final st = students[i];
+                        final sid = st['studentId'] as String;
+                        return _StudentProgressTile(
+                          student: st,
+                          courseId: courseId,
+                          userStatus: statusMap[sid],
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -398,7 +526,8 @@ class _StudentsTab extends ConsumerWidget {
 class _StudentProgressTile extends StatelessWidget {
   final Map<String, dynamic> student;
   final String courseId;
-  const _StudentProgressTile({required this.student, required this.courseId});
+  final UserModel? userStatus;
+  const _StudentProgressTile({required this.student, required this.courseId, this.userStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -418,63 +547,219 @@ class _StudentProgressTile extends StatelessWidget {
         ? name.trim().split(' ').take(2).map((w) => w[0]).join().toUpperCase()
         : 'U';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: surface,
-        border: Border.all(color: border.withValues(alpha: 0.4), width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.brand, AppColors.accent],
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Center(
-              child: Text(initials,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(width: 12),
+    final isOnline = userStatus?.isOnline ?? false;
+    final lastActive = userStatus?.lastActive;
+    final sid = student['studentId'] as String;
 
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () => context.push('/instructor/students/$sid'),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: surface,
+          border: Border.all(color: border.withValues(alpha: 0.4), width: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: isDark ? null : AppShadows.card(false),
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            Stack(
               children: [
-                Text(name, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                if (email.isNotEmpty)
-                  Text(email, style: TextStyle(color: textS, fontSize: 11)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _SmallBadge(
-                      icon: Icons.sports_score_outlined,
-                      label: 'Prom: ${avg.toStringAsFixed(1)}',
-                      color: avg >= 70 ? AppColors.green : AppColors.red,
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isOnline 
+                        ? [AppColors.brand, AppColors.cyan]
+                        : [AppColors.textSecondary.withValues(alpha: 0.3), AppColors.textSecondary.withValues(alpha: 0.5)],
                     ),
-                    const SizedBox(width: 6),
-                    _SmallBadge(
-                      icon: Icons.repeat_rounded,
-                      label: '$count sesiones',
-                      color: textT,
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Center(
+                    child: Text(initials,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
                 ),
+                if (isOnline)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: AppColors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: surface, width: 2),
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(name, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
+                      if (lastActive != null && !isOnline)
+                        Text(
+                          'Último acceso: ${_formatTimeAgo(lastActive)}',
+                          style: TextStyle(color: textT, fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                    ],
+                  ),
+                  if (email.isNotEmpty)
+                    Text(email, style: TextStyle(color: textS, fontSize: 11)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _SmallBadge(
+                        icon: Icons.sports_score_outlined,
+                        label: 'Prom: ${avg.toStringAsFixed(1)}',
+                        color: avg >= 70 ? AppColors.green : AppColors.red,
+                      ),
+                      const SizedBox(width: 6),
+                      _SmallBadge(
+                        icon: Icons.repeat_rounded,
+                        label: '$count sesiones',
+                        color: textT,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'hace un momento';
+    if (diff.inMinutes < 60) return 'hace ${diff.inMinutes}m';
+    if (diff.inHours < 24) return 'hace ${diff.inHours}h';
+    return DateFormat('dd/MM').format(dt);
+  }
+}
+
+// ─── Tab Asistencia ───────────────────────────────────────────────────────────
+class _AttendanceTab extends ConsumerStatefulWidget {
+  final String courseId;
+  final bool canEdit;
+  const _AttendanceTab({required this.courseId, required this.canEdit});
+
+  @override
+  ConsumerState<_AttendanceTab> createState() => _AttendanceTabState();
+}
+
+class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  Widget build(BuildContext context) {
+    final studentsAsync = ref.watch(courseStudentsProvider(widget.courseId));
+    final attendanceAsync = ref.watch(courseAttendanceProvider((courseId: widget.courseId, date: _selectedDate)));
+    
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+
+    return Column(
+      children: [
+        // Date Selector
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                DateFormat('EEEE, d MMMM').format(_selectedDate),
+                style: TextStyle(color: textP, fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              IconButton.filledTonal(
+                onPressed: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                    lastDate: DateTime.now().add(const Duration(days: 7)),
+                  );
+                  if (date != null) setState(() => _selectedDate = date);
+                },
+                icon: const Icon(Icons.calendar_month_outlined, size: 20),
+              ),
+            ],
+          ),
+        ),
+
+        Expanded(
+          child: studentsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (students) {
+              return attendanceAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+                error: (e, _) => Center(child: Text('Error al cargar asistencia: $e')),
+                data: (records) {
+                  final attendanceMap = {for (var r in records) r['studentId'] as String: r['attended'] as bool};
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: students.length,
+                    itemBuilder: (ctx, i) {
+                      final st = students[i];
+                      final sid = st['studentId'] as String;
+                      final sname = st['studentName'] as String;
+                      final attended = attendanceMap[sid] ?? false;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          title: Text(sname, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w600)),
+                          subtitle: Text(attended ? 'Presente' : 'Ausente', 
+                            style: TextStyle(color: attended ? AppColors.green : AppColors.red, fontSize: 11)),
+                          trailing: widget.canEdit 
+                            ? Checkbox(
+                                value: attended,
+                                activeColor: AppColors.brand,
+                                onChanged: (val) {
+                                  ref.read(sessionServiceProvider).markAttendance(
+                                    courseId: widget.courseId,
+                                    studentId: sid,
+                                    studentName: sname,
+                                    attended: val ?? false,
+                                    date: _selectedDate,
+                                  );
+                                },
+                              )
+                            : Icon(attended ? Icons.check_circle : Icons.cancel, 
+                                color: attended ? AppColors.green : AppColors.red, size: 20),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -604,14 +889,41 @@ class _StatsTab extends ConsumerWidget {
                   .map((s) => (s['avgScore'] as num?)?.toDouble() ?? 0.0)
                   .fold(0.0, (a, b) => a + b) / count;
 
+        // Calificación del Instructor basada en el desempeño de los alumnos
+        // Si el promedio es > 85 es Sobresaliente, > 70 es Bueno, < 70 Regular
+        final instructorRating = avgScore >= 85 ? 'Sobresaliente' : (avgScore >= 70 ? 'Competente' : 'Por Mejorar');
+        final ratingColor = avgScore >= 85 ? AppColors.brand : (avgScore >= 70 ? AppColors.green : AppColors.red);
+
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            // Sección de Rendimiento del Instructor
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [ratingColor.withValues(alpha: 0.1), ratingColor.withValues(alpha: 0.05)],
+                ),
+                border: Border.all(color: ratingColor.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: Column(
+                children: [
+                  const Text('CALIFICACIÓN DEL INSTRUCTOR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                  const SizedBox(height: 12),
+                  Text(instructorRating, style: TextStyle(color: ratingColor, fontSize: 22, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  Text('Basada en el promedio de $avgScore%', style: const TextStyle(fontSize: 11)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
             _StatCard(label: 'Estudiantes inscritos', value: '$count', icon: Icons.people_outline, color: AppColors.brand),
             const SizedBox(height: 12),
             _StatCard(label: 'Con sesiones realizadas', value: '$withData', icon: Icons.sports_score_outlined, color: AppColors.cyan),
             const SizedBox(height: 12),
-            _StatCard(label: 'Promedio de calificación', value: avgScore.toStringAsFixed(1), icon: Icons.star_outline_rounded, color: AppColors.amber),
+            _StatCard(label: 'Promedio de calificación', value: '${avgScore.toStringAsFixed(1)}%', icon: Icons.star_outline_rounded, color: AppColors.amber),
             const SizedBox(height: 12),
             _StatCard(label: 'Tasa de participación', value: count == 0 ? '0%' : '${((withData / count) * 100).round()}%', icon: Icons.trending_up_rounded, color: AppColors.green),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../models/maniqui.dart';
+import '../models/notification.dart';
 import 'firestore_service.dart';
 import 'firebase_auth_service.dart';
 
@@ -70,5 +71,21 @@ class AdminService {
       studentEmail:   student.email,
       identificacion: student.identificacion,
     );
+
+    // Notificar al estudiante
+    final course = await _db.getCourse(courseId);
+    if (course != null) {
+      await _db.createNotification(
+        NotificationModel(
+          id: '',
+          userId: student.id,
+          title: 'Nuevo curso asignado',
+          message: 'Has sido inscrito en el curso "${course.title}"',
+          createdAt: DateTime.now(),
+          type: NotificationType.studentAddedToCourse,
+          extraData: {'courseId': courseId},
+        ),
+      );
+    }
   }
 }

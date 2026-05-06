@@ -1,8 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-/// Pobla la colección `scenarios` en Firestore la primera vez.
-/// Ejecutar una sola vez desde el Panel Admin o en un script de configuración.
 class SeedService {
   static Future<void> seedScenarios() async {
     final db = FirebaseFirestore.instance;
@@ -13,7 +10,8 @@ class SeedService {
         'id': 'adult',
         'title': 'Adulto',
         'description': 'RCP estándar para adulto según guías AHA 2020.',
-        'audioIntroText': 'Paciente adulto sin respuesta. Inicie RCP inmediatamente.',
+        'audioIntroText':
+            'Paciente adulto sin respuesta. Inicie RCP inmediatamente.',
         'patientAge': 'Adulto (>8 años)',
         'patientType': 'adult',
         'category': 'cardiac',
@@ -22,16 +20,20 @@ class SeedService {
         'isNew': false,
         'orderIndex': 0,
         'ahaGuidelines': {
-          'minDepthMm': 50.0, 'maxDepthMm': 60.0,
-          'minRatePerMin': 100, 'maxRatePerMin': 120,
-          'maxPauseSeconds': 10.0, 'compressionRatio': '30:2',
+          'minDepthMm': 50.0,
+          'maxDepthMm': 60.0,
+          'minRatePerMin': 100,
+          'maxRatePerMin': 120,
+          'maxPauseSeconds': 10.0,
+          'compressionRatio': '30:2',
         },
       },
       {
         'id': 'pediatric_child',
         'title': 'Niño (1–8 años)',
         'description': 'RCP pediátrico para niños entre 1 y 8 años.',
-        'audioIntroText': 'Niño de 5 años sin respuesta. Aplique protocolo pediátrico.',
+        'audioIntroText':
+            'Niño de 5 años sin respuesta. Aplique protocolo pediátrico.',
         'patientAge': 'Niño (1–8 años)',
         'patientType': 'pediatric_child',
         'category': 'pediatric',
@@ -40,16 +42,20 @@ class SeedService {
         'isNew': false,
         'orderIndex': 1,
         'ahaGuidelines': {
-          'minDepthMm': 50.0, 'maxDepthMm': 60.0,
-          'minRatePerMin': 100, 'maxRatePerMin': 120,
-          'maxPauseSeconds': 10.0, 'compressionRatio': '30:2',
+          'minDepthMm': 50.0,
+          'maxDepthMm': 60.0,
+          'minRatePerMin': 100,
+          'maxRatePerMin': 120,
+          'maxPauseSeconds': 10.0,
+          'compressionRatio': '30:2',
         },
       },
       {
         'id': 'pediatric_infant',
         'title': 'Lactante (<1 año)',
         'description': 'RCP pediátrico para lactantes menores de 1 año.',
-        'audioIntroText': 'Lactante de 6 meses sin respuesta. Use técnica de dos dedos.',
+        'audioIntroText':
+            'Lactante de 6 meses sin respuesta. Use técnica de dos dedos.',
         'patientAge': 'Lactante (<1 año)',
         'patientType': 'pediatric_infant',
         'category': 'pediatric',
@@ -58,9 +64,12 @@ class SeedService {
         'isNew': false,
         'orderIndex': 2,
         'ahaGuidelines': {
-          'minDepthMm': 40.0, 'maxDepthMm': 50.0,
-          'minRatePerMin': 100, 'maxRatePerMin': 120,
-          'maxPauseSeconds': 10.0, 'compressionRatio': '30:2',
+          'minDepthMm': 40.0,
+          'maxDepthMm': 50.0,
+          'minRatePerMin': 100,
+          'maxRatePerMin': 120,
+          'maxPauseSeconds': 10.0,
+          'compressionRatio': '30:2',
         },
       },
     ];
@@ -75,7 +84,6 @@ class SeedService {
     }
 
     await batch.commit();
-    // ignore: avoid_print
     print('[SeedService] Escenarios creados correctamente en Firestore.');
   }
 }

@@ -15,9 +15,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
-  bool _obscure  = true;
-  bool _loading  = false;
+  final _passCtrl = TextEditingController();
+  bool _obscure = true;
+  bool _loading = false;
   String? _error;
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
@@ -48,11 +48,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _shakeCtrl.forward(from: 0);
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await ref.read(authStateProvider.notifier).login(
-        _emailCtrl.text.trim(), _passCtrl.text,
-      );
+            _emailCtrl.text.trim(),
+            _passCtrl.text,
+          );
       if (mounted) context.go('/home');
     } catch (e) {
       setState(() => _error = FirebaseAuthService.parseAuthError(e));
@@ -64,11 +68,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _forgotPassword() async {
     if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Ingresa tu correo para restablecer la contraseña.');
+      setState(
+          () => _error = 'Ingresa tu correo para restablecer la contraseña.');
       return;
     }
     try {
-      await ref.read(authStateProvider.notifier)
+      await ref
+          .read(authStateProvider.notifier)
           .sendPasswordReset(_emailCtrl.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,13 +91,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme   = Theme.of(context);
-    final isDark  = theme.brightness == Brightness.dark;
-    final bg      = theme.scaffoldBackgroundColor;
-    final textP   = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS   = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = theme.scaffoldBackgroundColor;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
-    final border  = theme.colorScheme.outline;
+    final border = theme.colorScheme.outline;
 
     return Scaffold(
       backgroundColor: bg,
@@ -148,13 +154,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               const SizedBox(height: 40),
 
-              // ── Form Card ──
               AnimatedBuilder(
                 animation: _shakeAnim,
                 builder: (_, child) => Transform.translate(
                   offset: Offset(
                     _shakeCtrl.isAnimating
-                        ? (_shakeCtrl.value < 0.5 ? _shakeAnim.value : -_shakeAnim.value)
+                        ? (_shakeCtrl.value < 0.5
+                            ? _shakeAnim.value
+                            : -_shakeAnim.value)
                         : 0,
                     0,
                   ),
@@ -205,7 +212,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           labelText: 'Contraseña',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            onPressed: () => setState(() => _obscure = !_obscure),
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
                             icon: Icon(
                               _obscure
                                   ? Icons.visibility_outlined
@@ -259,9 +267,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         onPressed: _loading ? null : _login,
                         child: _loading
                             ? const SizedBox(
-                                height: 20, width: 20,
+                                height: 20,
+                                width: 20,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white,
+                                  strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
                               )
                             : const Text('Iniciar sesión'),
@@ -294,4 +304,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
-

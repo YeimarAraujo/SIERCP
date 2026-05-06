@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +10,6 @@ import '../widgets/section_label.dart';
 
 import '../providers/session_provider.dart';
 
-// ── Provider propio de pantalla para evitar recreación infinita ────────────────
-// Primero intenta desde Firestore; si falla o no tiene métricas, usa el estado
-// en memoria del activeSessionProvider (para cuando hay problemas de red).
 final _sessionResultProvider =
     FutureProvider.family<SessionModel?, String>((ref, sessionId) async {
   // 1. Intentar desde Firestore
@@ -61,8 +59,7 @@ class SessionResultScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text('Error al cargar resultados:\n$e',
                       textAlign: TextAlign.center,
-                      style:
-                          const TextStyle(color: AppColors.textSecondary)),
+                      style: const TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
@@ -171,20 +168,28 @@ class _ResultBody extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-
-          // ── Top bar ─────────────────────────────────────────────────────────
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                 onPressed: () => context.go('/history'),
               ),
-              const Spacer(),
-              _ExportButton(session: session, metrics: metrics),
+              const Expanded(
+                child: Text(
+                  'REPORTE DE SESIÓN',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
+                    color: AppColors.brand,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48), // Balance
             ],
           ),
           const SizedBox(height: 12),
-
           if (isLandscape)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +213,6 @@ class _ResultBody extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _ExportPdfAction(session: session, metrics: metrics),
                     ],
                   ),
                 ),
@@ -220,6 +223,10 @@ class _ResultBody extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const SectionLabel('Recomendaciones de Mejora'),
+                      const SizedBox(height: 8),
+                      _ClinicalFeedback(metrics: metrics),
+                      const SizedBox(height: 20),
                       const SectionLabel('Parámetros AHA'),
                       const SizedBox(height: 10),
                       _AhaParametersList(
@@ -227,6 +234,8 @@ class _ResultBody extends ConsumerWidget {
                           surface: surface,
                           border: border,
                           isDark: isDark),
+                      const SizedBox(height: 20),
+                      _ExportPdfAction(session: session, metrics: metrics),
                     ],
                   ),
                 ),
@@ -249,15 +258,11 @@ class _ResultBody extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                'Calificación según estándares AHA 2025',
-                style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 12),
-              ),
-            ),
+            const SizedBox(height: 24),
+
+            const SectionLabel('Recomendaciones de Mejora'),
+            const SizedBox(height: 8),
+            _ClinicalFeedback(metrics: metrics),
             const SizedBox(height: 24),
 
             // AHA Parameters (Portrait)
@@ -268,24 +273,17 @@ class _ResultBody extends ConsumerWidget {
                 surface: surface,
                 border: border,
                 isDark: isDark),
+            const SizedBox(height: 24),
+            _ExportPdfAction(session: session, metrics: metrics),
+            const SizedBox(height: 24),
           ],
-
           const SizedBox(height: 20),
-
-          // ── Violations ────────────────────────────────────────────────────────
           if (metrics.violations.isNotEmpty) ...[
-            const SectionLabel('Correcciones necesarias'),
+            const SectionLabel('Alertas de Desempeño'),
             const SizedBox(height: 8),
             ...metrics.violations.map((v) => _ViolationCard(violation: v)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
           ],
-
-          if (!isLandscape) ...[
-            _ExportPdfAction(session: session, metrics: metrics),
-            const SizedBox(height: 12),
-          ],
-
-          // ── Actions ──────────────────────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -305,9 +303,141 @@ class _ResultBody extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+}
+
+class _ClinicalFeedback extends StatelessWidget {
+  final SessionMetrics metrics;
+  const _ClinicalFeedback({required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> tips = [];
+
+    if (metrics.totalCompressions == 0) {
+      tips.add({
+        'icon': Icons.warning_amber_rounded,
+        'color': Colors.orange,
+        'title': 'Sin actividad detectada',
+        'desc':
+            'Asegúrate de que el maniquí esté encendido y calibrado antes de iniciar.',
+      });
+    } else {
+      if (metrics.averageDepthMm < 50) {
+        tips.add({
+          'icon': Icons.arrow_downward_rounded,
+          'color': Colors.redAccent,
+          'title': 'Presiona más fuerte',
+          'desc':
+              'Debes alcanzar al menos 5 cm (50 mm) de profundidad para un flujo sanguíneo efectivo.',
+        });
+      } else if (metrics.averageDepthMm > 60) {
+        tips.add({
+          'icon': Icons.back_hand_rounded,
+          'color': Colors.orangeAccent,
+          'title': 'Demasiada profundidad',
+          'desc':
+              'Estás excediendo los 6 cm. Controla la fuerza para evitar lesiones internas.',
+        });
+      }
+
+      if (metrics.averageRatePerMin < 100) {
+        tips.add({
+          'icon': Icons.speed_rounded,
+          'color': Colors.redAccent,
+          'title': 'Aumenta el ritmo',
+          'desc':
+              'El ritmo ideal es entre 100 y 120 compresiones por minuto. ¡Sigue el metrónomo!',
+        });
+      } else if (metrics.averageRatePerMin > 120) {
+        tips.add({
+          'icon': Icons.slow_motion_video_rounded,
+          'color': Colors.orangeAccent,
+          'title': 'Ritmo muy acelerado',
+          'desc':
+              'Estás yendo demasiado rápido. El corazón necesita tiempo para llenarse entre compresiones.',
+        });
+      }
+
+      if (metrics.recoilPct < 90) {
+        tips.add({
+          'icon': Icons.unfold_more_rounded,
+          'color': Colors.blueAccent,
+          'title': 'Permite la expansión total',
+          'desc':
+              'No te apoyes en el pecho. Deja que el tórax regrese a su posición original completamente.',
+        });
+      }
+
+      if (metrics.interruptionCount > 0) {
+        tips.add({
+          'icon': Icons.timer_off_rounded,
+          'color': Colors.purpleAccent,
+          'title': 'Minimiza las pausas',
+          'desc':
+              'Cada segundo sin RCP reduce las probabilidades. Intenta mantener una fracción de compresión alta.',
+        });
+      }
+    }
+
+    if (tips.isEmpty && metrics.approved) {
+      tips.add({
+        'icon': Icons.stars_rounded,
+        'color': Colors.greenAccent,
+        'title': '¡Técnica Maestra!',
+        'desc':
+            'Has mantenido todos los parámetros según la AHA 2025. Mantén este estándar.',
+      });
+    }
+
+    return Column(
+      children: tips
+          .map((tip) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: (tip['color'] as Color).withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: (tip['color'] as Color).withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(tip['icon'] as IconData,
+                        color: tip['color'] as Color, size: 24),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tip['title'] as String,
+                            style: TextStyle(
+                                color: tip['color'] as Color,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            tip['desc'] as String,
+                            style: TextStyle(
+                                color: (tip['color'] as Color)
+                                    .withValues(alpha: 0.8),
+                                fontSize: 12,
+                                height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ))
+          .toList(),
     );
   }
 }
@@ -319,24 +449,40 @@ class _ScoreCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = Theme.of(context).colorScheme.outline;
+    final theme = Theme.of(context);
+    final border = theme.colorScheme.outline;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: metrics.score / 100),
-      duration: const Duration(milliseconds: 1000),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 1200),
+      curve: Curves.easeOutQuart,
       builder: (_, value, __) => SizedBox(
         width: size,
         height: size,
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // Outer Ring Glow
+            Container(
+              width: size * 0.9,
+              height: size * 0.9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: metrics.scoreColor.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    spreadRadius: -5,
+                  ),
+                ],
+              ),
+            ),
             SizedBox(
               width: size,
               height: size,
               child: CircularProgressIndicator(
                 value: value,
-                strokeWidth: size * 0.07,
-                backgroundColor: border,
+                strokeWidth: size * 0.08,
+                backgroundColor: border.withValues(alpha: 0.1),
                 valueColor: AlwaysStoppedAnimation(metrics.scoreColor),
                 strokeCap: StrokeCap.round,
               ),
@@ -345,35 +491,22 @@ class _ScoreCircle extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${(value * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    color: metrics.scoreColor,
-                    fontSize: size * 0.25,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'SpaceMono',
+                  '${(value * 100).toStringAsFixed(0)}',
+                  style: GoogleFonts.outfit(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: size * 0.32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      metrics.approved
-                          ? Icons.check_circle_outlined
-                          : Icons.cancel_outlined,
-                      color: metrics.scoreColor,
-                      size: size * 0.08,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      metrics.approved ? 'APROBADO' : 'REPROBADO',
-                      style: TextStyle(
-                        color: metrics.scoreColor,
-                        fontSize: size * 0.06,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'PUNTAJE',
+                  style: TextStyle(
+                    color: metrics.scoreColor,
+                    fontSize: size * 0.07,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -436,13 +569,18 @@ class _AhaParametersList extends StatelessWidget {
               value: '${metrics.interruptionCount}',
               range: 'Meta: 0',
               ok: metrics.interruptionCount == 0),
+          Divider(color: border, height: 0.5),
+          _AhaRow(
+              label: 'Fracción (CCF)',
+              value: '${metrics.ccfPct.toStringAsFixed(1)}%',
+              range: 'Meta: 60%+',
+              ok: metrics.ccfPct >= 60),
         ],
       ),
     );
   }
 }
 
-// ─── Export PDF Action (botón prominente) ──────────────────────────────────────
 class _ExportPdfAction extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -568,7 +706,6 @@ class _ExportPdfActionState extends ConsumerState<_ExportPdfAction> {
   }
 }
 
-// ─── Export button (top bar compact) ────────────────────────────────────────────
 class _ExportButton extends ConsumerStatefulWidget {
   final SessionModel session;
   final SessionMetrics metrics;
@@ -618,8 +755,7 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border:
-              Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
@@ -652,7 +788,6 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────────────────────────────────
 class _AhaRow extends StatelessWidget {
   final String label;
   final String value;
@@ -666,32 +801,67 @@ class _AhaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final color = ok ? AppColors.green : AppColors.red;
-    final textP =
-        Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS = Theme.of(context).textTheme.bodyMedium?.color ??
-        AppColors.textSecondary;
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(ok ? Icons.check_circle_outline : Icons.cancel_outlined,
-              color: color, size: 18),
-          const SizedBox(width: 12),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 6),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
-              child: Text(label,
-                  style: TextStyle(color: textP, fontSize: 13))),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                if (range.isNotEmpty)
+                  Text(
+                    range,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(value,
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'SpaceMono')),
-              if (range.isNotEmpty)
-                Text(range, style: TextStyle(color: textS, fontSize: 10)),
+              Text(
+                value,
+                style: GoogleFonts.spaceMono(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Icon(
+                ok ? Icons.check_circle_rounded : Icons.error_rounded,
+                size: 12,
+                color: color.withValues(alpha: 0.6),
+              ),
             ],
           ),
         ],
@@ -705,42 +875,58 @@ class _ViolationCard extends StatelessWidget {
   const _ViolationCard({required this.violation});
 
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.redBg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-              color: AppColors.red.withValues(alpha: 0.2), width: 0.5),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.red.withValues(alpha: 0.15),
+          width: 1,
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.warning_amber_outlined,
-                color: AppColors.red, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(violation.message,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      )),
-                  Text('${violation.count} ocurrencia(s)',
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color,
-                        fontSize: 11,
-                      )),
-                ],
-              ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
-      );
+            child: const Icon(Icons.warning_amber_rounded,
+                color: AppColors.red, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  violation.message,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${violation.count} incidencia(s) detectada(s)',
+                  style: TextStyle(
+                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

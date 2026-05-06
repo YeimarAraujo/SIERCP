@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/session.dart';
 import '../models/alert_course.dart';
+import '../models/user.dart';
+import '../models/notification.dart';
 import 'firestore_service.dart';
 import 'package:flutter/foundation.dart'; // ← agregar esta línea
 
@@ -72,7 +74,10 @@ class SessionService {
   }
 
   Future<List<CourseModel>> getCoursesForUser(String userId, String role) {
-    if (role == 'INSTRUCTOR' || role == 'ADMIN') {
+    if (role == 'ADMIN') {
+      return _db.getAllCourses();
+    }
+    if (role == 'INSTRUCTOR') {
       return _db.getInstructorCourses(userId);
     }
     return _db.getStudentCourses(userId);
@@ -100,6 +105,14 @@ class SessionService {
     );
   }
 
+  Future<void> updateCourse(String courseId, Map<String, dynamic> data) {
+    return _db.updateCourse(courseId, data);
+  }
+
+  Future<void> deleteCourse(String courseId) {
+    return _db.deleteCourse(courseId);
+  }
+
   Future<CourseModel?> joinCourse(
     String code, {
     required String studentId,
@@ -107,15 +120,15 @@ class SessionService {
     required String studentEmail,
     String? identificacion,
   }) async {
-    debugPrint('🔍 Buscando curso con código: "$code"');
+    debugPrint('Buscando curso con código: "$code"');
 
     final course = await _db.getCourseByInviteCode(code);
 
-    debugPrint('📦 Curso encontrado: ${course?.id} - ${course?.title}');
+    debugPrint('Curso encontrado: ${course?.id} - ${course?.title}');
 
     if (course == null) throw Exception('Código de curso no válido.');
 
-    debugPrint('👤 Inscribiendo estudiante: $studentId en curso: ${course.id}');
+    debugPrint('Inscribiendo estudiante: $studentId en curso: ${course.id}');
 
     await _db.enrollStudent(
       courseId: course.id,
@@ -125,8 +138,31 @@ class SessionService {
       identificacion: identificacion,
     );
 
-    debugPrint('✅ Inscripción completada');
+    // Notificar al instructor vía Notificación del sistema
+    if (course.instructorId != null && course.instructorId!.isNotEmpty) {
+      await _db.createNotification(
+        NotificationModel(
+          id: '',
+          userId: course.instructorId!,
+          title: 'Nuevo estudiante',
+          message: '$studentName se ha unido a tu curso "${course.title}"',
+          createdAt: DateTime.now(),
+          type: NotificationType.studentJoinedCourse,
+          extraData: {'courseId': course.id, 'studentId': studentId},
+        ),
+      );
+    }
+
+    debugPrint('Inscripción completada');
     return course;
+  }
+
+  Future<List<AlertModel>> getInstructorAlerts(String instructorId) {
+    return _db.getInstructorAlerts(instructorId);
+  }
+
+  Stream<List<AlertModel>> watchInstructorAlerts(String instructorId) {
+    return _db.watchInstructorAlerts(instructorId);
   }
 
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) {
@@ -135,6 +171,36 @@ class SessionService {
 
   Stream<List<Map<String, dynamic>>> watchCourseStudents(String courseId) {
     return _db.watchCourseStudents(courseId);
+  }
+
+  Future<void> markAttendance({
+    required String courseId,
+    required String studentId,
+    required String studentName,
+    required bool attended,
+    required DateTime date,
+  }) {
+    return _db.markAttendance(
+      courseId: courseId,
+      studentId: studentId,
+      studentName: studentName,
+      attended: attended,
+      date: date,
+    );
+  }
+
+  Stream<List<Map<String, dynamic>>> watchAttendance(
+      String courseId, DateTime date) {
+    return _db.watchAttendance(courseId, date);
+  }
+
+  Stream<List<Map<String, dynamic>>> watchCourseAttendanceHistory(
+      String courseId) {
+    return _db.watchCourseAttendanceHistory(courseId);
+  }
+
+  Stream<List<UserModel>> watchUsersStatus(List<String> userIds) {
+    return _db.watchUsersStatus(userIds);
   }
 
   Future<DeviceStatusData> getDeviceStatus() async {

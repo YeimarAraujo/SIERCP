@@ -12,6 +12,7 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
   flutter_secure_storage: ^9.2.2 
+  image_picker: ^1.1.2
 
   # ── Navegación ──────────────────────────────────────────────────────────
   go_router: ^14.6.2
@@ -60,6 +61,7 @@ dependencies:
 
   # ── Exportación PDF / CSV ────────────────────────────────────────────────
   pdf: ^3.10.8
+  csv: ^6.0.0
   share_plus: ^10.1.4 
   printing: ^5.13.1
 
@@ -73,7 +75,8 @@ dependencies:
   # ── Para abrir archivos guardados / Capturas ──────────────────────────────
   open_filex: ^4.5.0
   screenshot: ^3.0.0
-  sqflite_common_ffi_web: ^1.1.1
+  image_picker: ^1.1.2
+  sqflite_common_ffi: ^2.4.0+3
 
 dev_dependencies:
   flutter_test:

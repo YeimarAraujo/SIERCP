@@ -1,38 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/guide_provider.dart';
 import '../core/theme.dart';
 
-// ─── DeviceConnectionWidget ───────────────────────────────────────────────────
-// Widget compacto que muestra el estado del maniquí ESP32 en tiempo real.
-// Se puede poner en AppBar actions o como banner en SessionScreen.
 class DeviceConnectionWidget extends ConsumerWidget {
   final bool compact;
   const DeviceConnectionWidget({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(deviceConnectionProvider);
+    final status = ref.watch(deviceConnectionProvider);
 
-    return statusAsync.when(
-      loading: () => _buildChip(
+    return InkWell(
+      onTap: () => context.push('/session/device-select'),
+      borderRadius: BorderRadius.circular(20),
+      child: _buildChip(
         context,
-        label: 'Buscando...',
-        color: AppColors.amber,
-        icon: Icons.bluetooth_searching_rounded,
-        pulsing: true,
-      ),
-      error: (_, __) => _buildChip(
-        context,
-        label: 'Error',
-        color: AppColors.red,
-        icon: Icons.error_outline_rounded,
-      ),
-      data: (status) => _buildChip(
-        context,
-        label:   status.isConnected ? 'Maniquí conectado' : 'Sin maniquí',
-        color:   status.isConnected ? AppColors.green     : AppColors.red,
-        icon:    status.isConnected
+        label: status.isConnected ? 'Maniquí conectado' : 'Sin maniquí (Tocar para conectar)',
+        color: status.isConnected ? AppColors.green : AppColors.red,
+        icon: status.isConnected
             ? Icons.sensors_rounded
             : Icons.sensors_off_rounded,
         pulsing: status.isConnected,
@@ -81,7 +68,7 @@ class DeviceConnectionWidget extends ConsumerWidget {
   }
 }
 
-// ─── Punto pulsante animado ───────────────────────────────────────────────────
+// Punto pulsante animado
 class _PulsingDot extends StatefulWidget {
   final Color color;
   final bool animate;
@@ -142,32 +129,21 @@ class _PulsingDotState extends State<_PulsingDot>
   }
 }
 
-// ─── DeviceStatusBanner ───────────────────────────────────────────────────────
 // Banner expandido para usar en SessionScreen o al inicio de sesión.
 class DeviceStatusBanner extends ConsumerWidget {
   const DeviceStatusBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusAsync = ref.watch(deviceConnectionProvider);
+    final status = ref.watch(deviceConnectionProvider);
 
-    return statusAsync.when(
-      loading: () => _banner(
-        context,
-        msg:   'Buscando maniquí...',
-        color: AppColors.amber,
-        icon:  Icons.bluetooth_searching_rounded,
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (status) {
-        if (status.isConnected) return const SizedBox.shrink();
-        return _banner(
-          context,
-          msg:   '⚠️ Maniquí no detectado. Verificar conexión del ESP32.',
-          color: AppColors.red,
-          icon:  Icons.sensors_off_rounded,
-        );
-      },
+    if (status.isConnected) return const SizedBox.shrink();
+    
+    return _banner(
+      context,
+      msg: '⚠️ Maniquí no detectado. Verificar conexión del ESP32.',
+      color: AppColors.red,
+      icon: Icons.sensors_off_rounded,
     );
   }
 

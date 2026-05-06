@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/alert_course.dart';
+import '../models/session.dart';
+import '../services/device_service.dart';
 import '../providers/session_provider.dart';
-import '../widgets/section_label.dart';
 import '../widgets/depth_gauge.dart';
 import '../widgets/rate_gauge.dart';
 
@@ -13,24 +14,25 @@ class LiveInstructorScreen extends ConsumerStatefulWidget {
   const LiveInstructorScreen({super.key, required this.courseId});
 
   @override
-  ConsumerState<LiveInstructorScreen> createState() => _LiveInstructorScreenState();
+  ConsumerState<LiveInstructorScreen> createState() =>
+      _LiveInstructorScreenState();
 }
 
 class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
-  // In a real application, we would subscribe to a WebSocket multiplexing all devices
-  // For the overhaul, we will mock the connection status of 2-3 devices for demonstration.
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    
-    // We fetch the course to get its name
+
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.value ?? [];
-    final course = courses.cast<CourseModel?>().firstWhere((c) => c?.id == widget.courseId, orElse: () => null);
+    final course = courses
+        .cast<CourseModel?>()
+        .firstWhere((c) => c?.id == widget.courseId, orElse: () => null);
+
+    final activeSessionsAsync = ref.watch(courseActiveSessionsProvider(widget.courseId));
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -45,77 +47,85 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             const Text('Monitorización en Vivo'),
             Text(
               course?.title ?? 'Curso',
-              style: TextStyle(color: textS, fontSize: 12, fontWeight: FontWeight.normal),
+              style: TextStyle(
+                  color: textS, fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-               color: AppColors.greenBg,
-               borderRadius: BorderRadius.circular(20),
-               border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6, height: 6,
-                  decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                const Text('CONECTADO', style: TextStyle(color: AppColors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          )
-        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionLabel('Dispositivos Activos (Simulación)'),
-              const SizedBox(height: 12),
-              
-              // Mock Device 1 - Perfect technique
-              _DeviceMonitorCard(
-                studentName: 'Juan Pérez',
-                deviceId: 'ESP32-A1',
-                depthMm: 55,
-                ratePerMin: 110,
-                connected: true,
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-              
-              // Mock Device 2 - Bad technique
-              _DeviceMonitorCard(
-                studentName: 'María García',
-                deviceId: 'ESP32-B2',
-                depthMm: 35,
-                ratePerMin: 140,
-                connected: true,
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
+        child: activeSessionsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (sessions) {
+            if (sessions.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.videocam_off_outlined, size: 64, color: textS.withValues(alpha: 0.2)),
+                    const SizedBox(height: 16),
+                    Text('No hay sesiones activas en este momento', 
+                      style: TextStyle(color: textS, fontSize: 14)),
+                  ],
+                ),
+              );
+            }
 
-              // Mock Device 3 - Disconnected
-               _DeviceMonitorCard(
-                studentName: 'Carlos López',
-                deviceId: 'ESP32-C3',
-                depthMm: 0,
-                ratePerMin: 0,
-                connected: false,
-                isDark: isDark,
-              ),
-            ],
-          ),
+            return ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: sessions.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, i) {
+                final session = sessions[i];
+                return _RealtimeSessionCard(session: session, isDark: isDark);
+              },
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+class _RealtimeSessionCard extends ConsumerWidget {
+  final SessionModel session;
+  final bool isDark;
+
+  const _RealtimeSessionCard({required this.session, required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Escuchar telemetría del maniquí asociado a esta sesión
+    final manikinId = session.manikinId;
+    if (manikinId == null || manikinId.isEmpty) {
+      return _DeviceMonitorCard(
+        studentName: session.studentName,
+        deviceId: 'Sin dispositivo',
+        depthMm: 0,
+        ratePerMin: 0,
+        connected: false,
+        isDark: isDark,
+      );
+    }
+
+    final deviceStream = ref.watch(deviceServiceProvider).streamDevice(manikinId);
+
+    return StreamBuilder<DeviceInfo?>(
+      stream: deviceStream,
+      builder: (context, snapshot) {
+        final device = snapshot.data;
+        final isConnected = device != null && device.isActive;
+
+        return _DeviceMonitorCard(
+          studentName: session.studentName,
+          deviceId: manikinId,
+          depthMm: device?.profundidadMm ?? 0,
+          ratePerMin: device?.frecuenciaCpm ?? 0,
+          connected: isConnected,
+          isDark: isDark,
+        );
+      },
     );
   }
 }
@@ -159,8 +169,11 @@ class _DeviceMonitorCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: connected ? AppColors.brand.withValues(alpha: 0.05) : AppColors.cardBorder.withValues(alpha: 0.2),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+              color: connected
+                  ? AppColors.brand.withValues(alpha: 0.05)
+                  : AppColors.cardBorder.withValues(alpha: 0.2),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg)),
               border: Border(bottom: BorderSide(color: border, width: 0.5)),
             ),
             child: Row(
@@ -170,67 +183,86 @@ class _DeviceMonitorCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: connected ? AppColors.brand : AppColors.textTertiary,
-                      child: const Icon(Icons.person, size: 16, color: Colors.white),
+                      backgroundColor:
+                          connected ? AppColors.brand : AppColors.textTertiary,
+                      child: const Icon(Icons.person,
+                          size: 16, color: Colors.white),
                     ),
                     const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(studentName, style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.bold)),
-                        Text('Maniquí: $deviceId', style: TextStyle(color: textS, fontSize: 10)),
+                        Text(studentName,
+                            style: TextStyle(
+                                color: textP,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold)),
+                        Text('Maniquí: $deviceId',
+                            style: TextStyle(color: textS, fontSize: 10)),
                       ],
                     ),
                   ],
                 ),
                 Icon(
-                  connected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                  connected
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
                   color: connected ? AppColors.brand : textT,
                   size: 16,
                 )
               ],
             ),
           ),
-          
+
           // Body (Gauges)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: connected ? Row(
-              children: [
-                Expanded(
-                  child: Column(
+            child: connected
+                ? Row(
                     children: [
-                      Text('PROFUNDIDAD', style: TextStyle(color: textS, fontSize: 9, fontWeight: FontWeight.bold)),
-                      SizedBox(
-                        height: 90,
-                        child: DepthGauge(depthMm: depthMm),
-                      )
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text('PROFUNDIDAD',
+                                style: TextStyle(
+                                    color: textS,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold)),
+                            SizedBox(
+                              height: 90,
+                              child: DepthGauge(depthMm: depthMm),
+                            )
+                          ],
+                        ),
+                      ),
+                      Container(width: 0.5, height: 70, color: border),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text('FRECUENCIA',
+                                style: TextStyle(
+                                    color: textS,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold)),
+                            SizedBox(
+                              height: 90,
+                              child: RateGauge(ratePerMin: ratePerMin),
+                            )
+                          ],
+                        ),
+                      ),
                     ],
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text('Esperando conexión del maniquí...',
+                          style: TextStyle(color: textT, fontSize: 12)),
+                    ),
                   ),
-                ),
-                Container(width: 0.5, height: 70, color: border),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('FRECUENCIA', style: TextStyle(color: textS, fontSize: 9, fontWeight: FontWeight.bold)),
-                      SizedBox(
-                        height: 90,
-                        child: RateGauge(ratePerMin: ratePerMin),
-                      )
-                    ],
-                  ),
-                ),
-              ],
-            ) : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Text('Esperando conexión del maniquí...', style: TextStyle(color: textT, fontSize: 12)),
-              ),
-            ),
           )
         ],
       ),
     );
   }
 }
-

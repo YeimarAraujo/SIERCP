@@ -50,7 +50,6 @@ class ScenarioDetailData {
   });
 }
 
-// ─── Datos estáticos de los 3 escenarios ─────────────────────────────────────
 const Map<String, ScenarioDetailData> kScenarios = {
   'adulto': ScenarioDetailData(
     id: 'adulto',
@@ -380,7 +379,8 @@ class _PatientCard extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -388,7 +388,8 @@ class _PatientCard extends StatelessWidget {
                       child: const Text(
                         'PACIENTE',
                         style: TextStyle(
-                          color: Colors.red, // generic but placeholder-ish, better use 'color'
+                          color: Colors
+                              .red, // generic but placeholder-ish, better use 'color'
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
@@ -435,7 +436,8 @@ class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color textS;
-  const _InfoChip({required this.icon, required this.label, required this.textS});
+  const _InfoChip(
+      {required this.icon, required this.label, required this.textS});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -556,7 +558,8 @@ class _ProtocolCard extends StatelessWidget {
                 child: _ParamTile(
                   icon: Icons.straighten_outlined,
                   label: 'Profundidad',
-                  value: '${scenario.profMinMm.toInt()}–${scenario.profMaxMm.toInt()} mm',
+                  value:
+                      '${scenario.profMinMm.toInt()}–${scenario.profMaxMm.toInt()} mm',
                   color: color,
                   textP: textP,
                   textT: textT,
@@ -635,9 +638,12 @@ class _ParamTile extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(height: 6),
-          Text(label, style: TextStyle(color: textT, fontSize: 9, letterSpacing: 0.5)),
+          Text(label,
+              style: TextStyle(color: textT, fontSize: 9, letterSpacing: 0.5)),
           const SizedBox(height: 2),
-          Text(value, style: TextStyle(color: textP, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(value,
+              style: TextStyle(
+                  color: textP, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -698,7 +704,8 @@ class _BottomActionState extends State<_BottomAction> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = widget.color;
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, 10, 20, isLandscape ? 12 : 24),
@@ -742,7 +749,9 @@ class _BottomActionState extends State<_BottomAction> {
                             )
                           else
                             Icon(
-                              _isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+                              _isPlaying
+                                  ? Icons.stop_circle_outlined
+                                  : Icons.volume_up_rounded,
                               color: color,
                               size: 16,
                             ),
@@ -776,7 +785,8 @@ class _BottomActionState extends State<_BottomAction> {
                       icon: const Icon(Icons.play_arrow_rounded, size: 18),
                       label: const Text(
                         'Iniciar simulación',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: color,
@@ -797,7 +807,8 @@ class _BottomActionState extends State<_BottomAction> {
                 GestureDetector(
                   onTap: _isLoading ? null : _toggleAudio,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.08),
@@ -821,13 +832,17 @@ class _BottomActionState extends State<_BottomAction> {
                           )
                         else
                           Icon(
-                            _isPlaying ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+                            _isPlaying
+                                ? Icons.stop_circle_outlined
+                                : Icons.volume_up_rounded,
                             color: color,
                             size: 18,
                           ),
                         const SizedBox(width: 8),
                         Text(
-                          _isPlaying ? 'Detener audio' : 'Escuchar caso clínico',
+                          _isPlaying
+                              ? 'Detener audio'
+                              : 'Escuchar caso clínico',
                           style: TextStyle(
                             color: color,
                             fontSize: 13,
@@ -849,7 +864,8 @@ class _BottomActionState extends State<_BottomAction> {
                     icon: const Icon(Icons.play_arrow_rounded, size: 20),
                     label: const Text(
                       'Iniciar simulación',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,

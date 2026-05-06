@@ -18,15 +18,11 @@ final rtdbDevicesProvider = StreamProvider<List<ManiquiModel>>((ref) {
       
       DateTime? lastConnection;
       if (lastMs != null) {
-        // En MicroPython el ticks_ms no es Epoch, así que 
-        // temporalmente confiaremos en un margen de actualización.
-        // O mejor: RTDB puede usar ServerValue.timestamp
         lastConnection = DateTime.fromMillisecondsSinceEpoch(lastMs);
       }
       
       bool isOnline = false;
       if (lastConnection != null) {
-        // Considerarlo online si ha hecho "ping" en los últimos 20 segundos
         isOnline = DateTime.now().difference(lastConnection).inSeconds < 20;
       }
       

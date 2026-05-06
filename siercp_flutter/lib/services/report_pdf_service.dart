@@ -18,7 +18,6 @@ class ReportPdfService {
   final LocalStorageService _local;
   ReportPdfService(this._local);
 
-  // Colores de marca
   static final _brand = PdfColor.fromHex('1800AD');
   static final _green = PdfColor.fromHex('00C853');
   static final _red = PdfColor.fromHex('FF3B5C');
@@ -28,7 +27,7 @@ class ReportPdfService {
   static final _textDark = PdfColor.fromHex('1A1A2E');
   static final _textMid = PdfColor.fromHex('5A5C7A');
 
-  /// Genera un PDF de reporte individual para un estudiante dentro de un curso.
+  /// Reporte individual para un estudiante dentro de un curso.
   /// Incluye todas sus sesiones, métricas promedio y detalle por sesión.
   Future<ReportRecord> generateStudentCourseReport({
     required String studentId,
@@ -49,8 +48,14 @@ class ReportPdfService {
       final scores = completed.map((s) => s.metrics!.score).toList();
       avgScore = scores.reduce((a, b) => a + b) / scores.length;
       bestScore = scores.reduce((a, b) => a > b ? a : b);
-      avgDepth = completed.map((s) => s.metrics!.averageDepthMm).reduce((a, b) => a + b) / completed.length;
-      avgRate = completed.map((s) => s.metrics!.averageRatePerMin).reduce((a, b) => a + b) / completed.length;
+      avgDepth = completed
+              .map((s) => s.metrics!.averageDepthMm)
+              .reduce((a, b) => a + b) /
+          completed.length;
+      avgRate = completed
+              .map((s) => s.metrics!.averageRatePerMin)
+              .reduce((a, b) => a + b) /
+          completed.length;
       approved = completed.where((s) => s.metrics!.approved).length;
     }
 
@@ -71,31 +76,49 @@ class ReportPdfService {
         // Info estudiante
         pw.Container(
           padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(color: _grey, borderRadius: pw.BorderRadius.circular(8)),
+          decoration: pw.BoxDecoration(
+              color: _grey, borderRadius: pw.BorderRadius.circular(8)),
           child: pw.Row(children: [
-            pw.Expanded(child: pw.Column(
+            pw.Expanded(
+                child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('Estudiante', style: pw.TextStyle(color: _textMid, fontSize: 9)),
+                pw.Text('Estudiante',
+                    style: pw.TextStyle(color: _textMid, fontSize: 9)),
                 pw.SizedBox(height: 2),
-                pw.Text(studentName, style: pw.TextStyle(color: _textDark, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.Text(studentName,
+                    style: pw.TextStyle(
+                        color: _textDark,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold)),
               ],
             )),
-            pw.Expanded(child: pw.Column(
+            pw.Expanded(
+                child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text('Sesiones', style: pw.TextStyle(color: _textMid, fontSize: 9)),
+                pw.Text('Sesiones',
+                    style: pw.TextStyle(color: _textMid, fontSize: 9)),
                 pw.SizedBox(height: 2),
-                pw.Text('${sessions.length}', style: pw.TextStyle(color: _textDark, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.Text('${sessions.length}',
+                    style: pw.TextStyle(
+                        color: _textDark,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold)),
               ],
             )),
-            pw.Expanded(child: pw.Column(
+            pw.Expanded(
+                child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text('Aprobadas', style: pw.TextStyle(color: _textMid, fontSize: 9)),
+                pw.Text('Aprobadas',
+                    style: pw.TextStyle(color: _textMid, fontSize: 9)),
                 pw.SizedBox(height: 2),
                 pw.Text('$approved / ${completed.length}',
-                    style: pw.TextStyle(color: approved > 0 ? _green : _red, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    style: pw.TextStyle(
+                        color: approved > 0 ? _green : _red,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold)),
               ],
             )),
           ]),
@@ -103,7 +126,8 @@ class ReportPdfService {
         pw.SizedBox(height: 16),
 
         // Score promedio
-        pw.Center(child: pw.Container(
+        pw.Center(
+            child: pw.Container(
           padding: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: scoreColor, width: 2),
@@ -111,36 +135,81 @@ class ReportPdfService {
           ),
           child: pw.Column(children: [
             pw.Text('${avgScore.toStringAsFixed(0)}%',
-                style: pw.TextStyle(color: scoreColor, fontSize: 42, fontWeight: pw.FontWeight.bold)),
+                style: pw.TextStyle(
+                    color: scoreColor,
+                    fontSize: 42,
+                    fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 2),
-            pw.Text('Promedio General', style: pw.TextStyle(color: _textMid, fontSize: 11)),
+            pw.Text('Promedio General',
+                style: pw.TextStyle(color: _textMid, fontSize: 11)),
           ]),
         )),
         pw.SizedBox(height: 16),
 
         // Resumen métricas
-        pw.Text('RESUMEN DE MÉTRICAS', style: pw.TextStyle(color: _textMid, fontSize: 9, fontWeight: pw.FontWeight.bold, letterSpacing: 1.2)),
+        pw.Text('RESUMEN DE MÉTRICAS',
+            style: pw.TextStyle(
+                color: _textMid,
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 1.2)),
         pw.SizedBox(height: 8),
-        _buildMetricRow('Mejor calificación', '${bestScore.toStringAsFixed(1)}%', bestScore >= AppConstants.ahaPassScore),
-        _buildMetricRow('Profundidad promedio', '${avgDepth.toStringAsFixed(1)} mm',
-            avgDepth >= AppConstants.ahaMinDepthMm && avgDepth <= AppConstants.ahaMaxDepthMm),
-        _buildMetricRow('Frecuencia promedio', '${avgRate.toStringAsFixed(0)} /min',
-            avgRate >= AppConstants.ahaMinRatePerMin && avgRate <= AppConstants.ahaMaxRatePerMin),
-        _buildMetricRow('Tasa de aprobación', completed.isEmpty ? '0%' : '${((approved / completed.length) * 100).toStringAsFixed(0)}%',
+        _buildMetricRow(
+            'Mejor calificación',
+            '${bestScore.toStringAsFixed(1)}%',
+            bestScore >= AppConstants.ahaPassScore),
+        _buildMetricRow(
+            'Profundidad promedio',
+            '${avgDepth.toStringAsFixed(1)} mm',
+            avgDepth >= AppConstants.ahaMinDepthMm &&
+                avgDepth <= AppConstants.ahaMaxDepthMm),
+        _buildMetricRow(
+            'Frecuencia promedio',
+            '${avgRate.toStringAsFixed(0)} /min',
+            avgRate >= AppConstants.ahaMinRatePerMin &&
+                avgRate <= AppConstants.ahaMaxRatePerMin),
+        _buildMetricRow(
+            'Tasa de aprobación',
+            completed.isEmpty
+                ? '0%'
+                : '${((approved / completed.length) * 100).toStringAsFixed(0)}%',
             completed.isNotEmpty && approved / completed.length >= 0.7),
         pw.SizedBox(height: 20),
 
         // Detalle por sesión
         if (completed.isNotEmpty) ...[
-          pw.Text('DETALLE POR SESIÓN', style: pw.TextStyle(color: _textMid, fontSize: 9, fontWeight: pw.FontWeight.bold, letterSpacing: 1.2)),
+          pw.Text('DETALLE POR SESIÓN',
+              style: pw.TextStyle(
+                  color: _textMid,
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 1.2)),
           pw.SizedBox(height: 8),
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 9, fontWeight: pw.FontWeight.bold),
+            headerStyle: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold),
             headerDecoration: pw.BoxDecoration(color: _brand),
             cellStyle: pw.TextStyle(color: _textDark, fontSize: 9),
-            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            cellAlignments: {0: pw.Alignment.centerLeft, 1: pw.Alignment.center, 2: pw.Alignment.center, 3: pw.Alignment.center, 4: pw.Alignment.center, 5: pw.Alignment.center},
-            headers: ['Escenario', 'Fecha', 'Score', 'Prof. (mm)', 'Frec. (/min)', 'Estado'],
+            cellPadding:
+                const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.center,
+              2: pw.Alignment.center,
+              3: pw.Alignment.center,
+              4: pw.Alignment.center,
+              5: pw.Alignment.center
+            },
+            headers: [
+              'Escenario',
+              'Fecha',
+              'Score',
+              'Prof. (mm)',
+              'Frec. (/min)',
+              'Estado'
+            ],
             data: completed.map((s) {
               final m = s.metrics!;
               return [
@@ -228,7 +297,8 @@ class ReportPdfService {
         // Stats del curso
         pw.Container(
           padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(color: _grey, borderRadius: pw.BorderRadius.circular(8)),
+          decoration: pw.BoxDecoration(
+              color: _grey, borderRadius: pw.BorderRadius.circular(8)),
           child: pw.Row(children: [
             _buildStatCol('Estudiantes', '${students.length}'),
             _buildStatCol('Sesiones', '$totalSessions'),
@@ -239,21 +309,44 @@ class ReportPdfService {
         pw.SizedBox(height: 16),
 
         // Tabla de estudiantes
-        pw.Text('RENDIMIENTO POR ESTUDIANTE', style: pw.TextStyle(color: _textMid, fontSize: 9, fontWeight: pw.FontWeight.bold, letterSpacing: 1.2)),
+        pw.Text('RENDIMIENTO POR ESTUDIANTE',
+            style: pw.TextStyle(
+                color: _textMid,
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 1.2)),
         pw.SizedBox(height: 8),
         pw.TableHelper.fromTextArray(
-          headerStyle: pw.TextStyle(color: PdfColors.white, fontSize: 9, fontWeight: pw.FontWeight.bold),
+          headerStyle: pw.TextStyle(
+              color: PdfColors.white,
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold),
           headerDecoration: pw.BoxDecoration(color: _brand),
           cellStyle: pw.TextStyle(color: _textDark, fontSize: 9),
-          cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          headers: ['Estudiante', 'Sesiones', 'Promedio', 'Mejor', 'Aprobadas', 'Estado'],
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          headers: [
+            'Estudiante',
+            'Sesiones',
+            'Promedio',
+            'Mejor',
+            'Aprobadas',
+            'Estado'
+          ],
           data: students.map((st) {
             final name = st['studentName'] as String? ?? 'Sin nombre';
             final sid = st['studentId'] as String? ?? '';
             final ss = studentSessions[sid] ?? [];
             final withM = ss.where((s) => s.metrics != null).toList();
-            final avg = withM.isEmpty ? 0.0 : withM.map((s) => s.metrics!.score).reduce((a, b) => a + b) / withM.length;
-            final best = withM.isEmpty ? 0.0 : withM.map((s) => s.metrics!.score).reduce((a, b) => a > b ? a : b);
+            final avg = withM.isEmpty
+                ? 0.0
+                : withM.map((s) => s.metrics!.score).reduce((a, b) => a + b) /
+                    withM.length;
+            final best = withM.isEmpty
+                ? 0.0
+                : withM
+                    .map((s) => s.metrics!.score)
+                    .reduce((a, b) => a > b ? a : b);
             final ap = withM.where((s) => s.metrics!.approved).length;
             return [
               name,
@@ -298,24 +391,40 @@ class ReportPdfService {
     return record;
   }
 
-  // ─── Helpers PDF ──────────────────────────────────────────────────────────
-
   pw.Widget _buildHeader(String subtitle, String detail, String date) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(color: _brand, borderRadius: pw.BorderRadius.circular(12)),
-      child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+      decoration: pw.BoxDecoration(
+          color: _brand, borderRadius: pw.BorderRadius.circular(12)),
+      child: pw
+          .Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Text('SIERCP', style: pw.TextStyle(color: PdfColors.white, fontSize: 22, fontWeight: pw.FontWeight.bold)),
+          pw.Text('SIERCP',
+              style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),
-          pw.Text(subtitle, style: pw.TextStyle(color: PdfColor.fromHex('CCCCFF'), fontSize: 12)),
+          pw.Text(subtitle,
+              style: pw.TextStyle(
+                  color: PdfColor.fromHex('CCCCFF'), fontSize: 12)),
           pw.SizedBox(height: 2),
-          pw.Text(detail, style: pw.TextStyle(color: PdfColors.white, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+          pw.Text(detail,
+              style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold)),
         ]),
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-          pw.Text('Generado: $date', style: pw.TextStyle(color: PdfColor.fromHex('CCCCFF'), fontSize: 9)),
+          pw.Text('Generado: $date',
+              style:
+                  pw.TextStyle(color: PdfColor.fromHex('CCCCFF'), fontSize: 9)),
           pw.SizedBox(height: 4),
-          pw.Text('AHA Guidelines 2025', style: pw.TextStyle(color: PdfColors.white, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          pw.Text('AHA Guidelines 2025',
+              style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold)),
         ]),
       ]),
     );
@@ -326,19 +435,32 @@ class ReportPdfService {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 6),
       padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: pw.BoxDecoration(border: pw.Border.all(color: _greyBorder), borderRadius: pw.BorderRadius.circular(8)),
+      decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: _greyBorder),
+          borderRadius: pw.BorderRadius.circular(8)),
       child: pw.Row(children: [
-        pw.Text(ok ? '✓' : '✗', style: pw.TextStyle(color: color, fontSize: 14)),
+        pw.Text(ok ? '✓' : '✗',
+            style: pw.TextStyle(color: color, fontSize: 14)),
         pw.SizedBox(width: 10),
-        pw.Expanded(child: pw.Text(label, style: pw.TextStyle(color: _textDark, fontSize: 11, fontWeight: pw.FontWeight.bold))),
-        pw.Text(value, style: pw.TextStyle(color: color, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+        pw.Expanded(
+            child: pw.Text(label,
+                style: pw.TextStyle(
+                    color: _textDark,
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold))),
+        pw.Text(value,
+            style: pw.TextStyle(
+                color: color, fontSize: 13, fontWeight: pw.FontWeight.bold)),
       ]),
     );
   }
 
   pw.Widget _buildStatCol(String label, String value) {
-    return pw.Expanded(child: pw.Column(children: [
-      pw.Text(value, style: pw.TextStyle(color: _textDark, fontSize: 16, fontWeight: pw.FontWeight.bold)),
+    return pw.Expanded(
+        child: pw.Column(children: [
+      pw.Text(value,
+          style: pw.TextStyle(
+              color: _textDark, fontSize: 16, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 2),
       pw.Text(label, style: pw.TextStyle(color: _textMid, fontSize: 9)),
     ]));

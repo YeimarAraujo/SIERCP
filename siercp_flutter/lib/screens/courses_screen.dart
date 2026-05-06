@@ -1158,6 +1158,12 @@ class _CourseCard extends ConsumerWidget {
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
 
+    final currentUser = ref.watch(currentUserProvider);
+    final isOwner = course.instructorId == currentUser?.id;
+    final isAdmin = currentUser?.isAdmin ?? false;
+    final canDelete = isAdmin || isOwner;
+    final canEdit = isOwner;
+
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     final allSessions = sessionsAsync.value ?? [];
     final courseSessions = allSessions
@@ -1235,40 +1241,81 @@ class _CourseCard extends ConsumerWidget {
                     ),
                     // ── Invite code + tap para mostrar QR ───────────────────
                     if (course.inviteCode != null && canManage)
-                      GestureDetector(
-                        onTap: () => CourseQrDialog.show(
-                          context,
-                          inviteCode: course.inviteCode!,
-                          courseTitle: course.title,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.brand.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: AppColors.brand.withValues(alpha: 0.25),
-                                width: 0.5),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.qr_code_rounded,
-                                  size: 10, color: AppColors.accent),
-                              const SizedBox(width: 4),
-                              Text(
-                                course.inviteCode!,
-                                style: const TextStyle(
-                                  color: AppColors.accent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  fontFamily: 'SpaceMono',
-                                ),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => CourseQrDialog.show(
+                              context,
+                              inviteCode: course.inviteCode!,
+                              courseTitle: course.title,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color:
+                                        AppColors.brand.withValues(alpha: 0.25),
+                                    width: 0.5),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.qr_code_rounded,
+                                      size: 10, color: AppColors.accent),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    course.inviteCode!,
+                                    style: const TextStyle(
+                                      color: AppColors.accent,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'SpaceMono',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                          if (canDelete)
+                            PopupMenuButton<String>(
+                              icon: Icon(Icons.more_vert, size: 18, color: textS),
+                              padding: EdgeInsets.zero,
+                              onSelected: (val) {
+                                if (val == 'delete') {
+                                  _handleDelete(context, ref);
+                                } else if (val == 'edit') {
+                                  _handleEdit(context, ref);
+                                }
+                              },
+                              itemBuilder: (ctx) => [
+                                if (canEdit)
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit_outlined, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Modificar', style: TextStyle(fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                if (canDelete)
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.red),
+                                        const SizedBox(width: 8),
+                                        Text('Eliminar', style: TextStyle(fontSize: 13, color: AppColors.red)),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
                       ),
                   ],
                 ),
@@ -1385,9 +1432,11 @@ class _CourseCard extends ConsumerWidget {
       ),
     );
 
-    if (!canManage) {
-      return GestureDetector(
-        onTap: () {
+    return GestureDetector(
+      onTap: () {
+        if (canManage) {
+          context.push('/courses/${course.id}');
+        } else {
           final user = ref.read(currentUserProvider);
           context.push(
             '/student/course-detail',
@@ -1398,12 +1447,68 @@ class _CourseCard extends ConsumerWidget {
               'instructorName': course.instructorName,
             },
           );
-        },
-        child: card,
-      );
-    }
+        }
+      },
+      child: card,
+    );
+  }
 
-    return card;
+  Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar curso?'),
+        content: Text('Esta acción desactivará el curso "${course.title}". Los alumnos no podrán acceder.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(sessionServiceProvider).deleteCourse(course.id);
+      ref.invalidate(coursesProvider);
+    }
+  }
+
+  Future<void> _handleEdit(BuildContext context, WidgetRef ref) async {
+    final nameCtrl = TextEditingController(text: course.title);
+    final descCtrl = TextEditingController(text: course.description);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modificar curso'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
+            const SizedBox(height: 12),
+            TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descripción')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true) {
+      await ref.read(sessionServiceProvider).updateCourse(course.id, {
+        'title': nameCtrl.text.trim(),
+        'description': descCtrl.text.trim(),
+      });
+      ref.invalidate(coursesProvider);
+    }
   }
 
   Future<void> _exportStudentGrades(
