@@ -12,7 +12,6 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
   flutter_secure_storage: ^9.2.2 
-  image_picker: ^1.1.2
 
   # ── Navegación ──────────────────────────────────────────────────────────
   go_router: ^14.6.2

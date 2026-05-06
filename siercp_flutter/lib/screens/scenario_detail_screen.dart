@@ -51,10 +51,304 @@ class ScenarioDetailData {
 }
 
 const Map<String, ScenarioDetailData> kScenarios = {
+  // ── 1. Paro cardíaco ──────────────────────────────────────────────────────
+  'paroCardiaco': ScenarioDetailData(
+    id: 'paroCardiaco',
+    titulo: 'Paro cardíaco en casa',
+    subtitulo: 'RCP estándar · Guías AHA 2020',
+    nombrePaciente: 'Roberto Suárez',
+    edadDescripcion: '52 años',
+    pesoKg: 82,
+    descripcionClinica:
+        'Hombre de 52 años, 82 kg. Familiar lo encuentra inconsciente en el suelo '
+        'de la sala. Sin respuesta, sin pulso, sin respiración. '
+        'Sin antecedentes cardíacos conocidos.',
+    situacion: 'Estás en el domicilio. El servicio de emergencias fue alertado '
+        '(ETA 7 minutos). Inicia RCP de inmediato con dos manos sobre el esternón. '
+        'Mantén el ritmo 100-120 ppm y profundidad 5-6 cm sin interrupciones.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica: 'Dos manos sobre el esternón',
+    // ✅ Sin cambios — parámetros conformes AHA 2020
+    color: AppColors.red,
+    icono: Icons.monitor_heart_outlined,
+    audioFile: 'audio/caso_paroCardiaco.mp3',
+  ),
+
+  // ── 2. Accidente de tránsito ──────────────────────────────────────────────
+  // ⚠️ CAMBIO: apertura de vía aérea con jaw-thrust (tracción mandibular),
+  //    NO con inclinación cabeza-mentón (head-tilt) cuando hay sospecha
+  //    de lesión cervical. AHA 2020 Part 9 / Trauma BLS.
+  'accidenteTransito': ScenarioDetailData(
+    id: 'accidenteTransito',
+    titulo: 'Accidente de tránsito',
+    subtitulo: 'Trauma múltiple · Protección cervical + jaw-thrust',
+    nombrePaciente: 'Diana Morales',
+    edadDescripcion: '35 años',
+    pesoKg: 62,
+    descripcionClinica:
+        'Mujer de 35 años, 62 kg. Encontrada en la vía tras colisión vehicular. '
+        'Sin respuesta verbal ni motora. Respiración ausente. '
+        'Posible trauma cervical — NO inclinar cabeza hacia atrás.',
+    situacion:
+        'Asegura la escena antes de actuar. Mantén la columna en posición neutra. '
+        'Abre la vía aérea con TRACCIÓN MANDIBULAR (jaw-thrust): coloca los pulgares '
+        'en los pómulos y los dedos índices bajo el ángulo de la mandíbula; empuja '
+        'la mandíbula hacia adelante SIN mover el cuello. '
+        'Inicia RCP 30:2 con dos manos. ETA ambulancia: 10 min.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica:
+        'Dos manos · Jaw-thrust (tracción mandibular) · Sin movilizar cuello',
+    color: AppColors.amber,
+    icono: Icons.directions_car_outlined,
+    audioFile: 'audio/caso_accidenteTransito.mp3',
+  ),
+
+  // ── 3. Ahogamiento ────────────────────────────────────────────────────────
+  // ⚠️ CAMBIO IMPORTANTE:
+  //   • Paro por ahogamiento es de causa RESPIRATORIA → ventilación es PRIORITARIA.
+  //   • Si hay pulso (como en este caso): SOLO ventilaciones de rescate
+  //     (1 cada 5-6 seg = 10-12 rpm) SIN compresiones hasta que el pulso desaparezca.
+  //   • Si no hay pulso: 5 ventilaciones iniciales → luego ciclos 30:2.
+  //   • Los parámetros de compresión solo aplican cuando se confirma paro completo.
+  //   AHA 2020 Part 5 + AHA Update 2024 Drowning.
+  'ahogamiento': ScenarioDetailData(
+    id: 'ahogamiento',
+    titulo: 'Ahogamiento en piscina',
+    subtitulo: 'Ventilaciones PRIMERO · Solo compresiones si hay paro completo',
+    nombrePaciente: 'Andrés Pinto',
+    edadDescripcion: '28 años',
+    pesoKg: 74,
+    descripcionClinica:
+        'Hombre de 28 años, 74 kg. Rescatado del fondo de una piscina residencial. '
+        'Sin respiración espontánea. PULSO CAROTÍDEO DÉBIL Y LENTO presente. '
+        'El paro es de causa respiratoria, no cardíaca primaria.',
+    situacion: '⚠️ HAY PULSO: NO inicies compresiones todavía.\n'
+        'FASE 1 — SOLO VENTILACIONES (mientras haya pulso):\n'
+        '  • Abre vía aérea con inclinación cabeza-mentón.\n'
+        '  • Da 1 ventilación cada 5-6 segundos (10-12 rpm).\n'
+        '  • Verifica pulso cada 2 minutos.\n\n'
+        'FASE 2 — RCP COMPLETA (solo si el pulso desaparece):\n'
+        '  • Da 5 ventilaciones de rescate iniciales.\n'
+        '  • Luego ciclos 30:2 a 100-120 ppm, 5-6 cm de profundidad.\n\n'
+        'ETA: 9 minutos.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica:
+        'Solo ventilaciones si hay pulso · 5 iniciales + 30:2 si paro completo',
+    color: AppColors.cyan,
+    icono: Icons.water_outlined,
+    audioFile: 'audio/caso_ahogamiento.mp3',
+  ),
+
+  // ── 4. Colapso durante ejercicio ──────────────────────────────────────────
+  // ✅ Parámetros correctos. Se agrega nota de urgencia del DEA.
+  // AHA 2020: cada minuto sin desfibrilación reduce supervivencia ~10%.
+  'colapsoEjercicio': ScenarioDetailData(
+    id: 'colapsoEjercicio',
+    titulo: 'Colapso durante ejercicio',
+    subtitulo: 'Fibrilación ventricular · DEA URGENTE (−10% supervivencia/min)',
+    nombrePaciente: 'Julián Torres',
+    edadDescripcion: '28 años',
+    pesoKg: 78,
+    descripcionClinica:
+        'Atleta de 28 años, 78 kg. Colapso súbito mientras entrenaba en el gimnasio. '
+        'Sin pulso ni respiración. Alta probabilidad de fibrilación ventricular. '
+        '⚡ Cada minuto sin descarga reduce la supervivencia un 10%.',
+    situacion: 'PASO 1 → Inicia RCP de inmediato (100-120 ppm, 5-6 cm, 30:2).\n'
+        'PASO 2 → Envía a alguien por el DEA SIN interrumpir RCP.\n'
+        'PASO 3 → En cuanto llegue el DEA: encuéndelo, coloca electrodos y '
+        'sigue sus instrucciones. Minimiza la pausa pre-descarga a < 5 seg.\n'
+        'PASO 4 → Reanuda RCP inmediatamente tras la descarga sin verificar pulso.\n'
+        'ETA emergencias: según contexto.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica:
+        'RCP inmediata + DEA lo antes posible · Pausa pre-descarga < 5 seg',
+    color: AppColors.brand,
+    icono: Icons.fitness_center_outlined,
+    audioFile: 'audio/caso_colapsoEjercicio.mp3',
+  ),
+
+  // ── 5. Atragantamiento ────────────────────────────────────────────────────
+  // ⚠️ CAMBIO CRÍTICO — AHA 2025 CPR/ECC Update:
+  //   Nuevo protocolo OVACE adulto consciente:
+  //   5 golpes en la espalda (interescapulares) + 5 empujes abdominales (Heimlich),
+  //   alternando ciclos hasta expulsar objeto o pérdida de conocimiento.
+  //   Antes (AHA 2020): solo empujes abdominales.
+  //   Referencia: AHA 2025 Highlights CPR & ECC — FBAO Adult.
+  'atragantamiento': ScenarioDetailData(
+    id: 'atragantamiento',
+    titulo: 'Atragantamiento severo',
+    subtitulo: 'OVACE · 5 golpes espalda + 5 Heimlich (AHA 2025) → RCP',
+    nombrePaciente: 'Carmen Vega',
+    edadDescripcion: '48 años',
+    pesoKg: 65,
+    descripcionClinica:
+        'Mujer de 48 años, 65 kg. Obstrucción completa de vía aérea durante '
+        'una cena familiar. Intentos de toser inefectivos. Pierde el conocimiento.',
+    situacion: 'MIENTRAS ESTÉ CONSCIENTE (AHA 2025):\n'
+        '  1. Párate detrás de la víctima, inclínala hacia adelante.\n'
+        '  2. Da 5 GOLPES FIRMES EN LA ESPALDA (entre los omóplatos) '
+        'con el talón de la mano.\n'
+        '  3. Luego 5 EMPUJES ABDOMINALES (maniobra de Heimlich): '
+        'un puño sobre el ombligo, la otra mano encima, empuja hacia adentro y arriba.\n'
+        '  4. Alterna ciclos de 5 golpes + 5 empujes hasta expulsar el objeto.\n\n'
+        'SI PIERDE EL CONOCIMIENTO:\n'
+        '  • Recuesta a la víctima en el suelo con cuidado.\n'
+        '  • Inicia RCP 30:2 a 100-120 ppm.\n'
+        '  • Antes de cada ventilación: INSPECCIONA la boca y retira el objeto '
+        'solo si lo ves claramente (NO hacer barrido ciego).',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica: '5 golpes espalda + 5 Heimlich (AHA 2025) → RCP si inconsciente',
+    color: AppColors.amber,
+    icono: Icons.medical_services_outlined,
+    audioFile: 'audio/caso_atragantamiento.mp3',
+  ),
+
+  // ── 6. Descarga eléctrica ─────────────────────────────────────────────────
+  // ✅ Parámetros correctos. Se agrega advertencia de arritmias tardías y DEA.
+  // AHA 2020: electrocución puede causar FV tardía — tener DEA listo.
+  'descargaElectrica': ScenarioDetailData(
+    id: 'descargaElectrica',
+    titulo: 'Descarga eléctrica',
+    subtitulo: 'Seguridad de escena · RCP + DEA · Riesgo de arritmia tardía',
+    nombrePaciente: 'Miguel Herrera',
+    edadDescripcion: '38 años',
+    pesoKg: 80,
+    descripcionClinica:
+        'Hombre de 38 años, 80 kg. Electrocutado en accidente laboral. '
+        'Sin pulso ni respiración. Posibles quemaduras internas. '
+        'La fuente eléctrica ya fue desconectada. '
+        '⚡ Alto riesgo de fibrilación ventricular tardía — tener DEA disponible.',
+    situacion:
+        'PASO 1 → Confirma que la fuente eléctrica está APAGADA antes de tocar '
+        'a la víctima (riesgo de electrocución al rescatador).\n'
+        'PASO 2 → Inicia RCP de inmediato: dos manos, 100-120 ppm, 5-6 cm, 30:2.\n'
+        'PASO 3 → Solicita un DEA: las víctimas de electrocución tienen alto riesgo '
+        'de fibrilación ventricular diferida incluso si inicialmente responden.\n'
+        'PASO 4 → Aplica el DEA tan pronto esté disponible y sigue sus instrucciones.\n'
+        'ETA: 6 minutos.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica:
+        'Dos manos · Verificar escena · Solicitar DEA por riesgo de FV tardía',
+    color: const Color(0xFFFFC107),
+    icono: Icons.bolt_outlined,
+    audioFile: 'audio/caso_descargaElectrica.mp3',
+  ),
+
+  // ── 7. Sobredosis por opioides ────────────────────────────────────────────
+  // ⚠️ CAMBIO: este escenario tiene PULSO Y RESPIRACIÓN MUY LENTA.
+  //   → Prioridad: NALOXONA + ventilaciones de soporte, NO compresiones.
+  //   → Los parámetros de compresión solo aplican si evoluciona a PARO COMPLETO.
+  //   AHA 2020 Part 10.3 + AHA 2023 Opioid Update.
+  'sobredosis': ScenarioDetailData(
+    id: 'sobredosis',
+    titulo: 'Sobredosis por opioides',
+    subtitulo: 'Naloxona PRIMERO · RCP solo si hay paro cardíaco completo',
+    nombrePaciente: 'Laura Cifuentes',
+    edadDescripcion: '32 años',
+    pesoKg: 58,
+    descripcionClinica:
+        'Mujer de 32 años, 58 kg. Encontrada inconsciente con respiración muy lenta '
+        '(2 rpm). Pupilas mióticas. Sospecha de sobredosis por opioides. '
+        'TIENE PULSO — no está en paro cardíaco aún.',
+    situacion:
+        '⚠️ TIENE PULSO Y RESPIRA (muy lento) → NO inicies compresiones.\n\n'
+        'FASE 1 — SOPORTE RESPIRATORIO + NALOXONA:\n'
+        '  • Administra NALOXONA de inmediato si está disponible '
+        '(intranasal 4 mg o IM 0.4 mg). Puede repetirse cada 2-3 min.\n'
+        '  • Abre vía aérea y da ventilaciones de soporte: '
+        '1 ventilación cada 5-6 segundos (10-12 rpm).\n'
+        '  • Monitorea pulso y respiración continuamente.\n\n'
+        'FASE 2 — Solo si evoluciona a PARO CARDÍACO COMPLETO (sin pulso):\n'
+        '  • La naloxona NO debe retrasar ni interrumpir la RCP.\n'
+        '  • Inicia RCP: 100-120 ppm, 5-6 cm, 30:2.\n'
+        '  • RCP + DEA tienen PRIORIDAD ABSOLUTA sobre naloxona en paro cardíaco.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica:
+        'Naloxona + ventilaciones (si hay pulso) · RCP solo si paro completo',
+    color: AppColors.accent,
+    icono: Icons.medication_outlined,
+    audioFile: 'audio/caso_sobredosis.mp3',
+  ),
+
+  // ── 8. Infarto que evoluciona a paro ──────────────────────────────────────
+  // ✅ Sin cambios — parámetros conformes AHA 2020.
+  'infarto': ScenarioDetailData(
+    id: 'infarto',
+    titulo: 'Infarto que evoluciona a paro',
+    subtitulo: 'Dolor torácico → Paro cardíaco súbito',
+    nombrePaciente: 'Ernesto Campos',
+    edadDescripcion: '60 años',
+    pesoKg: 88,
+    descripcionClinica:
+        'Hombre de 60 años, 88 kg. Refería dolor torácico opresivo hace 20 minutos. '
+        'Súbitamente pierde el conocimiento, sin pulso ni respiración. '
+        'Antecedente de hipertensión arterial.',
+    situacion:
+        'El paciente estaba consciente y ahora evoluciona a paro presenciado. '
+        'Inicia RCP DE INMEDIATO — no esperes confirmación de ritmo. '
+        'Alerta al sistema de emergencias si no lo has hecho. '
+        'Solicita un DEA: los paros por infarto pueden presentar FV tratable.',
+    profMinMm: 50,
+    profMaxMm: 60,
+    fuerzaMinKg: 30,
+    fuerzaMaxKg: 60,
+    frecMinPpm: 100,
+    frecMaxPpm: 120,
+    relacionVentilacion: '30:2',
+    tecnica: 'Dos manos sobre el esternón · Solicitar DEA',
+    // ✅ Sin cambios en parámetros — descripción mejorada
+    color: AppColors.red,
+    icono: Icons.monitor_heart_outlined,
+    audioFile: 'audio/caso_infarto.mp3',
+  ),
+
+  // ── Alias legado ───────────────────────────────────────────────────────────
   'adulto': ScenarioDetailData(
     id: 'adulto',
     titulo: 'Adulto',
-    subtitulo: 'RCP estándar según guías AHA 2020',
+    subtitulo: 'RCP estándar · Guías AHA 2020',
     nombrePaciente: 'Carlos Mendoza',
     edadDescripcion: '45 años',
     pesoKg: 78,
@@ -72,59 +366,10 @@ const Map<String, ScenarioDetailData> kScenarios = {
     frecMaxPpm: 120,
     relacionVentilacion: '30:2',
     tecnica: 'Dos manos sobre el esternón',
+    // ✅ Sin cambios
     color: AppColors.red,
     icono: Icons.monitor_heart_outlined,
     audioFile: 'audio/caso_adulto.mp3',
-  ),
-  'nino': ScenarioDetailData(
-      id: 'nino',
-      titulo: 'Niño (1–8 años)',
-      subtitulo: 'RCP pediátrico según guías AHA 2020',
-      nombrePaciente: 'Sofía Ramírez',
-      edadDescripcion: '5 años',
-      pesoKg: 18,
-      descripcionClinica:
-          'Niña de 5 años, 18 kg. Encontrada inconsciente en el fondo '
-          'de una piscina residencial. Fue rescatada del agua hace '
-          '2 minutos. No respira. Pulso carotídeo débil.',
-      situacion: 'Eres el primer respondiente. El área está asegurada. '
-          'Aplica el protocolo pediátrico. Recuerda: una sola mano '
-          'o dos dedos según el tamaño del niño.',
-      profMinMm: 45,
-      profMaxMm: 55,
-      fuerzaMinKg: 15,
-      fuerzaMaxKg: 30,
-      frecMinPpm: 100,
-      frecMaxPpm: 120,
-      relacionVentilacion: '30:2',
-      tecnica: 'Una mano o dos dedos',
-      color: AppColors.accent,
-      icono: Icons.child_care_outlined,
-      audioFile: 'audio/caso_niño.mp3'),
-  'lactante': ScenarioDetailData(
-    id: 'lactante',
-    titulo: 'Lactante (<1 año)',
-    subtitulo: 'RCP pediátrico para lactantes menores de 1 año',
-    nombrePaciente: 'Mateo García',
-    edadDescripcion: '6 meses',
-    pesoKg: 7.5,
-    descripcionClinica: 'Lactante de 6 meses, 7.5 kg. La madre lo encontró sin '
-        'respuesta en su cuna luego de una siesta. No respira. '
-        'No tiene pulso braquial. Sin trauma ni fiebre reportada.',
-    situacion: 'Estás en el hogar del paciente. Utiliza la técnica de '
-        'dos dedos (índice y medio) sobre el esternón. '
-        'El servicio de emergencias fue alertado.',
-    profMinMm: 35,
-    profMaxMm: 40,
-    fuerzaMinKg: 5,
-    fuerzaMaxKg: 15,
-    frecMinPpm: 100,
-    frecMaxPpm: 120,
-    relacionVentilacion: '30:2',
-    tecnica: 'Dos dedos (índice y medio)',
-    color: Color(0xFFFF6B9D),
-    icono: Icons.baby_changing_station_outlined,
-    audioFile: 'audio/caso_lactante.mp3',
   ),
 };
 
@@ -661,9 +906,37 @@ class _BottomAction extends StatefulWidget {
 }
 
 class _BottomActionState extends State<_BottomAction> {
-  final AudioPlayer _player = AudioPlayer();
+  late final AudioPlayer _player;
   bool _isPlaying = false;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+
+    _player.setAudioContext(
+      AudioContext(
+        android: const AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: false,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+        ),
+      ),
+    );
+    _player.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+        _isLoading = false;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -674,27 +947,21 @@ class _BottomActionState extends State<_BottomAction> {
   Future<void> _toggleAudio() async {
     if (_isPlaying) {
       await _player.stop();
-      if (mounted) setState(() => _isPlaying = false);
       return;
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
+
     try {
+      // ✅ Bug 3 — el estado lo maneja onPlayerStateChanged automáticamente
       await _player.play(AssetSource(widget.scenario.audioFile));
-      if (mounted) {
-        setState(() {
-          _isPlaying = true;
-          _isLoading = false;
-        });
-      }
-      _player.onPlayerComplete.listen((_) {
-        if (mounted) setState(() => _isPlaying = false);
-      });
     } catch (e) {
+      debugPrint('❌ Audio error: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo reproducir el audio')),
+          SnackBar(content: Text('No se pudo reproducir el audio: $e')),
         );
       }
     }

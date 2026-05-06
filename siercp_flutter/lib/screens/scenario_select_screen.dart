@@ -382,7 +382,7 @@ class _ScenarioCardRaw extends StatelessWidget {
                   backgroundColor: theme.colorScheme.inverseSurface,
                 ),
               )
-          : () => context.go('/session?scenario=$id'),
+          : () => context.go('/scenario-detail/$id'),
       child: Opacity(
         opacity: locked ? 0.45 : 1.0,
         child: Container(

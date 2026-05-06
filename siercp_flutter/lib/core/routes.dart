@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:siercp/screens/scenario_detail_screen.dart';
 import '../providers/auth_provider.dart';
 import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
@@ -44,7 +45,7 @@ final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(authStateProvider.notifier);
-  
+
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
@@ -66,7 +67,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final isPublic = location == '/login' || location == '/register';
-      
+
       if (!isAuth) {
         return isPublic ? null : '/login';
       }
@@ -101,14 +102,28 @@ final routerProvider = Provider<GoRouter>((ref) {
               sessionId: state.pathParameters['id']!,
             ),
           ),
+          GoRoute(
+            path: '/scenario-detail/:id',
+            builder: (context, state) => ScenarioDetailScreen(
+              scenarioId: state.pathParameters['id']!,
+            ),
+          ),
 
           GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
           GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
-          GoRoute(path: '/scenarios', builder: (_, __) => const ScenarioSelectScreen()),
+          GoRoute(
+              path: '/scenarios',
+              builder: (_, __) => const ScenarioSelectScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
-          GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsDashboardScreen()),
-          GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+          GoRoute(
+              path: '/profile/edit',
+              builder: (_, __) => const EditProfileScreen()),
+          GoRoute(
+              path: '/analytics',
+              builder: (_, __) => const AnalyticsDashboardScreen()),
+          GoRoute(
+              path: '/notifications',
+              builder: (_, __) => const NotificationsScreen()),
           GoRoute(
             path: '/instructor/students',
             builder: (_, __) => const InstructorStudentsScreen(),
@@ -137,7 +152,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               courseId: state.pathParameters['id']!,
             ),
           ),
-          
+
           // Alias legacy para compatibilidad
           GoRoute(
             path: '/course-detail/:courseId',
@@ -268,7 +283,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
 
           // ── Admin routes ──────────────────────────────────────────────────
-          GoRoute(path: '/admin/users', builder: (_, __) => const ManageUsersScreen()),
+          GoRoute(
+              path: '/admin/users',
+              builder: (_, __) => const ManageUsersScreen()),
           GoRoute(
             path: '/admin/users/:id',
             builder: (_, state) => UserDetailScreen(
