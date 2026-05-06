@@ -16,6 +16,7 @@ import 'package:siercp/features/guides/presentation/pages/guide_pdf_viewer_scree
 import 'package:siercp/features/guides/presentation/pages/add_guide_screen.dart';
 import 'package:siercp/features/users/presentation/pages/profile_screen.dart';
 import 'package:siercp/features/scenarios/presentation/pages/scenario_select_screen.dart';
+import 'package:siercp/features/scenarios/presentation/pages/scenario_detail_screen.dart';
 import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
 import 'package:siercp/features/users/presentation/pages/manage_users_screen.dart';
@@ -43,8 +44,6 @@ final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authStateProvider.notifier);
-
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
@@ -99,6 +98,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/session-result/:id',
             builder: (_, state) => SessionResultScreen(
               sessionId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/scenario-detail/:id',
+            builder: (context, state) => ScenarioDetailScreen(
+              scenarioId: state.pathParameters['id']!,
             ),
           ),
 
