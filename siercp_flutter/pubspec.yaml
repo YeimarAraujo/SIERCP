@@ -73,6 +73,7 @@ dependencies:
   # ── Para abrir archivos guardados / Capturas ──────────────────────────────
   open_filex: ^4.5.0
   screenshot: ^3.0.0
+  sqflite_common_ffi_web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
