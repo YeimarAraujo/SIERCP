@@ -5,12 +5,11 @@ import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/session/data/models/session.dart';
-import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/core/widgets/metric_card.dart';
 import 'package:siercp/features/devices/presentation/providers/device_provider.dart';
 import 'package:siercp/features/notifications/presentation/providers/notification_provider.dart';
-import 'package:siercp/features/session/presentation/providers/ble_session_provider.dart';
 import 'package:siercp/features/devices/data/ble_service.dart';
+import 'package:siercp/core/providers/connectivity_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -30,7 +29,11 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
+        child: Column(
+          children: [
+            const _ConnectivityBanner(),
+            Expanded(
+              child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(recentAlertsProvider);
             ref.invalidate(coursesProvider);
@@ -196,12 +199,15 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
             ),
           ),
-    );
+        ],
+      ),
+    ),
+  );
   }
 }
 
@@ -1074,6 +1080,38 @@ class _StudentDashboard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _NotEnrolledCard(),
               ),
+      ),
+    );
+  }
+}
+
+class _ConnectivityBanner extends ConsumerWidget {
+  const _ConnectivityBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOnline = ref.watch(isOnlineProvider);
+    if (isOnline) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      color: Colors.orange.withValues(alpha: 0.9),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
+          SizedBox(width: 8),
+          Text(
+            'SIN CONEXIÓN A INTERNET',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
       ),
     );
   }

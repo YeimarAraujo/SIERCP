@@ -9,6 +9,7 @@ import 'package:siercp/core/widgets/compression_wave.dart';
 import 'package:siercp/core/widgets/depth_gauge.dart';
 import 'package:siercp/core/widgets/rate_gauge.dart';
 import 'package:siercp/features/devices/data/ble_service.dart';
+import 'package:siercp/core/providers/connectivity_provider.dart';
 
 class SessionScreen extends ConsumerStatefulWidget {
   final String? scenarioId;
@@ -21,6 +22,7 @@ class SessionScreen extends ConsumerStatefulWidget {
 
 class _SessionScreenState extends ConsumerState<SessionScreen> {
   bool _starting = true;
+  bool _sessionInitiated = false;
   int _countdown = 4;
   bool _isCountdownActive = false;
   String? _error;
@@ -32,6 +34,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }
 
   Future<void> _startSession() async {
+    if (_sessionInitiated) return;
+    _sessionInitiated = true;
+    
     try {
       // 1. Preparar el servicio de audio
       final audioService = ref.read(audioServiceProvider);
@@ -103,22 +108,44 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final sessionId = ref.read(bleActiveSessionProvider).session?.id;
 
     try {
-      final session = await ref
+      final result = await ref
           .read(bleActiveSessionProvider.notifier)
           .endSession()
           .timeout(const Duration(seconds: 15));
       
-      await ref.read(bleServiceProvider).resetHardwareCounters();
+      final session = result.session;
+      final synced = result.synced;
 
-      if (mounted) context.go('/session-result/${session.id}');
+      if (mounted) {
+        if (!synced) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sesión guardada localmente. Se sincronizará automáticamente al recuperar internet.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          // Pequeño delay para que el usuario alcance a ver que se disparó el snackbar antes de cambiar de pantalla
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
+        if (mounted) context.go('/session-result/${session.id}');
+      }
     } catch (e) {
       if (mounted) {
+        // Si hay error (como timeout), informamos que se guardó localmente por seguridad
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Guardado localmente (sin sincronización inmediata).'),
+            backgroundColor: Colors.orange,
+          ),
+        );
         if (sessionId != null) {
-          context.go('/session-result/$sessionId');
+          await Future.delayed(const Duration(milliseconds: 800));
+          if (mounted) context.go('/session-result/$sessionId');
         } else {
           setState(() {
             _starting = false;
-            _error = 'Error al guardar la sesión: $e';
+            _error = 'Error al finalizar la sesión: $e';
           });
         }
       }
@@ -256,6 +283,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              // --- CONNECTIVITY BANNER ---
+              const _ConnectivityBanner(),
+
               // --- TOP CLINICAL HEADER ---
               _buildModernHeader(session, live, elapsedStr, scoreColor),
 
@@ -611,6 +641,38 @@ class _MetricPill extends StatelessWidget {
           Text(value,
               style: GoogleFonts.spaceMono(
                   color: color, fontSize: 16, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConnectivityBanner extends ConsumerWidget {
+  const _ConnectivityBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOnline = ref.watch(isOnlineProvider);
+    if (isOnline) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      color: Colors.orange.withValues(alpha: 0.9),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
+          SizedBox(width: 8),
+          Text(
+            'MODO OFFLINE: SIN CONEXIÓN A INTERNET',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
         ],
       ),
     );

@@ -40,7 +40,8 @@ class FirestoreService {
       return UserModel.fromFirestore(doc);
     } catch (e) {
       debugPrint('Error obteniendo usuario (usando caché): $e');
-      final doc = await _users.doc(uid).get(const GetOptions(source: Source.cache));
+      final doc =
+          await _users.doc(uid).get(const GetOptions(source: Source.cache));
       if (doc.exists) return UserModel.fromFirestore(doc);
       return null;
     }
@@ -163,7 +164,9 @@ class FirestoreService {
 
   Future<List<Map<String, dynamic>>> getAllInstitutions() async {
     final snap = await _institutions.where('status', isEqualTo: 'active').get();
-    return snap.docs.map((d) => {'id': d.id, ...d.data() as Map<String, dynamic>}).toList();
+    return snap.docs
+        .map((d) => {'id': d.id, ...d.data() as Map<String, dynamic>})
+        .toList();
   }
 
   Future<void> createMembership({
@@ -189,17 +192,20 @@ class FirestoreService {
         .where('userId', isEqualTo: userId)
         .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => d.data() as Map<String, dynamic>).toList());
+        .map((snap) =>
+            snap.docs.map((d) => d.data() as Map<String, dynamic>).toList());
   }
 
-  Future<List<Map<String, dynamic>>> getInstitutionMemberships(String institutionId) async {
+  Future<List<Map<String, dynamic>>> getInstitutionMemberships(
+      String institutionId) async {
     final snap = await _memberships
         .where('institutionId', isEqualTo: institutionId)
         .get();
     return snap.docs.map((d) => d.data() as Map<String, dynamic>).toList();
   }
 
-  Future<void> updateMembershipStatus(String membershipId, String status, String adminId) async {
+  Future<void> updateMembershipStatus(
+      String membershipId, String status, String adminId) async {
     await _memberships.doc(membershipId).update({
       'status': status,
       'approvedBy': adminId,
@@ -226,14 +232,19 @@ class FirestoreService {
 
   Future<void> markAllNotificationsAsRead(String userId) async {
     final batch = _db.batch();
-    final snap = await _notifications.where('userId', isEqualTo: userId).where('isRead', isEqualTo: false).get();
+    final snap = await _notifications
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .get();
     for (var doc in snap.docs) {
       batch.update(doc.reference, {'isRead': true});
     }
     await batch.commit();
   }
 
-  // --- Attendance ---
+  // --- Sessions ---
+
+  String getNewSessionId() => _sessions.doc().id;
 
   Future<void> markAttendance({
     required String courseId,
@@ -242,7 +253,8 @@ class FirestoreService {
     required bool attended,
     required DateTime date,
   }) async {
-    final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final dateStr =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     final ref = _courses
         .doc(courseId)
         .collection('attendance')
@@ -258,8 +270,10 @@ class FirestoreService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> watchAttendance(String courseId, DateTime date) {
-    final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  Stream<List<Map<String, dynamic>>> watchAttendance(
+      String courseId, DateTime date) {
+    final dateStr =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     return _courses
         .doc(courseId)
         .collection('attendance')
@@ -269,16 +283,19 @@ class FirestoreService {
         .map((snap) => snap.docs.map((d) => d.data()).toList());
   }
 
-  Stream<List<Map<String, dynamic>>> watchCourseAttendanceHistory(String courseId) {
+  Stream<List<Map<String, dynamic>>> watchCourseAttendanceHistory(
+      String courseId) {
     return _courses
         .doc(courseId)
         .collection('attendance')
         .orderBy(FieldPath.documentId, descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => {'date': d.id, ...d.data()}).toList());
+        .map((snap) =>
+            snap.docs.map((d) => {'date': d.id, ...d.data()}).toList());
   }
 
   Future<String> createSession({
+    String? id,
     required String studentId,
     required String studentName,
     required String scenarioId,
@@ -287,7 +304,7 @@ class FirestoreService {
     String? courseId,
     String? manikinId,
   }) async {
-    final ref = _sessions.doc();
+    final ref = id != null ? _sessions.doc(id) : _sessions.doc();
     await ref.set({
       'id': ref.id,
       'studentId': studentId,
@@ -313,13 +330,15 @@ class FirestoreService {
     SessionMetrics metrics,
     int durationSeconds,
   ) async {
-    await _sessions.doc(sessionId).update({
+    // Usamos set con merge: true para que si la sesión se creó offline
+    // y el documento aún no existe en el servidor, se cree con los datos básicos.
+    await _sessions.doc(sessionId).set({
       'status': 'completed',
       'endedAt': FieldValue.serverTimestamp(),
       'duration': durationSeconds,
       'metrics': metrics.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
   }
 
   Future<void> abortSession(String sessionId) async {
@@ -465,7 +484,8 @@ class FirestoreService {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getInstructorStudents(List<String> courseIds) async {
+  Future<List<Map<String, dynamic>>> getInstructorStudents(
+      List<String> courseIds) async {
     if (courseIds.isEmpty) return [];
     final allStudents = <String, Map<String, dynamic>>{};
     for (final cid in courseIds) {
@@ -586,10 +606,10 @@ class FirestoreService {
         .orderBy('studentName')
         .snapshots()
         .asyncMap((snap) async {
-          final enrollments = snap.docs.map((d) => d.data()).toList();
-          // We could also fetch user status here if needed, or use a separate stream
-          return enrollments;
-        });
+      final enrollments = snap.docs.map((d) => d.data()).toList();
+      // We could also fetch user status here if needed, or use a separate stream
+      return enrollments;
+    });
   }
 
   // To see real-time status of users (online/offline)
@@ -756,7 +776,7 @@ class FirestoreService {
         ),
         const ScenarioModel(
           id: 'descargaElectrica',
-          title: '⚡ Descarga eléctrica',
+          title: 'Descarga eléctrica',
           description: 'Accidente laboral. Asegurar escena antes de actuar.',
           audioIntroText:
               'Adulto electrocutado. Asegura la escena. Sin pulso ni respiración.',

@@ -38,7 +38,7 @@ class CourseService {
       'courseId': courseId,
       'order': existing.length,
       'title': title,
-      'type': type.name,
+      'type': type.toString().split('.').last,
       'config': config,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -59,7 +59,7 @@ class CourseService {
   }) async {
     await _modulesRef(courseId).doc(moduleId).update({
       'title': title,
-      'type': type.name,
+      'type': type.toString().split('.').last,
       'config': config,
     });
   }

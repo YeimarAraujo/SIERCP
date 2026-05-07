@@ -22,25 +22,70 @@ class SessionService {
     String? courseId,
     String? manikinId,
   }) async {
-    // Obtener título del escenario
-    final scenarios = await _db.getScenarios();
-    final scenario = scenarios.firstWhere(
-      (s) => s.id == scenarioId,
-      orElse: () => scenarios.first,
-    );
+    try {
+      // 1. Obtener escenarios con timeout (ya tiene fallback interno)
+      final scenarios = await getScenarios();
+      final scenario = scenarios.firstWhere(
+        (s) => s.id == scenarioId,
+        orElse: () => scenarios.first,
+      );
 
-    final sessionId = await _db.createSession(
-      studentId: studentId,
-      studentName: studentName,
-      scenarioId: scenarioId,
-      scenarioTitle: scenario.title,
-      patientType: patientType,
-      courseId: courseId,
-      manikinId: manikinId,
-    );
+      // 2. Intentar crear sesión en Firestore con un timeout agresivo
+      // Si falla por red, Firestore lo pondrá en cola si la persistencia está activa,
+      // pero no queremos bloquear la UI 30 segundos.
+      String sessionId;
+      try {
+        sessionId = await _db
+            .createSession(
+              studentId: studentId,
+              studentName: studentName,
+              scenarioId: scenarioId,
+              scenarioTitle: scenario.title,
+              patientType: patientType,
+              courseId: courseId,
+              manikinId: manikinId,
+            )
+            .timeout(const Duration(seconds: 2));
+      } catch (e) {
+        debugPrint('⚠️ Fallo creación en nube, usando ID local temporal: $e');
+        sessionId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+      }
 
-    final doc = await _db.getSession(sessionId);
-    return doc!;
+      // 3. Intentar obtener el documento (caché o servidor)
+      try {
+        final doc =
+            await _db.getSession(sessionId).timeout(const Duration(seconds: 1));
+        if (doc != null) return doc;
+      } catch (_) {}
+
+      // 4. Fallback: Crear objeto local si el getSession falló o es una sesión offline
+      return SessionModel(
+        id: sessionId,
+        studentId: studentId,
+        studentName: studentName,
+        scenarioId: scenarioId,
+        scenarioTitle: scenario.title,
+        patientType: patientType == 'pediatric'
+            ? PatientType.pediatric
+            : (patientType == 'infant'
+                ? PatientType.infant
+                : PatientType.adult),
+        status: SessionStatus.active,
+        startedAt: DateTime.now(),
+        courseId: courseId,
+      );
+    } catch (e) {
+      debugPrint('Error crítico en startSession: $e');
+      // Último recurso: sesión básica
+      return SessionModel(
+        id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+        studentId: studentId,
+        studentName: studentName,
+        patientType: PatientType.adult,
+        status: SessionStatus.active,
+        startedAt: DateTime.now(),
+      );
+    }
   }
 
   Future<SessionModel> endSession(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:siercp/core/utils/connection_guard.dart';
 
 // ─── Modelo de datos del escenario ───────────────────────────────────────────
 class ScenarioDetailData {
@@ -265,7 +266,7 @@ const Map<String, ScenarioDetailData> kScenarios = {
     relacionVentilacion: '30:2',
     tecnica:
         'Dos manos · Verificar escena · Solicitar DEA por riesgo de FV tardía',
-    color: const Color(0xFFFFC107),
+    color: Color(0xFFFFC107),
     icono: Icons.bolt_outlined,
     audioFile: 'audio/caso_descargaElectrica.mp3',
   ),
@@ -540,7 +541,13 @@ class _Header extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/scenarios');
+              }
+            },
             color: textP,
           ),
           Container(
@@ -896,16 +903,16 @@ class _ParamTile extends StatelessWidget {
 }
 
 // ─── Bottom CTA ───────────────────────────────────────────────────────────────
-class _BottomAction extends StatefulWidget {
+class _BottomAction extends ConsumerStatefulWidget {
   final ScenarioDetailData scenario;
   final Color color;
   const _BottomAction({required this.scenario, required this.color});
 
   @override
-  State<_BottomAction> createState() => _BottomActionState();
+  ConsumerState<_BottomAction> createState() => _BottomActionState();
 }
 
-class _BottomActionState extends State<_BottomAction> {
+class _BottomActionState extends ConsumerState<_BottomAction> {
   late final AudioPlayer _player;
   bool _isPlaying = false;
   bool _isLoading = false;
@@ -1046,8 +1053,10 @@ class _BottomActionState extends State<_BottomAction> {
                     height: 44,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        _player.stop();
-                        context.go('/session?scenario=${widget.scenario.id}');
+                        if (ConnectionGuard.checkConnection(context, ref)) {
+                          _player.stop();
+                          context.go('/session?scenario=${widget.scenario.id}');
+                        }
                       },
                       icon: const Icon(Icons.play_arrow_rounded, size: 18),
                       label: const Text(
@@ -1125,8 +1134,10 @@ class _BottomActionState extends State<_BottomAction> {
                   height: 50,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      _player.stop();
-                      context.go('/session?scenario=${widget.scenario.id}');
+                      if (ConnectionGuard.checkConnection(context, ref)) {
+                        _player.stop();
+                        context.go('/session?scenario=${widget.scenario.id}');
+                      }
                     },
                     icon: const Icon(Icons.play_arrow_rounded, size: 20),
                     label: const Text(

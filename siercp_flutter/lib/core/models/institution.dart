@@ -47,7 +47,7 @@ class InstitutionModel {
     'name': name,
     'nit': nit,
     'type': type,
-    'status': status.name,
+    'status': status.toString().split('.').last,
     'logoUrl': logoUrl,
     'contactEmail': contactEmail,
     'address': address,

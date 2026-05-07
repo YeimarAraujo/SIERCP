@@ -32,12 +32,37 @@ class AuthState {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    final authStream = FirebaseAuth.instance.authStateChanges();
-    final firebaseUser = await authStream.first;
-    
-    if (firebaseUser == null) return const AuthState();
+    try {
+      final authStream = FirebaseAuth.instance.authStateChanges();
+      // Timeout de 5 segundos para la primera respuesta de Auth
+      final firebaseUser = await authStream.first.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      
+      if (firebaseUser == null) return const AuthState();
 
-    return _fetchUserProfile(firebaseUser.uid);
+      // Timeout de 5 segundos para obtener el perfil de Firestore
+      return await _fetchUserProfile(firebaseUser.uid).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('Timeout al obtener perfil de Firestore');
+          return AuthState(
+            user: UserModel(
+              id: firebaseUser.uid,
+              email: firebaseUser.email ?? '',
+              firstName: 'Usuario',
+              lastName: 'Cargando...',
+              role: 'ESTUDIANTE',
+            ),
+            isAuthenticated: true,
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error durante la inicialización de Auth: $e');
+      return const AuthState();
+    }
   }
 
   Future<AuthState> _fetchUserProfile(String uid) async {

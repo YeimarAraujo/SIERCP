@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/notifications/presentation/providers/notification_provider.dart';
+import 'package:siercp/features/notifications/data/models/notification.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
@@ -55,7 +56,7 @@ class NotificationsScreen extends ConsumerWidget {
 }
 
 class _NotificationTile extends ConsumerWidget {
-  final dynamic notification;
+  final NotificationModel notification;
   const _NotificationTile({required this.notification});
 
   @override
@@ -126,16 +127,16 @@ class _NotificationTile extends ConsumerWidget {
     );
   }
 
-  Widget _buildIcon(dynamic type) {
+  Widget _buildIcon(NotificationType type) {
     IconData icon;
     Color color;
 
-    switch (type.name) {
-      case 'studentJoinedCourse':
+    switch (type) {
+      case NotificationType.studentJoinedCourse:
         icon = Icons.person_add_rounded;
         color = AppColors.brand;
         break;
-      case 'studentAddedToCourse':
+      case NotificationType.studentAddedToCourse:
         icon = Icons.school_rounded;
         color = AppColors.cyan;
         break;

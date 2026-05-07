@@ -159,14 +159,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/student-course/:courseId',
+            path: '/student/course-detail',
             builder: (context, state) {
-              final user = ref.read(currentUserProvider);
+              final extra = state.extra as Map<String, dynamic>?;
               return StudentCourseDetailScreen(
-                courseId: state.pathParameters['courseId']!,
-                studentId: user?.id ?? '',
-                courseTitle: 'Detalle del Curso',
-                instructorName: '',
+                courseId: extra?['courseId'] ?? '',
+                studentId: extra?['studentId'],
+                courseTitle: extra?['courseTitle'],
+                instructorName: extra?['instructorName'],
               );
             },
           ),

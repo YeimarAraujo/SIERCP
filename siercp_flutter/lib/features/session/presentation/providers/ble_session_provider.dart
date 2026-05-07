@@ -11,7 +11,8 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 
 enum SessionMode { training, evaluation }
 
-final sessionModeProvider = StateProvider<SessionMode>((ref) => SessionMode.training);
+final sessionModeProvider =
+    StateProvider<SessionMode>((ref) => SessionMode.training);
 final rcpEngineProvider = Provider((ref) => RcpEngine.instance);
 
 class BleSessionNotifier extends Notifier<ActiveSessionState> {
@@ -38,9 +39,10 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     final bleService = ref.read(bleServiceProvider);
     final engine = ref.read(rcpEngineProvider);
-    
+
     engine.reset();
-    _lastCount = 0; // RESET CRÍTICO para que el audio funcione en sesiones subsiguientes
+    _lastCount =
+        0; // RESET CRÍTICO para que el audio funcione en sesiones subsiguientes
 
     final session = await sessionService.startSession(
       studentId: user.id,
@@ -53,7 +55,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     await audioService.init();
 
     state = state.copyWith(
-      session: session, 
+      session: session,
       isConnected: bleService.isConnected,
       elapsed: Duration.zero,
       depthHistory: [],
@@ -61,7 +63,8 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      state = state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
+      state =
+          state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
     });
 
     _telemetrySub?.cancel();
@@ -73,7 +76,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
   void _processBleTelemetry(RcpTelemetry data, AudioService audioService) {
     final engine = ref.read(rcpEngineProvider);
     final mode = ref.read(sessionModeProvider);
-    
+
     engine.evaluate(data);
     bool nuevaComp = false;
 
@@ -97,7 +100,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
             audioService.playFeedback('mas_profundo');
           } else if (engine.lastPicoProfundidad > RcpEngine.ahaMaxDepthMm) {
             audioService.playFeedback('menos_profundo');
-          } 
+          }
           // Prioridad 2: Frecuencia
           else if (engine.lastBpm < RcpEngine.ahaMinRateCpm) {
             audioService.playFeedback('mas_rapido');
@@ -106,7 +109,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
           }
           // Prioridad 3: Recoil (Si profundidad y frecuencia están bien pero falló algo, suele ser recoil)
           else if (!engine.recoilOk) {
-            // No hay audio específico para recoil en AudioService aún, 
+            // No hay audio específico para recoil en AudioService aún,
             // pero podríamos añadirlo o simplemente no decir nada.
           }
         } else {
@@ -126,13 +129,14 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     _updateMetricsState(engine, data, trimmed);
   }
 
-  void _updateMetricsState(RcpEngine engine, RcpTelemetry data, List<double> history) {
-    double correctPct = engine.compresionesTotales > 0 
-        ? (engine.compresionesCorrectas / engine.compresionesTotales) * 100 
+  void _updateMetricsState(
+      RcpEngine engine, RcpTelemetry data, List<double> history) {
+    double correctPct = engine.compresionesTotales > 0
+        ? (engine.compresionesCorrectas / engine.compresionesTotales) * 100
         : 0;
-        
-    double recoilPct = engine.compresionesTotales > 0 
-        ? (engine.recoilCorrectos / engine.compresionesTotales) * 100 
+
+    double recoilPct = engine.compresionesTotales > 0
+        ? (engine.recoilCorrectos / engine.compresionesTotales) * 100
         : 100;
 
     final liveData = LiveSessionData(
@@ -142,7 +146,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       compressionCount: engine.compresionesTotales,
       correctCompressionCount: engine.compresionesCorrectas,
       correctPct: correctPct,
-      sessionScore: _calculateTempScore(engine), 
+      sessionScore: _calculateTempScore(engine),
       decompressedFully: engine.recoilOk,
       recoilPct: recoilPct,
       pauseCount: engine.pausasCount,
@@ -163,10 +167,10 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     return score.clamp(0, 100);
   }
 
-  Future<SessionModel> endSession() async {
+  Future<({SessionModel session, bool synced})> endSession() async {
     _timer?.cancel();
     _telemetrySub?.cancel();
-    
+
     final currentSession = state.session;
     if (currentSession == null) throw Exception('No hay sesión activa.');
 
@@ -174,20 +178,35 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     final sessionService = ref.read(sessionServiceProvider);
 
     // Calcular métricas finales
-    double depthScore = engine.compresionesTotales > 0 ? (engine.compresionesCorrectas / engine.compresionesTotales * 100) : 0;
-    double recoilScore = engine.compresionesTotales > 0 ? (engine.recoilCorrectos / engine.compresionesTotales * 100) : 100;
-    double rateScore = engine.compresionesTotales > 0 ? (engine.freqCorrectas / engine.compresionesTotales * 100) : 0;
-    
+    double depthScore = engine.compresionesTotales > 0
+        ? (engine.compresionesCorrectas / engine.compresionesTotales * 100)
+        : 0;
+    double recoilScore = engine.compresionesTotales > 0
+        ? (engine.recoilCorrectos / engine.compresionesTotales * 100)
+        : 100;
+    double rateScore = engine.compresionesTotales > 0
+        ? (engine.freqCorrectas / engine.compresionesTotales * 100)
+        : 0;
+
     // Chest Compression Fraction (CCF) - Simplificado para este MVP
-    double ccf = engine.pausasCount > 0 ? (1.0 - (engine.maxPausaSeg / 120.0)) * 100 : 100; 
+    double ccf = engine.pausasCount > 0
+        ? (1.0 - (engine.maxPausaSeg / 120.0)) * 100
+        : 100;
 
     final metrics = SessionMetrics(
       totalCompressions: engine.compresionesTotales,
       correctCompressions: engine.compresionesCorrectas,
-      averageDepthMm: engine.compresionesTotales > 0 ? (engine.sumProfundidad / engine.compresionesTotales) : 0,
-      averageRatePerMin: engine.compresionesTotales > 0 ? (engine.sumBpm / engine.compresionesTotales) : 0,
+      averageDepthMm: engine.compresionesTotales > 0
+          ? (engine.sumProfundidad / engine.compresionesTotales)
+          : 0,
+      averageRatePerMin: engine.compresionesTotales > 0
+          ? (engine.sumBpm / engine.compresionesTotales)
+          : 0,
       correctCompressionsPct: depthScore,
-      averageForcKg: engine.compresionesTotales > 0 ? (engine.sumFuerza / (state.depthHistory.isNotEmpty ? state.depthHistory.length : 1)) : 0,
+      averageForcKg: engine.compresionesTotales > 0
+          ? (engine.sumFuerza /
+              (state.depthHistory.isNotEmpty ? state.depthHistory.length : 1))
+          : 0,
       recoilPct: recoilScore,
       interruptionCount: engine.pausasCount,
       maxPauseSeconds: engine.maxPausaSeg,
@@ -197,26 +216,37 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       recoilScore: recoilScore,
       score: _calculateTempScore(engine),
       approved: _calculateTempScore(engine) >= 70,
-      violations: [], 
+      violations: [],
     );
+
+    // Mandar el RESET al hardware de inmediato tras capturar los datos
+    // para que el maniquí esté en 0 para el siguiente estudiante
+    // sin esperar a que termine la sincronización con la nube.
+    try {
+      ref.read(bleServiceProvider).resetHardwareCounters();
+    } catch (e) {
+      debugPrint("⚠️ No se pudo resetear hardware: $e");
+    }
 
     try {
       final finished = await sessionService.endSession(
-        currentSession.id, 
-        metrics, 
+        currentSession.id,
+        metrics,
         state.elapsed.inSeconds,
       );
-      
-      await sessionService.updateCourseProgressAfterSession(currentSession.studentId, metrics);
+
+      await sessionService.updateCourseProgressAfterSession(
+          currentSession.studentId, metrics);
       state = state.copyWith(session: finished, isConnected: false);
-      
-      debugPrint("✅ Sesión guardada profesionalmente: ${finished.id}");
-      return finished;
+
+      debugPrint("Sesión guardada profesionalmente: ${finished.id}");
+      return (session: finished, synced: true);
     } catch (e) {
-      debugPrint("❌ Error al finalizar sesión (guardando localmente): $e");
-      final localFinished = currentSession.copyWithEnd(metrics: metrics, endedAt: DateTime.now());
+      debugPrint("Error al finalizar sesión (guardando localmente): $e");
+      final localFinished =
+          currentSession.copyWithEnd(metrics: metrics, endedAt: DateTime.now());
       state = state.copyWith(session: localFinished, isConnected: false);
-      return localFinished;
+      return (session: localFinished, synced: false);
     } finally {
       // Forzar la actualización del historial siempre
       ref.invalidate(sessionsHistoryProvider);
@@ -224,4 +254,6 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
   }
 }
 
-final bleActiveSessionProvider = NotifierProvider<BleSessionNotifier, ActiveSessionState>(BleSessionNotifier.new);
+final bleActiveSessionProvider =
+    NotifierProvider<BleSessionNotifier, ActiveSessionState>(
+        BleSessionNotifier.new);

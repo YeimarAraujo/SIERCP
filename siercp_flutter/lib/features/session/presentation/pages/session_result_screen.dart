@@ -12,13 +12,18 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 
 final _sessionResultProvider =
     FutureProvider.family<SessionModel?, String>((ref, sessionId) async {
-  // 1. Intentar desde Firestore
-  try {
-    final fromDb = await ref.read(sessionServiceProvider).getSession(sessionId);
-    if (fromDb != null && fromDb.metrics != null) return fromDb;
-  } catch (_) {}
+  
+  // Re-intentar hasta 3 veces con pequeños delays para dar tiempo al guardado local
+  for (int i = 0; i < 3; i++) {
+    // 1. Intentar obtener la sesión (getSession ya incluye fallback local)
+    final session = await ref.read(sessionServiceProvider).getSession(sessionId);
+    if (session != null && session.metrics != null) return session;
+    
+    // Si no tiene métricas aún, esperar 600ms y reintentar
+    await Future.delayed(Duration(milliseconds: 600 * (i + 1)));
+  }
 
-  // 2. Fallback: usar el estado en memoria si el ID coincide
+  // 2. Fallback final: usar el estado en memoria si el ID coincide
   final inMemory = ref.read(activeSessionProvider).session;
   if (inMemory != null && inMemory.id == sessionId) return inMemory;
 

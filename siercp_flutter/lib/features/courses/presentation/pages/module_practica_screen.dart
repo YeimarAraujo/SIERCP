@@ -7,6 +7,7 @@ import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
+import 'package:siercp/core/utils/connection_guard.dart';
 
 class ModulePracticaScreen extends ConsumerWidget {
   final CourseModule module;
@@ -100,7 +101,7 @@ class ModulePracticaScreen extends ConsumerWidget {
                     req: req,
                     approvedCount: approvedCount,
                     isDone: isDone,
-                    onStart: () => _startSession(context, req.scenarioId),
+                    onStart: () => _startSession(context, ref, req.scenarioId),
                   );
                 }),
 
@@ -133,10 +134,12 @@ class ModulePracticaScreen extends ConsumerWidget {
     );
   }
 
-  void _startSession(BuildContext context, String scenarioId) {
-    // Navegamos a la pantalla de sesión pasando el escenario y el courseId
-    // para que la sesión quede vinculada a este curso.
-    context.push('/session?scenario=$scenarioId&courseId=$courseId');
+  void _startSession(BuildContext context, WidgetRef ref, String scenarioId) {
+    if (ConnectionGuard.checkConnection(context, ref)) {
+      // Navegamos a la pantalla de sesión pasando el escenario y el courseId
+      // para que la sesión quede vinculada a este curso.
+      context.push('/session?scenario=$scenarioId&courseId=$courseId');
+    }
   }
 }
 

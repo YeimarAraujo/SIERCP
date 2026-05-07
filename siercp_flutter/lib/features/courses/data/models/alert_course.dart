@@ -94,7 +94,7 @@ class AlertModel {
   Map<String, dynamic> toFirestore() => {
         if (sessionId != null) 'sessionId': sessionId,
         if (courseId != null) 'courseId': courseId,
-        'type': type.name,
+        'type': type.toString().split('.').last,
         'title': title,
         'message': message,
         'timestamp': FieldValue.serverTimestamp(),

@@ -39,7 +39,7 @@ class NotificationModel {
       createdAt: timestamp?.toDate() ?? DateTime.now(),
       isRead: data['isRead'] ?? false,
       type: NotificationType.values.firstWhere(
-        (e) => e.name == data['type'],
+        (e) => e.toString().split('.').last == data['type'],
         orElse: () => NotificationType.systemAlert,
       ),
       extraData: data['extraData'],
@@ -53,7 +53,7 @@ class NotificationModel {
       'message': message,
       'createdAt': Timestamp.fromDate(createdAt),
       'isRead': isRead,
-      'type': type.name,
+      'type': type.toString().split('.').last,
       'extraData': extraData,
     };
   }

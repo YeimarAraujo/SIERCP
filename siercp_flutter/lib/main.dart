@@ -15,6 +15,7 @@ import 'package:siercp/core/services/local_storage_service.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
+import 'package:siercp/core/services/sync_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 @pragma('vm:entry-point')
@@ -92,6 +93,9 @@ class SiercpApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
+    
+    // Inicializar el servicio de sincronización
+    ref.watch(syncServiceProvider);
 
     return LifecycleObserver(
       child: MaterialApp.router(

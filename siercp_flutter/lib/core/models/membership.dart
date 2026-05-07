@@ -44,7 +44,7 @@ class MembershipModel {
     'userId': userId,
     'institutionId': institutionId,
     'role': role,
-    'status': status.name,
+    'status': status.toString().split('.').last,
     'isActive': isActive,
     'approvedBy': approvedBy,
     'createdAt': Timestamp.fromDate(createdAt),

@@ -97,41 +97,69 @@ class _CourseEditorScreenState extends ConsumerState<CourseEditorScreen> {
   Future<void> _deleteModule(String moduleId) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Eliminar módulo'),
         content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
         ],
       ),
     );
+    
     if (confirm == true && mounted) {
-      await ref
-          .read(courseServiceProvider)
-          .deleteModule(widget.courseId, moduleId);
-      if (mounted) {
-        ref.invalidate(courseModulesProvider(widget.courseId));
+      try {
+        await ref
+            .read(courseServiceProvider)
+            .deleteModule(widget.courseId, moduleId);
+            
+        if (mounted) {
+          ref.invalidate(courseModulesProvider(widget.courseId));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Módulo eliminado correctamente')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar: $e'),
+              backgroundColor: AppColors.red,
+            ),
+          );
+        }
       }
     }
   }
 
   Future<void> _reorderModules(
       List<CourseModule> modules, int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) newIndex--;
-    final reordered = [...modules];
-    final item = reordered.removeAt(oldIndex);
-    reordered.insert(newIndex, item);
-    await ref
-        .read(courseServiceProvider)
-        .reorderModules(widget.courseId, reordered.map((m) => m.id).toList());
-    ref.invalidate(courseModulesProvider(widget.courseId));
+    try {
+      if (newIndex > oldIndex) newIndex--;
+      final reordered = [...modules];
+      final item = reordered.removeAt(oldIndex);
+      reordered.insert(newIndex, item);
+      
+      await ref
+          .read(courseServiceProvider)
+          .reorderModules(widget.courseId, reordered.map((m) => m.id).toList());
+      
+      ref.invalidate(courseModulesProvider(widget.courseId));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al reordenar: $e')),
+        );
+      }
+      // Revertir invalidando para refrescar el estado original
+      ref.invalidate(courseModulesProvider(widget.courseId));
+    }
   }
 }
 

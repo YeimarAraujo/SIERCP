@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 final _studentModulesProvider =
@@ -50,6 +51,7 @@ class StudentCourseModulesScreen extends ConsumerWidget {
                 itemCount: modules.length,
                 itemBuilder: (_, i) => _ModuleRoadmapCard(
                   module: modules[i],
+                  courseId: courseId,
                   index: i,
                   isUnlocked: i == 0, // por ahora solo el primero desbloqueado
                   isCompleted: false,
@@ -61,21 +63,23 @@ class StudentCourseModulesScreen extends ConsumerWidget {
 }
 
 // ─── Card de módulo (roadmap) ─────────────────────────────────────────────────
-class _ModuleRoadmapCard extends StatelessWidget {
+class _ModuleRoadmapCard extends ConsumerWidget {
   final CourseModule module;
+  final String courseId;
   final int index;
   final bool isUnlocked;
   final bool isCompleted;
 
   const _ModuleRoadmapCard({
     required this.module,
+    required this.courseId,
     required this.index,
     required this.isUnlocked,
     required this.isCompleted,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
@@ -90,11 +94,9 @@ class _ModuleRoadmapCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color:
-              isCompleted ? AppColors.green.withValues(alpha: 0.06) : surface,
+          color: isCompleted ? AppColors.green.withValues(alpha: 0.06) : surface,
           border: Border.all(
-            color:
-                isCompleted ? AppColors.green.withValues(alpha: 0.3) : border,
+            color: isCompleted ? AppColors.green.withValues(alpha: 0.3) : border,
             width: 0.5,
           ),
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -113,8 +115,7 @@ class _ModuleRoadmapCard extends StatelessWidget {
             child: Center(
               child: locked
                   ? Icon(Icons.lock_outline_rounded, size: 20, color: textS)
-                  : Text(module.type.icon,
-                      style: const TextStyle(fontSize: 22)),
+                  : Text(module.type.icon, style: const TextStyle(fontSize: 22)),
             ),
           ),
           title: Row(
@@ -169,12 +170,23 @@ class _ModuleRoadmapCard extends StatelessWidget {
           onTap: locked
               ? null
               : () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Abriendo: ${module.title}'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
+                  final user = ref.read(currentUserProvider);
+                  final extra = {
+                    'module': module,
+                    'courseId': this.courseId,
+                    'studentId': user?.id ?? '',
+                  };
+
+                  switch (module.type) {
+                    case ModuleType.teoria:
+                      context.push('/student/module-viewer', extra: extra);
+                    case ModuleType.practica_guiada:
+                      context.push('/student/practica', extra: extra);
+                    case ModuleType.evaluacion_teorica:
+                      context.push('/student/quiz', extra: extra);
+                    case ModuleType.certificacion:
+                      context.push('/student/certificacion', extra: extra);
+                  }
                 },
         ),
       ),
