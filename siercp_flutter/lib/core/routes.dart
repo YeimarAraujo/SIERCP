@@ -1,51 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:siercp/screens/scenario_detail_screen.dart';
-import '../providers/auth_provider.dart';
-import '../screens/splash_screen.dart';
-import '../screens/login_screen.dart';
-import '../screens/main_shell.dart';
-import '../screens/home_screen.dart';
-import '../screens/session_screen.dart';
-import '../screens/session_result_screen.dart';
-import '../screens/history_screen.dart';
-import '../screens/courses_screen.dart';
-import '../screens/course_detail_screen.dart';
-import '../screens/guide_list_screen.dart';
-import '../screens/guide_pdf_viewer_screen.dart';
-import '../screens/add_guide_screen.dart';
-import '../screens/profile_screen.dart';
-import '../screens/scenario_select_screen.dart';
-import '../screens/live_instructor_screen.dart';
-import '../screens/register_screen.dart';
-import '../screens/manage_users_screen.dart';
-import '../screens/user_detail_screen.dart';
-import '../screens/device_status_screen.dart';
-import '../screens/create_user_screen.dart';
-import '../screens/device_selection_screen.dart';
-import '../screens/reports_screen.dart';
-import '../analytics/presentation/dashboard/analytics_screen.dart';
-import '../screens/edit_profile_screen.dart';
-import '../models/guide.dart';
-import '../models/course_module.dart';
-import '../screens/Courses/Teacher/course_editor_screen.dart';
-import '../screens/Courses/Student/student_course_detail_screen.dart';
-import '../screens/Courses/Student/student_module_viewer_screen.dart';
-import '../screens/Courses/Student/module_practica_screen.dart';
-import '../screens/Courses/Student/module_quiz_screen.dart';
-import '../screens/Courses/Student/module_certificacion_screen.dart';
-import '../screens/notifications_screen.dart';
-import '../screens/instructor_students_screen.dart';
-
-import '../screens/student_detail_screen.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/features/auth/presentation/pages/splash_screen.dart';
+import 'package:siercp/features/auth/presentation/pages/login_screen.dart';
+import 'package:siercp/features/home/presentation/pages/main_shell.dart';
+import 'package:siercp/features/home/presentation/pages/home_screen.dart';
+import 'package:siercp/features/session/presentation/pages/session_screen.dart';
+import 'package:siercp/features/session/presentation/pages/session_result_screen.dart';
+import 'package:siercp/features/reports/presentation/pages/history_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/courses_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/course_detail_screen.dart';
+import 'package:siercp/features/guides/presentation/pages/guide_list_screen.dart';
+import 'package:siercp/features/guides/presentation/pages/guide_pdf_viewer_screen.dart';
+import 'package:siercp/features/guides/presentation/pages/add_guide_screen.dart';
+import 'package:siercp/features/users/presentation/pages/profile_screen.dart';
+import 'package:siercp/features/scenarios/presentation/pages/scenario_select_screen.dart';
+import 'package:siercp/features/scenarios/presentation/pages/scenario_detail_screen.dart';
+import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
+import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
+import 'package:siercp/features/users/presentation/pages/manage_users_screen.dart';
+import 'package:siercp/features/users/presentation/pages/user_detail_screen.dart';
+import 'package:siercp/features/devices/presentation/pages/device_status_screen.dart';
+import 'package:siercp/features/users/presentation/pages/create_user_screen.dart';
+import 'package:siercp/features/devices/presentation/pages/device_selection_screen.dart';
+import 'package:siercp/features/reports/presentation/pages/reports_screen.dart';
+import 'package:siercp/features/users/presentation/pages/edit_profile_screen.dart';
+import 'package:siercp/features/guides/data/models/guide.dart';
+import 'package:siercp/features/courses/data/models/course_module.dart';
+import 'package:siercp/features/courses/presentation/pages/course_editor_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/student_course_detail_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/student_course_modules_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/student_module_viewer_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/module_practica_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/module_quiz_screen.dart';
+import 'package:siercp/features/courses/presentation/pages/module_certificacion_screen.dart';
+import 'package:siercp/features/notifications/presentation/pages/notifications_screen.dart';
+import 'package:siercp/features/users/presentation/pages/instructor_students_screen.dart';
+import 'package:siercp/features/users/presentation/pages/student_detail_screen.dart';
+import 'package:siercp/features/analytics/presentation/dashboard/analytics_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authStateProvider.notifier);
-
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
@@ -161,28 +159,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/student-course/:courseId',
+            path: '/student/course-detail',
             builder: (context, state) {
-              final user = ref.read(currentUserProvider);
+              final extra = state.extra as Map<String, dynamic>?;
               return StudentCourseDetailScreen(
-                courseId: state.pathParameters['courseId']!,
-                studentId: user?.id ?? '',
-                courseTitle: 'Detalle del Curso',
-                instructorName: '',
+                courseId: extra?['courseId'] ?? '',
+                studentId: extra?['studentId'],
+                courseTitle: extra?['courseTitle'],
+                instructorName: extra?['instructorName'],
               );
             },
           ),
 
           // ── Vista de detalle del ALUMNO (lista de módulos) ────────────────
           GoRoute(
-            path: '/student/course-detail',
+            path: '/student/course-modules/:courseId',
             builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
-              return StudentCourseDetailScreen(
-                courseId: extra['courseId'] as String,
-                studentId: extra['studentId'] as String,
-                courseTitle: extra['courseTitle'] as String,
-                instructorName: extra['instructorName'] as String,
+              return StudentCourseModulesScreen(
+                courseId: state.pathParameters['courseId']!,
               );
             },
           ),
