@@ -9,6 +9,7 @@ import '../services/admin_service.dart';
 import '../services/export_service.dart';
 import '../services/session_service.dart';
 import '../widgets/section_label.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 class CoursesScreen extends ConsumerStatefulWidget {
@@ -25,14 +26,15 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final descCtrl = TextEditingController();
     final estudiantesCtrl = TextEditingController();
     
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.add_circle_outline_rounded, color: AppColors.brand, size: 20),
-            SizedBox(width: 10),
-            Text('Crear nuevo curso'),
+            const Icon(Icons.add_circle_outline_rounded, color: AppColors.brand, size: 20),
+            const SizedBox(width: 10),
+            Text(loc.createCourseTitle),
           ],
         ),
         content: SingleChildScrollView(
@@ -42,9 +44,9 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               TextField(
               controller: nameCtrl,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Nombre del curso',
-                prefixIcon: Icon(Icons.menu_book_outlined),
+              decoration: InputDecoration(
+                labelText: loc.courseNameLabel,
+                prefixIcon: const Icon(Icons.menu_book_outlined),
               ),
             ),
             const SizedBox(height: 12),
@@ -52,29 +54,29 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               controller: descCtrl,
               maxLines: 2,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Descripción',
-                prefixIcon: Icon(Icons.description_outlined),
+              decoration: InputDecoration(
+                labelText: loc.courseDescLabel,
+                prefixIcon: const Icon(Icons.description_outlined),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: estudiantesCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Estudiantes (cédulas)',
-                hintText: 'Ej: 1234567, 9876543...',
-                prefixIcon: Icon(Icons.people_alt_outlined),
+              decoration: InputDecoration(
+                labelText: loc.studentsCedulaLabel,
+                hintText: loc.studentsCedulaHint,
+                prefixIcon: const Icon(Icons.people_alt_outlined),
               ),
             ),
           ],
         ),
         ), // End of SingleChildScrollView
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.cancelBtn)),
           ElevatedButton.icon(
             icon: const Icon(Icons.check_rounded, size: 16),
-            label: const Text('Crear'),
+            label: Text(loc.createBtn),
             onPressed: () async {
               try {
                 final user = ref.read(currentUserProvider);
@@ -88,11 +90,11 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                     Navigator.pop(ctx);
                     ref.invalidate(coursesProvider);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Row(children: [
-                          Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-                          SizedBox(width: 8),
-                          Text('Curso creado con éxito'),
+                          const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                          const SizedBox(width: 8),
+                          Text(loc.createSuccess),
                         ]),
                       ),
                     );
@@ -118,15 +120,16 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   void _showEnrollDialog(String courseId) {
     final cedulaCtrl = TextEditingController();
     bool loading = false;
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.person_add_outlined, color: AppColors.brand, size: 20),
-              SizedBox(width: 10),
-              Text('Inscribir estudiante'),
+              const Icon(Icons.person_add_outlined, color: AppColors.brand, size: 20),
+              const SizedBox(width: 10),
+              Text(loc.enrollStudentTitle),
             ],
           ),
           content: Column(
@@ -135,15 +138,15 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               TextField(
                 controller: cedulaCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Cédula / Número de identificación',
-                  hintText: 'Ej: 1234567890',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                decoration: InputDecoration(
+                  labelText: loc.cedulaLabel,
+                  hintText: loc.cedulaHint,
+                  prefixIcon: const Icon(Icons.badge_outlined),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'El estudiante debe estar registrado en SIERCP con esa cédula.',
+                loc.enrollInfo,
                 style: TextStyle(
                   color: Theme.of(ctx).textTheme.bodyMedium?.color,
                   fontSize: 11,
@@ -152,7 +155,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.cancelBtn)),
             ElevatedButton.icon(
               icon: loading
                   ? const SizedBox(
@@ -161,7 +164,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.person_add_rounded, size: 16),
-              label: const Text('Inscribir'),
+              label: Text(loc.enrollBtn),
               onPressed: loading
                   ? null
                   : () async {
@@ -177,11 +180,11 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           Navigator.pop(ctx);
                           ref.invalidate(coursesProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Row(children: [
-                                Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-                                SizedBox(width: 8),
-                                Text('Estudiante inscrito con éxito'),
+                                const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                                const SizedBox(width: 8),
+                                Text(loc.enrollSuccess),
                               ]),
                             ),
                           );
@@ -209,30 +212,31 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   void _showJoinDialog() {
     final codeCtrl = TextEditingController();
     bool loading = false;
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.sensor_door_outlined, color: AppColors.brand, size: 20),
-              SizedBox(width: 10),
-              Text('Unirse a un curso'),
+              const Icon(Icons.sensor_door_outlined, color: AppColors.brand, size: 20),
+              const SizedBox(width: 10),
+              Text(loc.joinCourseTitle),
             ],
           ),
           content: TextField(
             controller: codeCtrl,
             textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(
-              labelText: 'Código del curso',
-              hintText: 'Ej: X9J2P1',
-              prefixIcon: Icon(Icons.key_outlined),
+            decoration: InputDecoration(
+              labelText: loc.courseCodeLabel,
+              hintText: loc.courseCodeHint,
+              prefixIcon: const Icon(Icons.key_outlined),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+              child: Text(loc.cancelBtn),
             ),
             ElevatedButton.icon(
               icon: loading
@@ -242,7 +246,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.login_rounded, size: 16),
-              label: const Text('Unirse'),
+              label: Text(loc.unirseBtn),
               onPressed: loading
                   ? null
                   : () async {
@@ -261,11 +265,11 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           Navigator.pop(ctx);
                           ref.invalidate(coursesProvider);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Row(children: [
-                                Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-                                SizedBox(width: 8),
-                                Text('Te has unido al curso con éxito'),
+                                const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                                const SizedBox(width: 8),
+                                Text(loc.joinSuccess),
                               ]),
                               backgroundColor: AppColors.green,
                             ),
@@ -276,7 +280,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error: Verifica el código ($e)'),
+                              content: Text(loc.joinError(e.toString())),
                               backgroundColor: AppColors.red.withValues(alpha: 0.9),
                             ),
                           );
@@ -294,6 +298,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   Widget build(BuildContext context) {
     final coursesAsync  = ref.watch(coursesProvider);
     final currentUser   = ref.watch(currentUserProvider);
+    final loc           = AppLocalizations.of(context)!;
     final isInstructor  = currentUser?.isInstructor ?? false;
     final isAdmin       = currentUser?.isAdmin ?? false;
     final canManage     = isInstructor || isAdmin;
@@ -320,7 +325,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Cursos',
+                          Text(loc.coursesTitle,
                               style: TextStyle(
                                 color: textP,
                                 fontSize: 20,
@@ -329,8 +334,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           const SizedBox(height: 2),
                           Text(
                             canManage
-                                ? 'Gestión de entrenamiento RCP'
-                                : 'Tus cursos de entrenamiento',
+                                ? loc.coursesSubtitleManage
+                                : loc.coursesSubtitleStudent,
                             style: TextStyle(color: textS, fontSize: 12),
                           ),
                         ],
@@ -340,7 +345,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         ElevatedButton.icon(
                           onPressed: _showCreateDialog,
                           icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text('Nuevo'),
+                          label: Text(loc.newBadge),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(0, 38),
                             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -356,7 +361,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   child: SectionLabel(
-                    canManage ? 'Cursos activos' : 'Mis cursos',
+                    canManage ? loc.activeCourses : loc.myCourses,
                   ),
                 ),
               ),
@@ -369,7 +374,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
                     child: Center(
-                      child: Text('Error al cargar cursos: $e',
+                      child: Text(loc.loadCoursesError(e.toString()),
                           style: TextStyle(color: textS)),
                     ),
                   ),
@@ -403,7 +408,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('Unirse a curso'),
+              label: Text(loc.joinCourseBtn),
             )
           : null,
     );
@@ -418,6 +423,7 @@ class _EmptyCoursesState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final textT = theme.textTheme.bodySmall?.color  ?? AppColors.textTertiary;
@@ -430,16 +436,16 @@ class _EmptyCoursesState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             canManage
-                ? 'Aún no has creado ningún curso'
-                : 'No estás inscrito en ningún curso',
+                ? loc.noCoursesCreatedPlain
+                : loc.noCoursesJoinedPlain,
             textAlign: TextAlign.center,
             style: TextStyle(color: textS, fontSize: 14, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 6),
           Text(
             canManage
-                ? 'Crea tu primer curso para comenzar a gestionar estudiantes.'
-                : 'Pide a tu instructor el código para unirte o aguarda a que te inscriban.',
+                ? loc.noCoursesCreatedDesc
+                : loc.noCoursesJoinedDesc,
             textAlign: TextAlign.center,
             style: TextStyle(color: textT, fontSize: 12),
           ),
@@ -448,15 +454,15 @@ class _EmptyCoursesState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Crear primer curso'),
+              label: Text(loc.createFirstCourseBtn),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
             ),
           ] else ...[
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: onCreate, // onCreate para estudiantes será igual The Dialog para unirse o lo llamamos directo
+              onPressed: onCreate,
               icon: const Icon(Icons.sensor_door_outlined, size: 16),
-              label: const Text('Unirse con código'),
+              label: Text(loc.joinWithCodeBtn),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
             ),
           ],
@@ -479,6 +485,7 @@ class _CourseCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -585,19 +592,19 @@ class _CourseCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${course.progressPct}% completado',
+                    Text(loc.completedPct(course.progressPct.toString()),
                         style: TextStyle(color: textT, fontSize: 10)),
                     if (canManage)
                       Row(
                         children: [
                           Icon(Icons.people_outline, size: 11, color: textT),
                           const SizedBox(width: 4),
-                          Text('${course.studentCount ?? 0} estudiantes',
+                          Text(loc.studentsCount(course.studentCount ?? 0),
                               style: TextStyle(color: textT, fontSize: 10)),
                         ],
                       )
                     else
-                      Text('Certificado SIERCP',
+                      Text(loc.cprCertificate,
                           style: TextStyle(color: textT, fontSize: 10)),
                   ],
                 ),
@@ -615,27 +622,27 @@ class _CourseCard extends ConsumerWidget {
                   // Ver detalle completo
                   _ActionButton(
                     icon: Icons.open_in_new_rounded,
-                    label: 'Detalle',
+                    label: loc.courseDetail,
                     color: AppColors.accent,
                     onTap: () => context.push('/courses/${course.id}'),
                   ),
                   // Inscribir student
                   _ActionButton(
                     icon: Icons.person_add_outlined,
-                    label: 'Inscribir',
+                    label: loc.courseEnroll,
                     onTap: onEnroll,
                   ),
                   // Exportar notas
                   _ActionButton(
                     icon: Icons.download_outlined,
-                    label: 'Exportar',
+                    label: loc.courseExport,
                     color: AppColors.green,
                     onTap: () => _exportStudentGrades(context, ref, course),
                   ),
                   // Monitoreo en vivo
                   _ActionButton(
                     icon: Icons.monitor_heart_outlined,
-                    label: 'En Vivo',
+                    label: loc.courseLive,
                     color: AppColors.cyan,
                     onTap: () => context.push('/live/${course.id}'),
                   ),
@@ -653,16 +660,17 @@ class _CourseCard extends ConsumerWidget {
     WidgetRef ref,
     CourseModel course,
   ) async {
+    final loc = AppLocalizations.of(context)!;
     try {
       final exportSvc = ref.read(exportServiceProvider);
       await exportSvc.exportCourseGradesCSV(course);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text('CSV de notas exportado'),
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(loc.exportGradesSuccess),
             ]),
           ),
         );
@@ -671,7 +679,7 @@ class _CourseCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al exportar: $e'),
+            content: Text(loc.exportGradesError(e.toString())),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -724,6 +732,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(courseStudentsProvider(courseId));
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
@@ -758,7 +767,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                 children: [
                   const Icon(Icons.groups_2_outlined, color: AppColors.brand, size: 20),
                   const SizedBox(width: 10),
-                  Text('Estudiantes del curso',
+                  Text(loc.courseStudentsTitle,
                       style: TextStyle(
                           color: textP, fontSize: 16, fontWeight: FontWeight.w700)),
                 ],
@@ -780,7 +789,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                           children: [
                             Icon(Icons.person_off_outlined, size: 40, color: textS),
                             const SizedBox(height: 12),
-                            Text('Sin estudiantes inscritos',
+                            Text(loc.noStudentsInscribed,
                                 style: TextStyle(color: textS, fontSize: 13)),
                           ],
                         ),
@@ -808,6 +817,7 @@ class _StudentTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -853,7 +863,7 @@ class _StudentTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student.fullName ?? 'Estudiante',
+                  student.fullName ?? loc.studentNameFallback,
                   style: TextStyle(
                       color: textP, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
@@ -866,7 +876,7 @@ class _StudentTile extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Icon(Icons.history_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text('${student.sessionCount ?? 0} sesiones',
+                    Text(loc.sessionsCountLabel(student.sessionCount ?? 0),
                         style: TextStyle(color: textS, fontSize: 10)),
                   ],
                 ),

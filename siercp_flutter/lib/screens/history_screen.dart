@@ -8,6 +8,7 @@ import '../models/session.dart';
 import '../providers/session_provider.dart';
 import '../services/export_service.dart';
 import '../widgets/section_label.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -15,6 +16,7 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -27,7 +29,7 @@ class HistoryScreen extends ConsumerWidget {
                 Icon(Icons.signal_wifi_statusbar_connected_no_internet_4_outlined,
                     size: 36, color: Theme.of(context).textTheme.bodyMedium?.color),
                 const SizedBox(height: 12),
-                Text('Error al cargar historial',
+                Text(loc.historyLoadError,
                     style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
                 const SizedBox(height: 4),
                 Text(e.toString(),
@@ -48,6 +50,7 @@ class _HistoryBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final scores = sessions
         .where((s) => s.metrics != null)
         .map((s) => s.metrics!.score)
@@ -72,9 +75,9 @@ class _HistoryBody extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Historial',
+                    Text(loc.historyTitle,
                         style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
-                    Text('Todas tus sesiones de RCP',
+                    Text(loc.historySubtitle,
                         style: TextStyle(color: textS, fontSize: 12)),
                   ],
                 ),
@@ -91,29 +94,29 @@ class _HistoryBody extends ConsumerWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: AppColors.red),
+                          SnackBar(content: Text(loc.exportError(e.toString())), backgroundColor: AppColors.red),
                         );
                       }
                     }
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'csv',
                       child: Row(
                         children: [
-                          Icon(Icons.table_chart_outlined, size: 18, color: AppColors.green),
-                          SizedBox(width: 10),
-                          Text('Exportar CSV'),
+                          const Icon(Icons.table_chart_outlined, size: 18, color: AppColors.green),
+                          const SizedBox(width: 10),
+                          Text(loc.exportCsv),
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'pdf',
                       child: Row(
                         children: [
-                          Icon(Icons.picture_as_pdf_outlined, size: 18, color: AppColors.red),
-                          SizedBox(width: 10),
-                          Text('Exportar PDF (última sesión)'),
+                          const Icon(Icons.picture_as_pdf_outlined, size: 18, color: AppColors.red),
+                          const SizedBox(width: 10),
+                          Text(loc.exportPdf),
                         ],
                       ),
                     ),
@@ -124,13 +127,13 @@ class _HistoryBody extends ConsumerWidget {
                       border: Border.all(color: AppColors.brand.withValues(alpha: 0.35), width: 1),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.download_outlined, size: 14, color: AppColors.brand),
-                        SizedBox(width: 5),
-                        Text('Exportar',
-                            style: TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600)),
+                        const Icon(Icons.download_outlined, size: 14, color: AppColors.brand),
+                        const SizedBox(width: 5),
+                        Text(loc.exportBtn,
+                            style: const TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -151,28 +154,28 @@ class _HistoryBody extends ConsumerWidget {
             children: [
               _SummaryCard(
                 icon: Icons.analytics_outlined,
-                label: 'Promedio global',
+                label: loc.globalAvg,
                 value: '${avgScore.toStringAsFixed(0)}%',
                 color: AppColors.green,
                 isDark: isDark,
               ),
               _SummaryCard(
                 icon: Icons.emoji_events_outlined,
-                label: 'Mejor sesión',
+                label: loc.bestSession,
                 value: '${bestScore.toStringAsFixed(0)}%',
                 color: AppColors.cyan,
                 isDark: isDark,
               ),
               _SummaryCard(
                 icon: Icons.history_outlined,
-                label: 'Total sesiones',
+                label: loc.totalSessions,
                 value: '${sessions.length}',
                 color: textP,
                 isDark: isDark,
               ),
               _SummaryCard(
                 icon: Icons.local_fire_department_outlined,
-                label: 'Con métricas',
+                label: loc.withMetrics,
                 value: '${scores.length}',
                 color: AppColors.amber,
                 isDark: isDark,
@@ -186,7 +189,7 @@ class _HistoryBody extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: const SectionLabel('Progresión de calificaciones'),
+              child: SectionLabel(loc.scoreProgression),
             ),
           ),
           SliverToBoxAdapter(
@@ -265,7 +268,7 @@ class _HistoryBody extends ConsumerWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: const SectionLabel('Últimas sesiones'),
+            child: SectionLabel(loc.latestSessions),
           ),
         ),
         sessions.isEmpty
@@ -278,7 +281,7 @@ class _HistoryBody extends ConsumerWidget {
                       children: [
                         Icon(Icons.history_outlined, size: 48, color: textS.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text('Sin sesiones registradas.', style: TextStyle(color: textS)),
+                        Text(loc.noSessions, style: TextStyle(color: textS)),
                       ],
                     ),
                   ),
@@ -361,6 +364,7 @@ class _SessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final score    = session.metrics?.score;
     final approved = session.metrics?.approved ?? false;
     final theme  = Theme.of(context);
@@ -414,11 +418,11 @@ class _SessionTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        session.scenarioTitle ?? 'Sesión RCP',
+                        session.scenarioTitle ?? loc.cprSession,
                         style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                       Text(
-                        '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} comp.',
+                        '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} ${loc.compLabel}',
                         style: TextStyle(color: textS, fontSize: 11),
                       ),
                     ],
@@ -438,7 +442,7 @@ class _SessionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      approved ? 'aprobado' : score != null ? 'revisar' : 'sin datos',
+                      approved ? loc.approved : score != null ? loc.review : loc.noData,
                       style: TextStyle(color: textS, fontSize: 10),
                     ),
                   ],

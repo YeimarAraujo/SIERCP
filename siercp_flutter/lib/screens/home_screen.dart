@@ -8,6 +8,7 @@ import '../services/session_service.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/alert_card.dart';
 import '../widgets/section_label.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,7 @@ class HomeScreen extends ConsumerWidget {
     final alertsAsync  = ref.watch(recentAlertsProvider);
     final coursesAsync = ref.watch(coursesProvider);
     final deviceAsync  = ref.watch(deviceStatusProvider);
+    final loc          = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -45,10 +47,10 @@ class HomeScreen extends ConsumerWidget {
                         children: [
                           Text(
                             isAdmin
-                                ? 'Panel de Control'
+                                ? loc.adminDashboardTitle
                                 : isInstructor
-                                    ? 'Bienvenido, ${user?.firstName ?? 'Instructor'}'
-                                    : 'Bienvenido, ${user?.firstName ?? ''}',
+                                    ? loc.welcomeName(user?.firstName ?? loc.instructorSubtitle)
+                                    : loc.welcomeName(user?.firstName ?? ''),
                             style: TextStyle(
                               color: Theme.of(context).textTheme.bodyLarge?.color,
                               fontSize: 20,
@@ -58,10 +60,10 @@ class HomeScreen extends ConsumerWidget {
                           ),
                           Text(
                             isAdmin
-                                ? 'Administrador SIERCP'
+                                ? loc.adminSubtitle
                                 : isInstructor
-                                    ? 'Instructor'
-                                    : (user?.role ?? 'ESTUDIANTE'),
+                                    ? loc.instructorSubtitle
+                                    : (user?.role ?? loc.studentSubtitle),
                             style: TextStyle(
                               color: Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 12,
@@ -119,7 +121,7 @@ class HomeScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: const SectionLabel('Resumen histórico'),
+                    child: SectionLabel(loc.historicalSummary),
                   ),
                 ),
                 SliverPadding(
@@ -137,7 +139,7 @@ class HomeScreen extends ConsumerWidget {
                           childAspectRatio: 1.6,
                           children: [
                             MetricCard(
-                              label: 'Sesiones hoy',
+                              label: loc.sessionsToday,
                               value: '${stats?.sessionsToday ?? 0}',
                               suffix: '',
                               status: (stats?.sessionsToday ?? 0) > 0
@@ -145,33 +147,33 @@ class HomeScreen extends ConsumerWidget {
                                   : MetricStatus.neutral,
                             ),
                             MetricCard(
-                              label: 'Prof. promedio',
+                              label: loc.avgDepth,
                               value: stats?.averageDepthMm.toStringAsFixed(0) ?? '0',
                               suffix: 'mm',
                               status: (stats?.averageDepthMm ?? 0) >= 50 &&
                                       (stats?.averageDepthMm ?? 0) <= 60
                                   ? MetricStatus.ok
                                   : MetricStatus.warning,
-                              hint: 'Rango: 50–60mm',
+                              hint: loc.depthHint,
                             ),
                             MetricCard(
-                              label: 'Frecuencia media',
+                              label: loc.avgRate,
                               value: stats?.averageRatePerMin.toStringAsFixed(0) ?? '0',
                               suffix: '/min',
                               status: (stats?.averageRatePerMin ?? 0) >= 100 &&
                                       (stats?.averageRatePerMin ?? 0) <= 120
                                   ? MetricStatus.ok
                                   : MetricStatus.warning,
-                              hint: 'Meta: 100–120',
+                              hint: loc.rateHint,
                             ),
                             MetricCard(
-                              label: '% Compresiones OK',
+                              label: loc.compressionScore,
                               value: (stats?.averageScore ?? 0).toStringAsFixed(0),
                               suffix: '%',
                               status: (stats?.averageScore ?? 0) >= 85
                                   ? MetricStatus.ok
                                   : MetricStatus.warning,
-                              hint: 'Meta: 85%+',
+                              hint: loc.scoreHint,
                             ),
                           ],
                         );
@@ -184,7 +186,7 @@ class HomeScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: const SectionLabel('Progreso del curso'),
+                    child: SectionLabel(loc.courseProgress),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -205,7 +207,7 @@ class HomeScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child: SectionLabel(isAdmin ? 'Alertas del sistema' : 'Últimas alertas'),
+                  child: SectionLabel(isAdmin ? loc.systemAlerts : loc.latestAlerts),
                 ),
               ),
               SliverToBoxAdapter(
@@ -238,7 +240,7 @@ class HomeScreen extends ConsumerWidget {
                                       size: 18),
                                   const SizedBox(width: 10),
                                   Text(
-                                    'Sin alertas recientes.',
+                                    loc.noRecentAlerts,
                                     style: TextStyle(
                                       color: Theme.of(context).textTheme.bodyMedium?.color,
                                     ),
@@ -269,6 +271,7 @@ class _AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return SliverPadding(
       padding: const EdgeInsets.all(20),
       sliver: SliverGrid.count(
@@ -279,29 +282,29 @@ class _AdminDashboard extends StatelessWidget {
         children: [
           _AdminTile(
             icon: Icons.people_alt_outlined,
-            label: 'Usuarios',
-            sub: 'Instructores y Estudiantes',
+            label: loc.navUsers,
+            sub: loc.adminUsersSub,
             color: AppColors.brand,
             onTap: () => context.go('/admin/users'),
           ),
           _AdminTile(
             icon: Icons.bluetooth_searching_rounded,
-            label: 'Maniquíes',
-            sub: 'Estado de conexión',
+            label: loc.navDevices,
+            sub: loc.adminDevicesSub,
             color: AppColors.cyan,
             onTap: () => context.go('/admin/devices'),
           ),
           _AdminTile(
             icon: Icons.menu_book_outlined,
-            label: 'Cursos',
-            sub: 'Gestionar programas',
+            label: loc.navCourses,
+            sub: loc.adminCoursesSub,
             color: AppColors.accent,
             onTap: () => context.go('/courses'),
           ),
           _AdminTile(
             icon: Icons.bar_chart_outlined,
-            label: 'Reportes',
-            sub: 'Estadísticas globales',
+            label: loc.navHistory,
+            sub: loc.adminReportsSub,
             color: AppColors.green,
             onTap: () => context.go('/history'),
           ),
@@ -319,6 +322,7 @@ class _InstructorDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
@@ -339,7 +343,7 @@ class _InstructorDashboard extends StatelessWidget {
                 Expanded(
                   child: _QuickActionTile(
                     icon: Icons.add_circle_outline_rounded,
-                    label: 'Nuevo Curso',
+                    label: loc.newCourse,
                     color: AppColors.brand,
                     onTap: () => context.go('/courses'),
                   ),
@@ -348,7 +352,7 @@ class _InstructorDashboard extends StatelessWidget {
                 Expanded(
                   child: _QuickActionTile(
                     icon: Icons.groups_2_outlined,
-                    label: 'Mis Estudiantes',
+                    label: loc.myStudents,
                     color: AppColors.accent,
                     onTap: () => context.go('/courses'),
                   ),
@@ -357,7 +361,7 @@ class _InstructorDashboard extends StatelessWidget {
                 Expanded(
                   child: _QuickActionTile(
                     icon: Icons.download_outlined,
-                    label: 'Exportar',
+                    label: loc.exportData,
                     color: AppColors.green,
                     onTap: () => context.go('/history'),
                   ),
@@ -370,11 +374,11 @@ class _InstructorDashboard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SectionLabel('Mis cursos activos'),
+                SectionLabel(loc.myActiveCourses),
                 TextButton.icon(
                   onPressed: () => context.go('/courses'),
                   icon: const Icon(Icons.arrow_forward_rounded, size: 14),
-                  label: const Text('Ver todos'),
+                  label: Text(loc.viewAll),
                 ),
               ],
             ),
@@ -398,13 +402,13 @@ class _InstructorDashboard extends StatelessWidget {
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
-                              'Aún no has creado ningún curso. Crea el primero.',
+                              loc.noCoursesCreated,
                               style: TextStyle(color: textS, fontSize: 13),
                             ),
                           ),
                           TextButton(
                             onPressed: () => context.go('/courses'),
-                            child: const Text('Crear'),
+                            child: Text(loc.createBtn),
                           ),
                         ],
                       ),
@@ -547,6 +551,7 @@ class _InstructorCourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -588,7 +593,7 @@ class _InstructorCourseCard extends StatelessWidget {
                     children: [
                       Icon(Icons.people_outline, size: 11, color: textS),
                       const SizedBox(width: 4),
-                      Text('${course.studentCount ?? 0} estudiantes',
+                      Text(loc.studentsCount(course.studentCount ?? 0),
                           style: TextStyle(color: textS, fontSize: 11)),
                     ],
                   ),
@@ -607,6 +612,7 @@ class _InstructorCourseCard extends StatelessWidget {
 class _NotEnrolledCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -637,7 +643,7 @@ class _NotEnrolledCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Sin curso asignado',
+                loc.noCourseAssigned,
                 style: TextStyle(
                     color: textP,
                     fontSize: 14,
@@ -647,14 +653,14 @@ class _NotEnrolledCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Tu instructor aún no te ha inscrito en ningún curso. Contacta a tu instructor para unirte a un programa de entrenamiento RCP.',
+            loc.noCourseAssignedDesc,
             style: TextStyle(color: textS, fontSize: 12),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => context.go('/courses'),
             icon: const Icon(Icons.search_outlined, size: 16),
-            label: const Text('Ver cursos disponibles'),
+            label: Text(loc.viewAvailableCourses),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 42),
             ),
@@ -673,6 +679,7 @@ class _HeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final isConnected = deviceAsync.value?.isConnected ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -713,7 +720,7 @@ class _HeroCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isConnected ? 'Dispositivo conectado' : 'Sin dispositivo',
+                  isConnected ? loc.deviceConnected : loc.deviceDisconnected,
                   style: TextStyle(
                     color: isConnected ? AppColors.green : AppColors.amber,
                     fontSize: 11,
@@ -724,9 +731,9 @@ class _HeroCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Iniciar sesión RCP',
-            style: TextStyle(
+          Text(
+            loc.startCPRTitle,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -735,8 +742,8 @@ class _HeroCard extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             isConnected
-                ? 'Selecciona un escenario para comenzar'
-                : 'Conecta el maniquí ESP32 antes de iniciar',
+                ? loc.startCPRDescConnected
+                : loc.startCPRDescDisconnected,
             style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
           const SizedBox(height: 16),
@@ -751,12 +758,12 @@ class _HeroCard extends ConsumerWidget {
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
                   SizedBox(width: 8),
                   Text(
-                    'Comenzar entrenamiento',
-                    style: TextStyle(
+                    loc.startTrainingBtn,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -779,6 +786,7 @@ class _CourseProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -839,10 +847,10 @@ class _CourseProgressCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${course.progressPct}% completado', style: TextStyle(color: textT, fontSize: 10)),
+              Text(loc.completedPct(course.progressPct.toString()), style: TextStyle(color: textT, fontSize: 10)),
               if (course.nextDeadline != null)
                 Text(
-                  'Entrega: ${course.nextDeadline!.day}/${course.nextDeadline!.month}',
+                  loc.deadlineStr(course.nextDeadline!.day, course.nextDeadline!.month),
                   style: TextStyle(color: textT, fontSize: 10),
                 ),
             ],

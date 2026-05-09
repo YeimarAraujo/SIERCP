@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import '../models/alert_course.dart';
 import '../providers/session_provider.dart';
 import '../widgets/device_status_widget.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 // ─── Icono por categoría de escenario ─────────────────────────────────────────
 IconData _scenarioIcon(String category) {
@@ -64,6 +65,7 @@ class ScenarioSelectScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scenariosAsync = ref.watch(scenariosProvider);
+    final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
@@ -82,17 +84,17 @@ class ScenarioSelectScreen extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Seleccionar escenario',
+                      Text(loc.selectScenarioTitle,
                           style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text('Elige el caso clínico a simular',
+                      Text(loc.selectScenarioSubtitle,
                           style: TextStyle(color: textS, fontSize: 12)),
                     ],
                   ),
                   // Botón seleccionar maniquí
                   OutlinedButton.icon(
                     icon: const Icon(Icons.sensors_rounded, size: 14),
-                    label: const Text('Maniquí', style: TextStyle(fontSize: 11)),
+                    label: Text(loc.manikinBtn, style: const TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       minimumSize: Size.zero,
@@ -133,7 +135,7 @@ class ScenarioSelectScreen extends ConsumerWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Selecciona un escenario y conecta el maniquí ESP32 para comenzar.',
+                            loc.scenarioInfoBanner,
                             style: TextStyle(
                               color: isDark ? AppColors.accent : AppColors.brand,
                               fontSize: 11,
@@ -151,9 +153,9 @@ class ScenarioSelectScreen extends ConsumerWidget {
             Expanded(
               child: scenariosAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
-                error: (_, __) => const _OfflineScenarios(),
+                error: (_, __) => _OfflineScenarios(loc: loc),
                 data: (scenarios) => scenarios.isEmpty
-                    ? const _OfflineScenarios()
+                    ? _OfflineScenarios(loc: loc)
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount: scenarios.length,
@@ -170,61 +172,47 @@ class ScenarioSelectScreen extends ConsumerWidget {
 
 // ─── 8 escenarios locales completos ──────────────────────────────────────────
 class _OfflineScenarios extends StatelessWidget {
-  const _OfflineScenarios();
+  final AppLocalizations loc;
+  const _OfflineScenarios({required this.loc});
 
-  static const _demos = [
-    _DemoScenario('paroCardiaco',      'cardiac',           '🏠 Paro cardíaco en casa',
-        'Adulto · 52 años · Colapso repentino',
-        'Familiar encuentra a la víctima inconsciente en el suelo. Sin pulso ni respiración.',
+  List<_DemoScenario> _getDemos() => [
+    _DemoScenario('paroCardiaco',      'cardiac',           loc.demoTitle1,
+        loc.demoSub1,
+        loc.demoDesc1,
         false, false),
-    _DemoScenario('accidenteTransito', 'accident',          '🚗 Accidente de tránsito',
-        'Adulto · 35 años · Múltiples traumas',
-        'Víctima encontrada en la vía, sin respuesta. Evalúa la escena antes de actuar.',
+    _DemoScenario('accidenteTransito', 'accident',          loc.demoTitle2,
+        loc.demoSub2,
+        loc.demoDesc2,
         false, false),
-    _DemoScenario('ahogamiento',       'drowning',          '🌊 Ahogamiento en piscina',
-        'Adulto · Sin respiración ni pulso',
-        'Rescatado de la piscina. Protocolo de ahogamiento: ventilaciones primero.',
+    _DemoScenario('ahogamiento',       'drowning',          loc.demoTitle3,
+        loc.demoSub3,
+        loc.demoDesc3,
         false, true),
-    _DemoScenario('colapsoEjercicio',  'colapsoEjercicio',  '🏋️ Colapso durante ejercicio',
-        'Adulto · 28 años · Atleta',
-        'Colapso súbito en el gimnasio. Posible fibrilación ventricular. Usa el DEA.',
+    _DemoScenario('colapsoEjercicio',  'colapsoEjercicio',  loc.demoTitle4,
+        loc.demoSub4,
+        loc.demoDesc4,
         false, true),
-    _DemoScenario('atragantamiento',   'atragantamiento',   '🍽️ Atragantamiento severo',
-        'Adulto · Obstrucción de vía aérea',
-        'Cena familiar. Maniobra de Heimlich + RCP si pierde el conocimiento.',
+    _DemoScenario('atragantamiento',   'atragantamiento',   loc.demoTitle5,
+        loc.demoSub5,
+        loc.demoDesc5,
         false, false),
-    _DemoScenario('descargaElectrica', 'electrocucion',     '⚡ Descarga eléctrica',
-        'Adulto · Accidente laboral',
-        'Trabajador electrocutado. Asegurar la escena antes de tocar a la víctima.',
+    _DemoScenario('descargaElectrica', 'electrocucion',     loc.demoTitle6,
+        loc.demoSub6,
+        loc.demoDesc6,
         false, false),
-    _DemoScenario('sobredosis',        'sobredosis',        '🛏️ Sobredosis por opioides',
-        'Adulto · Intoxicación · Respiración lenta',
-        'Víctima con sobredosis: Naloxona si disponible + RCP si paro cardíaco.',
+    _DemoScenario('sobredosis',        'sobredosis',        loc.demoTitle7,
+        loc.demoSub7,
+        loc.demoDesc7,
         false, false),
-    _DemoScenario('infarto',           'cardiac',           '🚨 Infarto que evoluciona a paro',
-        'Adulto · 60 años · Dolor torácico',
-        'Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.',
+    _DemoScenario('infarto',           'cardiac',           loc.demoTitle8,
+        loc.demoSub8,
+        loc.demoDesc8,
         false, false),
   ];
 
   @override
-<<<<<<< Updated upstream
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    children: _demos
-        .map((d) => _ScenarioCardRaw(
-              id: d.id,
-              category: d.category,
-              title: d.title,
-              subtitle: d.subtitle,
-              description: d.description,
-              locked: d.locked,
-              isNew: d.isNew,
-            ))
-        .toList(),
-  );
-=======
   Widget build(BuildContext context) {
+    final demos = _getDemos();
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -237,9 +225,9 @@ class _OfflineScenarios extends StatelessWidget {
           crossAxisSpacing: 12,
           mainAxisSpacing: 0,
         ),
-        itemCount: _demos.length,
+        itemCount: demos.length,
         itemBuilder: (ctx, i) {
-          final d = _demos[i];
+          final d = demos[i];
           return _ScenarioCardRaw(
             id: d.id,
             category: d.category,
@@ -255,7 +243,7 @@ class _OfflineScenarios extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      children: _demos
+      children: demos
           .map((d) => _ScenarioCardRaw(
                 id: d.id,
                 category: d.category,
@@ -268,7 +256,6 @@ class _OfflineScenarios extends StatelessWidget {
           .toList(),
     );
   }
->>>>>>> Stashed changes
 }
 
 class _DemoScenario {
@@ -312,6 +299,7 @@ class _ScenarioCardRaw extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme  = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
@@ -328,7 +316,7 @@ class _ScenarioCardRaw extends StatelessWidget {
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Completa los módulos anteriores para desbloquear.',
+                    loc.lockedScenarioMsg,
                     style: TextStyle(color: theme.colorScheme.onInverseSurface),
                   ),
                   backgroundColor: theme.colorScheme.inverseSurface,
@@ -377,19 +365,15 @@ class _ScenarioCardRaw extends StatelessWidget {
                         ),
                         if (isNew)
                           Container(
-<<<<<<< Updated upstream
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-=======
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
->>>>>>> Stashed changes
                             decoration: BoxDecoration(
                               color: AppColors.cyanBg,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text(
-                              'Nuevo',
-                              style: TextStyle(
+                            child: Text(
+                              loc.newBadge,
+                              style: const TextStyle(
                                 color: AppColors.cyan,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
@@ -397,14 +381,6 @@ class _ScenarioCardRaw extends StatelessWidget {
                             ),
                           ),
                         if (locked)
-<<<<<<< Updated upstream
-                          Icon(Icons.lock_outline_rounded, color: textT, size: 16),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(subtitle, style: TextStyle(color: textS, fontSize: 11)),
-                    const SizedBox(height: 4),
-=======
                           Icon(Icons.lock_outline_rounded,
                               color: textT, size: 14),
                       ],
@@ -417,7 +393,6 @@ class _ScenarioCardRaw extends StatelessWidget {
                       style: TextStyle(color: textS, fontSize: 10),
                     ),
                     const SizedBox(height: 2),
->>>>>>> Stashed changes
                     Text(
                       description,
                       maxLines: 2,
@@ -439,4 +414,3 @@ class _ScenarioCardRaw extends StatelessWidget {
     );
   }
 }
-

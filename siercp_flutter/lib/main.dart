@@ -8,6 +8,9 @@ import 'firebase_options.dart';
 import 'core/theme.dart';
 import 'core/routes.dart';
 import 'providers/theme_provider.dart';
+import 'providers/locale_provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -29,7 +32,6 @@ void main() async {
   await FirebaseMessaging.instance
       .requestPermission(alert: true, badge: true, sound: true);
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const ProviderScope(child: SiercpApp()));
 }
 
@@ -40,12 +42,24 @@ class SiercpApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
+    final currentLocale = ref.watch(localeControllerProvider);
 
     return MaterialApp.router(
       title: 'SIERCP',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: currentThemeMode,
+      locale: currentLocale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es'),
+        Locale('en'),
+      ],
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
