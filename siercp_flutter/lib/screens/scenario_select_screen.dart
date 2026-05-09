@@ -208,6 +208,7 @@ class _OfflineScenarios extends StatelessWidget {
   ];
 
   @override
+<<<<<<< Updated upstream
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     children: _demos
@@ -222,6 +223,52 @@ class _OfflineScenarios extends StatelessWidget {
             ))
         .toList(),
   );
+=======
+  Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
+      return GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 400,
+          mainAxisExtent: 115,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 0,
+        ),
+        itemCount: _demos.length,
+        itemBuilder: (ctx, i) {
+          final d = _demos[i];
+          return _ScenarioCardRaw(
+            id: d.id,
+            category: d.category,
+            title: d.title,
+            subtitle: d.subtitle,
+            description: d.description,
+            locked: d.locked,
+            isNew: d.isNew,
+          );
+        },
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      children: _demos
+          .map((d) => _ScenarioCardRaw(
+                id: d.id,
+                category: d.category,
+                title: d.title,
+                subtitle: d.subtitle,
+                description: d.description,
+                locked: d.locked,
+                isNew: d.isNew,
+              ))
+          .toList(),
+    );
+  }
+>>>>>>> Stashed changes
 }
 
 class _DemoScenario {
@@ -292,7 +339,7 @@ class _ScenarioCardRaw extends StatelessWidget {
         opacity: locked ? 0.45 : 1.0,
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: cardBg,
             border: Border.all(color: border, width: 0.5),
@@ -323,14 +370,19 @@ class _ScenarioCardRaw extends StatelessWidget {
                             title,
                             style: TextStyle(
                               color: textP,
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         if (isNew)
                           Container(
+<<<<<<< Updated upstream
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+=======
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+>>>>>>> Stashed changes
                             decoration: BoxDecoration(
                               color: AppColors.cyanBg,
                               borderRadius: BorderRadius.circular(20),
@@ -339,23 +391,38 @@ class _ScenarioCardRaw extends StatelessWidget {
                               'Nuevo',
                               style: TextStyle(
                                 color: AppColors.cyan,
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                         if (locked)
+<<<<<<< Updated upstream
                           Icon(Icons.lock_outline_rounded, color: textT, size: 16),
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(subtitle, style: TextStyle(color: textS, fontSize: 11)),
                     const SizedBox(height: 4),
+=======
+                          Icon(Icons.lock_outline_rounded,
+                              color: textT, size: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textS, fontSize: 10),
+                    ),
+                    const SizedBox(height: 2),
+>>>>>>> Stashed changes
                     Text(
                       description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: textT, fontSize: 10),
+                      style: TextStyle(color: textT, fontSize: 9),
                     ),
                   ],
                 ),

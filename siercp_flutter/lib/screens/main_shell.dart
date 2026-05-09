@@ -35,6 +35,7 @@ class MainShell extends ConsumerWidget {
     final navBgColor = theme.navigationBarTheme.backgroundColor;
     final borderColor = theme.dividerTheme.color ?? AppColors.cardBorder;
 
+<<<<<<< Updated upstream
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
@@ -111,6 +112,52 @@ class MainShell extends ConsumerWidget {
               selectedIcon: Icon(Icons.person),
               label: 'Perfil',
             ),
+=======
+    return PopScope(
+      canPop: index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (index != 0) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        body: Row(
+          children: [
+            if (isLandscape)
+              Container(
+                width: 100,
+                decoration: BoxDecoration(
+                  color: navBgColor,
+                  border: Border(right: BorderSide(color: borderColor, width: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: NavigationRail(
+                  groupAlignment: 0.0, // Centra los iconos verticalmente
+                  selectedIndex: index,
+                  onDestinationSelected: (i) => context.go(navItems[i].route),
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: Colors.transparent,
+                  indicatorColor: theme.navigationBarTheme.indicatorColor,
+                  indicatorShape: theme.navigationBarTheme.indicatorShape,
+                  selectedLabelTextStyle: theme.navigationBarTheme.labelTextStyle?.resolve({WidgetState.selected}),
+                  unselectedLabelTextStyle: theme.navigationBarTheme.labelTextStyle?.resolve({}),
+                  destinations: navItems
+                      .map((d) => NavigationRailDestination(
+                            icon: Icon(d.icon),
+                            selectedIcon: Icon(d.selectedIcon),
+                            label: Text(d.label),
+                          ))
+                      .toList(),
+                ),
+              ),
+            Expanded(child: child),
+>>>>>>> Stashed changes
           ],
         ),
       ),
