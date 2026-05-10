@@ -58,18 +58,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
                 children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [AppColors.brand, AppColors.accent]),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const Icon(Icons.picture_as_pdf_rounded,
-                        color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -95,14 +83,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
               ),
               child: TabBar(
                 controller: _tabCtrl,
+                indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
                   color: AppColors.brand,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 labelColor: Colors.white,
                 unselectedLabelColor: textS,
-                labelStyle:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                labelStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 dividerHeight: 0,
                 tabs: const [
                   Tab(text: 'Generar Reporte'),
@@ -110,7 +101,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 ],
               ),
             ),
-
             // Body
             Expanded(
               child: TabBarView(
@@ -201,7 +191,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           SnackBar(
             content: Text('Reporte generado: ${record.title}'),
             backgroundColor: AppColors.green,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 1),
             action: SnackBarAction(
               label: 'Abrir',
               textColor: Colors.white,
@@ -214,7 +204,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'), 
+            content: Text('Error: $e'),
             backgroundColor: AppColors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -285,7 +275,8 @@ class _GenerateTab extends ConsumerWidget {
                   courseId: course.id, courseName: course.title),
               onViewCourse: () {
                 // Show loading or just fetch and navigate
-                _showReportPreview(context, ref, 'course', courseId: course.id, courseName: course.title);
+                _showReportPreview(context, ref, 'course',
+                    courseId: course.id, courseName: course.title);
               },
               onGenerateStudent: (sid, sname) => onGenerate('student',
                   courseId: course.id,
@@ -293,9 +284,11 @@ class _GenerateTab extends ConsumerWidget {
                   studentId: sid,
                   studentName: sname),
               onViewStudent: (sid, sname) {
-                _showReportPreview(context, ref, 'student', 
-                  courseId: course.id, courseName: course.title, 
-                  studentId: sid, studentName: sname);
+                _showReportPreview(context, ref, 'student',
+                    courseId: course.id,
+                    courseName: course.title,
+                    studentId: sid,
+                    studentName: sname);
               },
             );
           },
@@ -304,13 +297,16 @@ class _GenerateTab extends ConsumerWidget {
     );
   }
 
-  void _showReportPreview(BuildContext context, WidgetRef ref, String type, 
-      {required String courseId, required String courseName, String? studentId, String? studentName}) async {
-    
+  void _showReportPreview(BuildContext context, WidgetRef ref, String type,
+      {required String courseId,
+      required String courseName,
+      String? studentId,
+      String? studentName}) async {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+      builder: (ctx) => const Center(
+          child: CircularProgressIndicator(color: AppColors.brand)),
     );
 
     try {
@@ -327,7 +323,8 @@ class _GenerateTab extends ConsumerWidget {
             final sid = st['studentId'] as String? ?? '';
             if (sid.isNotEmpty) {
               final sessions = await firestoreSvc.getStudentSessions(sid);
-              studentSessionsMap[sid] = sessions.where((s) => s.courseId == courseId).toList();
+              studentSessionsMap[sid] =
+                  sessions.where((s) => s.courseId == courseId).toList();
             }
           }
           reportData = CourseReportData.fromData(
@@ -343,7 +340,8 @@ class _GenerateTab extends ConsumerWidget {
         if (reportData == null) {
           final firestoreSvc = ref.read(firestoreServiceProvider);
           final sessions = await firestoreSvc.getStudentSessions(studentId);
-          final courseSessions = sessions.where((s) => s.courseId == courseId).toList();
+          final courseSessions =
+              sessions.where((s) => s.courseId == courseId).toList();
           reportData = StudentReportData.fromSessions(
             studentId: studentId,
             studentName: studentName ?? 'Estudiante',
@@ -356,14 +354,16 @@ class _GenerateTab extends ConsumerWidget {
       }
 
       if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop(); // Cerrar el diálogo de carga
-        
+        Navigator.of(context, rootNavigator: true)
+            .pop(); // Cerrar el diálogo de carga
+
         // Usar microtask para asegurar que el Navigator no esté bloqueado
         Future.microtask(() {
           if (context.mounted) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ReportPreviewScreen(reportData: reportData)),
+              MaterialPageRoute(
+                  builder: (_) => ReportPreviewScreen(reportData: reportData)),
             );
           }
         });
@@ -372,7 +372,9 @@ class _GenerateTab extends ConsumerWidget {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar reporte: $e'), backgroundColor: AppColors.red),
+          SnackBar(
+              content: Text('Error al cargar reporte: $e'),
+              backgroundColor: AppColors.red),
         );
       }
     }
@@ -385,7 +387,8 @@ class _CourseReportCard extends ConsumerStatefulWidget {
   final Color surface, border, textP, textS;
   final bool generating, canGenerate;
   final VoidCallback onGenerateCourse, onViewCourse;
-  final void Function(String studentId, String studentName) onGenerateStudent, onViewStudent;
+  final void Function(String studentId, String studentName) onGenerateStudent,
+      onViewStudent;
 
   const _CourseReportCard({
     required this.course,
@@ -434,8 +437,7 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [AppColors.brand, AppColors.accent]),
+                    color: AppColors.brand,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: const Icon(Icons.school_outlined,
@@ -459,14 +461,16 @@ class _CourseReportCardState extends ConsumerState<_CourseReportCard> {
                             widget.course.studentCount ??
                             0;
                         return Text('$count estudiantes',
-                            style: TextStyle(color: widget.textS, fontSize: 11));
+                            style:
+                                TextStyle(color: widget.textS, fontSize: 11));
                       },
                     ),
                   ],
                 )),
                 if (widget.canGenerate) ...[
                   IconButton(
-                    icon: const Icon(Icons.visibility_outlined, color: AppColors.cyan, size: 20),
+                    icon: const Icon(Icons.visibility_outlined,
+                        color: AppColors.cyan, size: 20),
                     tooltip: 'Vista previa del reporte',
                     onPressed: widget.onViewCourse,
                   ),
@@ -755,8 +759,9 @@ class _ReportTile extends ConsumerWidget {
               } else if (v == 'download' && exists) {
                 try {
                   String destPath;
-                  final fileName = '${report.title.replaceAll(' ', '_').replaceAll('/', '-')}.pdf';
-                  
+                  final fileName =
+                      '${report.title.replaceAll(' ', '_').replaceAll('/', '-')}.pdf';
+
                   if (Platform.isAndroid) {
                     final dir = Directory('/storage/emulated/0/Download');
                     if (!await dir.exists()) await dir.create(recursive: true);
@@ -765,15 +770,15 @@ class _ReportTile extends ConsumerWidget {
                     final dir = await getApplicationDocumentsDirectory();
                     destPath = '${dir.path}/$fileName';
                   }
-                  
+
                   await File(report.filePath).copy(destPath);
-                  
+
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Guardado en Descargas: $fileName'),
                         backgroundColor: AppColors.green,
-                        duration: const Duration(seconds: 4),
+                        duration: const Duration(seconds: 2),
                         action: SnackBarAction(
                           label: 'Abrir',
                           textColor: Colors.white,
@@ -785,7 +790,9 @@ class _ReportTile extends ConsumerWidget {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('No se pudo guardar: $e'), backgroundColor: AppColors.red),
+                      SnackBar(
+                          content: Text('No se pudo guardar: $e'),
+                          backgroundColor: AppColors.red),
                     );
                   }
                 }

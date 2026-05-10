@@ -446,15 +446,8 @@ class _ScenarioCardRaw extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text(subtitle,
-                        style: TextStyle(color: textS, fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: textT, fontSize: 10),
-                    ),
+                    Text(subtitle, style: TextStyle(color: textS, fontSize: 9)),
+                    const SizedBox(height: 2)
                   ],
                 ),
               ),

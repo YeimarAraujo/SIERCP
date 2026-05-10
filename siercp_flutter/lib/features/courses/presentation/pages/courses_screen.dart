@@ -587,7 +587,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                     crossAxisCount: 2,
                                     crossAxisSpacing: 12,
                                     mainAxisSpacing: 12,
-                                    childAspectRatio: 2.2,
+                                    childAspectRatio: 1.85,
                                   ),
                                   itemCount: courses.length,
                                   itemBuilder: (ctx, i) => _CourseCard(
@@ -935,144 +935,326 @@ class CourseQrDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkCard : Colors.white;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: bg,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title
-            Row(
-              children: [
-                const Icon(Icons.qr_code_2_rounded,
-                    color: AppColors.brand, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'QR del curso',
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isLandscape ? 720 : 420,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: isLandscape
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: QrImageView(
+                              data: _qrData,
+                              version: QrVersions.auto,
+                              size: 220,
+                              backgroundColor: Colors.white,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Color(0xFF1A1A2E),
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Color(0xFF1A1A2E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              courseTitle,
-              style: TextStyle(
-                color: theme.textTheme.bodyMedium?.color,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-
-            // QR Code
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: QrImageView(
-                data: _qrData,
-                version: QrVersions.auto,
-                size: 200,
-                backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: Color(0xFF1A1A2E),
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Invite code badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.brand.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: AppColors.brand.withValues(alpha: 0.25), width: 0.8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.key_rounded,
-                      size: 14, color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  Text(
-                    inviteCode,
-                    style: const TextStyle(
-                      color: AppColors.accent,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      fontFamily: 'SpaceMono',
-                      letterSpacing: 4,
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.qr_code_2_rounded,
+                                color: AppColors.brand,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'QR del curso',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyLarge?.color,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            courseTitle,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                              fontSize: 12,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.brand.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.brand.withValues(alpha: 0.25),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.key_rounded,
+                                  size: 14,
+                                  color: AppColors.accent,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    inviteCode,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.accent,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      fontFamily: 'SpaceMono',
+                                      letterSpacing: 4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Muestra este QR o comparte el código con tus estudiantes.',
+                            style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withValues(alpha: 0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                final text =
+                                    '¡Únete a mi curso de RCP en SIERCP!\n'
+                                    'Curso: $courseTitle\n'
+                                    'Código de invitación: $inviteCode\n\n'
+                                    'O escanea el QR desde la app.';
+                                Share.share(
+                                  text,
+                                  subject: 'Invitación a curso SIERCP',
+                                );
+                              },
+                              icon: const Icon(Icons.share_rounded, size: 18),
+                              label: const Text('Compartir invitación'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.brand,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Muestra este QR o comparte el código con tus estudiantes.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Share Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  final text = '¡Únete a mi curso de RCP en SIERCP!\n'
-                      'Curso: $courseTitle\n'
-                      'Código de invitación: $inviteCode\n\n'
-                      'O escanea el QR desde la app.';
-                  Share.share(text, subject: 'Invitación a curso SIERCP');
-                },
-                icon: const Icon(Icons.share_rounded, size: 18),
-                label: const Text('Compartir invitación'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brand,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          color: AppColors.brand,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'QR del curso',
+                            style: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      courseTitle,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: QrImageView(
+                        data: _qrData,
+                        version: QrVersions.auto,
+                        size: 200,
+                        backgroundColor: Colors.white,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.brand.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.brand.withValues(alpha: 0.25),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.key_rounded,
+                            size: 14,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              inviteCode,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: 'SpaceMono',
+                                letterSpacing: 4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Muestra este QR o comparte el código con tus estudiantes.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color
+                            ?.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final text = '¡Únete a mi curso de RCP en SIERCP!\n'
+                              'Curso: $courseTitle\n'
+                              'Código de invitación: $inviteCode\n\n'
+                              'O escanea el QR desde la app.';
+                          Share.share(text,
+                              subject: 'Invitación a curso SIERCP');
+                        },
+                        icon: const Icon(Icons.share_rounded, size: 18),
+                        label: const Text('Compartir invitación'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.brand,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1178,7 +1360,8 @@ class _CourseCard extends ConsumerWidget {
     final isComplete = approved >= requiredCount;
     final remaining = (requiredCount - approved).clamp(0, requiredCount);
     final progressColor = isComplete ? AppColors.green : AppColors.brand;
-
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     final card = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1190,7 +1373,7 @@ class _CourseCard extends ConsumerWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isLandscape ? 12 : 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1201,9 +1384,17 @@ class _CourseCard extends ConsumerWidget {
                       height: 42,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                           colors: isComplete
-                              ? [AppColors.green, const Color(0xFF00C853)]
-                              : [AppColors.brand, AppColors.accent],
+                              ? [
+                                  AppColors.green,
+                                  AppColors.green.withValues(alpha: 0.75),
+                                ]
+                              : [
+                                  AppColors.brand,
+                                  AppColors.brand.withValues(alpha: 0.75),
+                                ],
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
@@ -1281,7 +1472,8 @@ class _CourseCard extends ConsumerWidget {
                           ),
                           if (canDelete)
                             PopupMenuButton<String>(
-                              icon: Icon(Icons.more_vert, size: 18, color: textS),
+                              icon:
+                                  Icon(Icons.more_vert, size: 18, color: textS),
                               padding: EdgeInsets.zero,
                               onSelected: (val) {
                                 if (val == 'delete') {
@@ -1298,7 +1490,8 @@ class _CourseCard extends ConsumerWidget {
                                       children: [
                                         Icon(Icons.edit_outlined, size: 16),
                                         SizedBox(width: 8),
-                                        Text('Modificar', style: TextStyle(fontSize: 13)),
+                                        Text('Modificar',
+                                            style: TextStyle(fontSize: 13)),
                                       ],
                                     ),
                                   ),
@@ -1307,9 +1500,13 @@ class _CourseCard extends ConsumerWidget {
                                     value: 'delete',
                                     child: Row(
                                       children: [
-                                        Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.red),
+                                        Icon(Icons.delete_outline_rounded,
+                                            size: 16, color: AppColors.red),
                                         const SizedBox(width: 8),
-                                        Text('Eliminar', style: TextStyle(fontSize: 13, color: AppColors.red)),
+                                        Text('Eliminar',
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                color: AppColors.red)),
                                       ],
                                     ),
                                   ),
@@ -1319,7 +1516,7 @@ class _CourseCard extends ConsumerWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: isLandscape ? 8 : 14),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
@@ -1342,7 +1539,8 @@ class _CourseCard extends ConsumerWidget {
                               ref.watch(courseStudentsProvider(course.id));
                           return Row(
                             children: [
-                              Icon(Icons.people_outline, size: 11, color: textT),
+                              Icon(Icons.people_outline,
+                                  size: 11, color: textT),
                               const SizedBox(width: 4),
                               studentsAsync.when(
                                 loading: () => const SizedBox(
@@ -1458,9 +1656,12 @@ class _CourseCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('¿Eliminar curso?'),
-        content: Text('Esta acción desactivará el curso "${course.title}". Los alumnos no podrán acceder.'),
+        content: Text(
+            'Esta acción desactivará el curso "${course.title}". Los alumnos no podrán acceder.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.red),
@@ -1487,13 +1688,19 @@ class _CourseCard extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre')),
             const SizedBox(height: 12),
-            TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descripción')),
+            TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Descripción')),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Guardar'),
@@ -1518,7 +1725,7 @@ class _CourseCard extends ConsumerWidget {
   ) async {
     try {
       final firestoreSvc = ref.read(firestoreServiceProvider);
-      final exportSvc    = ref.read(exportServiceProvider);
+      final exportSvc = ref.read(exportServiceProvider);
 
       // Obtener lista fresca de estudiantes
       final students = await firestoreSvc.getCourseStudents(course.id);

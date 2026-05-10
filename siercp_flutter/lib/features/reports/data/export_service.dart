@@ -176,7 +176,7 @@ class ExportService {
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    metrics.approved ? '✓ APROBADO' : '✗ REPROBADO',
+                    metrics.approved ? 'APROBADO' : 'REPROBADO',
                     style: pw.TextStyle(
                       color: scoreColor,
                       fontSize: 14,
@@ -249,7 +249,7 @@ class ExportService {
           pw.Divider(color: greyBorder),
           pw.SizedBox(height: 8),
           pw.Text(
-            'Este reporte fue generado por SIERCP — Sistema Inteligente de Entrenamiento RCP.\nCertificación basada en Guías AHA 2020. Para uso educativo y de entrenamiento únicamente.',
+            'Este reporte fue generado por SIERCP - Sistema Inteligente de Entrenamiento RCP.\nCertificación basada en Guías AHA 2020. Para uso educativo y de entrenamiento únicamente.',
             style: pw.TextStyle(color: textMid, fontSize: 8),
             textAlign: pw.TextAlign.center,
           ),
@@ -302,7 +302,7 @@ class ExportService {
 
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
-      subject: 'Historial de Sesiones RCP — SIERCP',
+      subject: 'Historial de Sesiones RCP - SIERCP',
     );
   }
 
@@ -400,7 +400,7 @@ class ExportService {
     List<Map<String, dynamic>> students,
   ) async {
     final buffer = StringBuffer();
-    buffer.writeln('SIERCP — Notas del Curso: ${course.title}');
+    buffer.writeln('SIERCP - Notas del Curso: ${course.title}');
     buffer.writeln(
         'Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
     buffer.writeln();
@@ -427,7 +427,7 @@ class ExportService {
 
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
-      subject: 'Notas del Curso — ${course.title}',
+      subject: 'Notas del Curso - ${course.title}',
     );
   }
 }

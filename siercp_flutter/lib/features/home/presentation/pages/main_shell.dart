@@ -19,27 +19,35 @@ class MainShell extends ConsumerWidget {
   List<NavItem> _getNavItems(bool isAdmin, bool isInstructor) {
     if (isAdmin) {
       return const [
-        NavItem('Dashboard', Icons.dashboard_outlined, Icons.dashboard, '/home'),
+        NavItem(
+            'Dashboard', Icons.dashboard_outlined, Icons.dashboard, '/home'),
         NavItem('Usuarios', Icons.group_outlined, Icons.group, '/admin/users'),
-        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf, '/reports'),
-        NavItem('Analíticas', Icons.analytics_outlined, Icons.analytics, '/analytics'),
+        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
+            '/reports'),
+        NavItem('Analíticas', Icons.analytics_outlined, Icons.analytics,
+            '/analytics'),
         NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
       ];
     } else if (isInstructor) {
       return const [
         NavItem('Inicio', Icons.home_outlined, Icons.home, '/home'),
         NavItem('Sesión', Icons.favorite_outline, Icons.favorite, '/scenarios'),
-        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart, '/history'),
-        NavItem('Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
-        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf, '/reports'),
+        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart,
+            '/history'),
+        NavItem(
+            'Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
+        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
+            '/reports'),
         NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
       ];
     } else {
       return const [
         NavItem('Inicio', Icons.home_outlined, Icons.home, '/home'),
         NavItem('Sesión', Icons.favorite_outline, Icons.favorite, '/scenarios'),
-        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart, '/history'),
-        NavItem('Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
+        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart,
+            '/history'),
+        NavItem(
+            'Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
         NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
       ];
     }
@@ -51,19 +59,20 @@ class MainShell extends ConsumerWidget {
     final isAdmin = user?.isAdmin ?? false;
     final isInstructor = user?.isInstructor ?? false;
     final navItems = _getNavItems(isAdmin, isInstructor);
-    
+
     final location = GoRouterState.of(context).matchedLocation;
-    int index = navItems.indexWhere((item) => location == item.route || location.startsWith(item.route + '/'));
+    int index = navItems.indexWhere((item) =>
+        location == item.route || location.startsWith(item.route + '/'));
     if (index == -1) {
-       // Check for fuzzy matches like /scenarios matches /scenarios
-       index = navItems.indexWhere((item) => location.startsWith(item.route));
+      index = navItems.indexWhere((item) => location.startsWith(item.route));
     }
     if (index == -1) index = 0;
 
     final theme = Theme.of(context);
     final navBgColor = theme.navigationBarTheme.backgroundColor;
     final borderColor = theme.dividerTheme.color ?? AppColors.cardBorder;
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return PopScope(
       canPop: index == 0,
@@ -81,7 +90,8 @@ class MainShell extends ConsumerWidget {
                 width: 100,
                 decoration: BoxDecoration(
                   color: navBgColor,
-                  border: Border(right: BorderSide(color: borderColor, width: 0.5)),
+                  border:
+                      Border(right: BorderSide(color: borderColor, width: 0.5)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -96,8 +106,19 @@ class MainShell extends ConsumerWidget {
                   backgroundColor: Colors.transparent,
                   indicatorColor: theme.navigationBarTheme.indicatorColor,
                   indicatorShape: theme.navigationBarTheme.indicatorShape,
-                  selectedLabelTextStyle: theme.navigationBarTheme.labelTextStyle?.resolve({WidgetState.selected}),
-                  unselectedLabelTextStyle: theme.navigationBarTheme.labelTextStyle?.resolve({}),
+                  selectedIconTheme: IconThemeData(
+                    color: theme.colorScheme.primary,
+                    size: 24,
+                  ),
+                  unselectedIconTheme: IconThemeData(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+                  selectedLabelTextStyle: theme
+                      .navigationBarTheme.labelTextStyle
+                      ?.resolve({WidgetState.selected}),
+                  unselectedLabelTextStyle:
+                      theme.navigationBarTheme.labelTextStyle?.resolve({}),
                   destinations: navItems
                       .map((d) => NavigationRailDestination(
                             icon: Icon(d.icon),
@@ -116,7 +137,8 @@ class MainShell extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: navBgColor,
                   border: Border(
-                    top: BorderSide(color: borderColor.withValues(alpha: 0.1), width: 1),
+                    top: BorderSide(
+                        color: borderColor.withValues(alpha: 0.1), width: 1),
                   ),
                   boxShadow: [
                     BoxShadow(

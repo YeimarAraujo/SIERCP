@@ -12,13 +12,13 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 
 final _sessionResultProvider =
     FutureProvider.family<SessionModel?, String>((ref, sessionId) async {
-  
   // Re-intentar hasta 3 veces con pequeños delays para dar tiempo al guardado local
   for (int i = 0; i < 3; i++) {
     // 1. Intentar obtener la sesión (getSession ya incluye fallback local)
-    final session = await ref.read(sessionServiceProvider).getSession(sessionId);
+    final session =
+        await ref.read(sessionServiceProvider).getSession(sessionId);
     if (session != null && session.metrics != null) return session;
-    
+
     // Si no tiene métricas aún, esperar 600ms y reintentar
     await Future.delayed(Duration(milliseconds: 600 * (i + 1)));
   }
@@ -659,8 +659,7 @@ class _ExportPdfActionState extends ConsumerState<_ExportPdfAction> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [AppColors.brand, AppColors.accent]),
+                    color: AppColors.brand,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: _exporting
@@ -733,7 +732,7 @@ class _ExportButtonState extends ConsumerState<_ExportButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ PDF generado y compartido'),
+            content: Text('PDF generado y compartido'),
             backgroundColor: AppColors.green,
           ),
         );
@@ -808,7 +807,7 @@ class _AhaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = ok ? AppColors.green : AppColors.red;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -842,7 +841,8 @@ class _AhaRow extends StatelessWidget {
                     range,
                     style: TextStyle(
                       fontSize: 10,
-                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                      color: theme.textTheme.bodySmall?.color
+                          ?.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -922,7 +922,8 @@ class _ViolationCard extends StatelessWidget {
                 Text(
                   '${violation.count} incidencia(s) detectada(s)',
                   style: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    color: theme.textTheme.bodyMedium?.color
+                        ?.withValues(alpha: 0.7),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
