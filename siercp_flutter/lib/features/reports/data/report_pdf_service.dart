@@ -354,7 +354,7 @@ class ReportPdfService {
               '${avg.toStringAsFixed(1)}%',
               '${best.toStringAsFixed(1)}%',
               '$ap/${withM.length}',
-              avg >= course.requiredScore ? '✓ Aprobado' : '✗ Pendiente',
+              avg >= course.requiredScore ? 'Aprobado' : 'Pendiente',
             ];
           }).toList(),
         ),
@@ -362,7 +362,7 @@ class ReportPdfService {
         pw.Divider(color: _greyBorder),
         pw.SizedBox(height: 6),
         pw.Text(
-          'Reporte generado por SIERCP — Sistema Inteligente de Entrenamiento RCP.\nGuías AHA 2025. Uso educativo.',
+          'Reporte generado por SIERCP - Sistema Inteligente de Entrenamiento RCP.\nGuías AHA 2025. Uso educativo.',
           style: pw.TextStyle(color: _textMid, fontSize: 8),
           textAlign: pw.TextAlign.center,
         ),

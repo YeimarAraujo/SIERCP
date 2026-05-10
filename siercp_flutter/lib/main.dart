@@ -93,7 +93,7 @@ class SiercpApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
-    
+
     // Inicializar el servicio de sincronización
     ref.watch(syncServiceProvider);
 

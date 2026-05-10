@@ -23,10 +23,14 @@ class MetricCard extends StatelessWidget {
 
   Color get _color {
     switch (status) {
-      case MetricStatus.ok: return AppColors.green;
-      case MetricStatus.warning: return AppColors.amber;
-      case MetricStatus.error: return AppColors.red;
-      case MetricStatus.neutral: return const Color(0xFF00D4FF);
+      case MetricStatus.ok:
+        return AppColors.green;
+      case MetricStatus.warning:
+        return AppColors.amber;
+      case MetricStatus.error:
+        return AppColors.red;
+      case MetricStatus.neutral:
+        return const Color(0xFF00D4FF);
     }
   }
 
@@ -34,9 +38,9 @@ class MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBg2 : Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -76,7 +80,8 @@ class MetricCard extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                    color: theme.textTheme.bodyMedium?.color
+                        ?.withValues(alpha: 0.6),
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -104,8 +109,8 @@ class MetricCard extends StatelessWidget {
                 suffix,
                 style: TextStyle(
                   color: _color.withValues(alpha: 0.8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -118,10 +123,14 @@ class MetricCard extends StatelessWidget {
 
   IconData _getStatusIcon() {
     switch (status) {
-      case MetricStatus.ok: return Icons.check_circle_outline;
-      case MetricStatus.warning: return Icons.warning_amber_rounded;
-      case MetricStatus.error: return Icons.error_outline_rounded;
-      case MetricStatus.neutral: return Icons.analytics_outlined;
+      case MetricStatus.ok:
+        return Icons.check_circle_outline;
+      case MetricStatus.warning:
+        return Icons.warning_amber_rounded;
+      case MetricStatus.error:
+        return Icons.error_outline_rounded;
+      case MetricStatus.neutral:
+        return Icons.analytics_outlined;
     }
   }
 }
@@ -161,7 +170,13 @@ class AlertCard extends StatelessWidget {
                 ),
                 Text(
                   alert.message,
-                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7), fontSize: 11),
+                  style: TextStyle(
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withValues(alpha: 0.7),
+                      fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -170,7 +185,13 @@ class AlertCard extends StatelessWidget {
           ),
           Text(
             _timeAgo(alert.timestamp),
-            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.5), fontSize: 10),
+            style: TextStyle(
+                color: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.color
+                    ?.withValues(alpha: 0.5),
+                fontSize: 10),
           ),
         ],
       ),
@@ -193,13 +214,16 @@ class SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    text.toUpperCase(),
-    style: TextStyle(
-      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-      fontSize: 10,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.08,
-    ),
-  );
+        text.toUpperCase(),
+        style: TextStyle(
+          color: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.color
+              ?.withValues(alpha: 0.6),
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.08,
+        ),
+      );
 }
-

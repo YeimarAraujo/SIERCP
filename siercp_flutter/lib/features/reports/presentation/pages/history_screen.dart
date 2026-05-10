@@ -19,19 +19,26 @@ class HistoryScreen extends ConsumerWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: sessionsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+          loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.brand)),
           error: (e, _) => Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.signal_wifi_statusbar_connected_no_internet_4_outlined,
-                    size: 36, color: Theme.of(context).textTheme.bodyMedium?.color),
+                Icon(
+                    Icons
+                        .signal_wifi_statusbar_connected_no_internet_4_outlined,
+                    size: 36,
+                    color: Theme.of(context).textTheme.bodyMedium?.color),
                 const SizedBox(height: 12),
                 Text('Error al cargar historial',
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color)),
                 const SizedBox(height: 4),
                 Text(e.toString(),
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 11)),
+                    style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontSize: 11)),
               ],
             ),
           ),
@@ -52,12 +59,14 @@ class _HistoryBody extends ConsumerWidget {
         .where((s) => s.metrics != null)
         .map((s) => s.metrics!.score)
         .toList();
-    final avgScore  = scores.isEmpty ? 0.0 : scores.reduce((a, b) => a + b) / scores.length;
-    final bestScore = scores.isEmpty ? 0.0 : scores.reduce((a, b) => a > b ? a : b);
-    final theme  = Theme.of(context);
+    final avgScore =
+        scores.isEmpty ? 0.0 : scores.reduce((a, b) => a + b) / scores.length;
+    final bestScore =
+        scores.isEmpty ? 0.0 : scores.reduce((a, b) => a > b ? a : b);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
     final isLandscape =
@@ -75,7 +84,10 @@ class _HistoryBody extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Historial',
-                        style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            color: textP,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700)),
                     Text('Todas tus sesiones de RCP',
                         style: TextStyle(color: textS, fontSize: 12)),
                   ],
@@ -87,13 +99,18 @@ class _HistoryBody extends ConsumerWidget {
                     try {
                       if (value == 'csv') {
                         await svc.exportHistoryCSV(sessions);
-                      } else if (value == 'pdf' && sessions.isNotEmpty && sessions.first.metrics != null) {
-                        await svc.exportSessionPDF(sessions.first, sessions.first.metrics!);
+                      } else if (value == 'pdf' &&
+                          sessions.isNotEmpty &&
+                          sessions.first.metrics != null) {
+                        await svc.exportSessionPDF(
+                            sessions.first, sessions.first.metrics!);
                       }
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: AppColors.red),
+                          SnackBar(
+                              content: Text('Error al exportar: $e'),
+                              backgroundColor: AppColors.red),
                         );
                       }
                     }
@@ -103,7 +120,8 @@ class _HistoryBody extends ConsumerWidget {
                       value: 'csv',
                       child: Row(
                         children: [
-                          Icon(Icons.table_chart_outlined, size: 18, color: AppColors.green),
+                          Icon(Icons.table_chart_outlined,
+                              size: 18, color: AppColors.green),
                           SizedBox(width: 10),
                           Text('Exportar CSV'),
                         ],
@@ -113,7 +131,8 @@ class _HistoryBody extends ConsumerWidget {
                       value: 'pdf',
                       child: Row(
                         children: [
-                          Icon(Icons.picture_as_pdf_outlined, size: 18, color: AppColors.red),
+                          Icon(Icons.picture_as_pdf_outlined,
+                              size: 18, color: AppColors.red),
                           SizedBox(width: 10),
                           Text('Exportar PDF (última sesión)'),
                         ],
@@ -121,18 +140,25 @@ class _HistoryBody extends ConsumerWidget {
                     ),
                   ],
                   icon: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.brand.withValues(alpha: 0.35), width: 1),
+                      border: Border.all(
+                          color: AppColors.brand.withValues(alpha: 0.35),
+                          width: 1),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.download_outlined, size: 14, color: AppColors.brand),
+                        Icon(Icons.download_outlined,
+                            size: 14, color: AppColors.brand),
                         SizedBox(width: 5),
                         Text('Exportar',
-                            style: TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600)),
+                            style: TextStyle(
+                                color: AppColors.brand,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -142,13 +168,11 @@ class _HistoryBody extends ConsumerWidget {
           ),
         ),
 
-
-
         // Summary cards
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverGrid.count(
-            crossAxisCount: isLandscape ? 4 : 2,
+            crossAxisCount: isLandscape ? 2 : 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
             childAspectRatio: isLandscape ? 2.4 : 1.7,
@@ -212,7 +236,8 @@ class _HistoryBody extends ConsumerWidget {
                     gridData: FlGridData(
                       show: true,
                       drawVerticalLine: false,
-                      getDrawingHorizontalLine: (_) => FlLine(color: border, strokeWidth: 0.5),
+                      getDrawingHorizontalLine: (_) =>
+                          FlLine(color: border, strokeWidth: 0.5),
                     ),
                     borderData: FlBorderData(show: false),
                     titlesData: FlTitlesData(
@@ -226,20 +251,27 @@ class _HistoryBody extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      bottomTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
                     ),
                     lineBarsData: [
                       LineChartBarData(
-                        spots: scores.asMap().entries
+                        spots: scores.reversed
+                            .toList()
+                            .asMap()
+                            .entries
                             .map((e) => FlSpot(e.key.toDouble(), e.value))
                             .toList(),
                         isCurved: true,
                         color: AppColors.brand,
                         barWidth: 2,
                         dotData: FlDotData(
-                          getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                          getDotPainter: (_, __, ___, ____) =>
+                              FlDotCirclePainter(
                             radius: 3,
                             color: AppColors.brand,
                             strokeColor: Colors.transparent,
@@ -280,9 +312,11 @@ class _HistoryBody extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.history_outlined, size: 48, color: textS.withValues(alpha: 0.3)),
+                        Icon(Icons.history_outlined,
+                            size: 48, color: textS.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text('Sin sesiones registradas.', style: TextStyle(color: textS)),
+                        Text('Sin sesiones registradas.',
+                            style: TextStyle(color: textS)),
                       ],
                     ),
                   ),
@@ -292,7 +326,8 @@ class _HistoryBody extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, i) => _SessionTile(session: sessions[i], isDark: isDark),
+                    (context, i) =>
+                        _SessionTile(session: sessions[i], isDark: isDark),
                     childCount: sessions.length,
                   ),
                 ),
@@ -365,11 +400,11 @@ class _SessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score    = session.metrics?.score;
+    final score = session.metrics?.score;
     final approved = session.metrics?.approved ?? false;
-    final theme  = Theme.of(context);
-    final textP  = theme.textTheme.bodyLarge?.color  ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
 
@@ -419,7 +454,10 @@ class _SessionTile extends StatelessWidget {
                     children: [
                       Text(
                         session.scenarioTitle ?? 'Sesión RCP',
-                        style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                            color: textP,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500),
                       ),
                       Text(
                         '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} comp.',
@@ -442,7 +480,11 @@ class _SessionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      approved ? 'aprobado' : score != null ? 'revisar' : 'sin datos',
+                      approved
+                          ? 'aprobado'
+                          : score != null
+                              ? 'revisar'
+                              : 'sin datos',
                       style: TextStyle(color: textS, fontSize: 10),
                     ),
                   ],
@@ -455,4 +497,3 @@ class _SessionTile extends StatelessWidget {
     );
   }
 }
-
