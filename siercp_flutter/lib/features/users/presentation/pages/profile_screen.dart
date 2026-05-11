@@ -1,21 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/core/theme/theme_provider.dart';
 import 'package:siercp/features/devices/presentation/providers/device_provider.dart';
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/l10n/app_localizations.dart';
+import 'package:siercp/core/theme/locale_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  void _showLanguageSelector(BuildContext context, WidgetRef ref, AppLocalizations loc) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(loc.selectLanguage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                title: const Text('Español'),
+                onTap: () {
+                  ref.read(localeControllerProvider.notifier).setLocale(const Locale('es'));
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                title: const Text('English'),
+                onTap: () {
+                  ref.read(localeControllerProvider.notifier).setLocale(const Locale('en'));
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _translateRole(String role, AppLocalizations loc) {
+    switch (role.toUpperCase()) {
+      case 'ADMIN': return loc.admin;
+      case 'INSTRUCTOR': return loc.instructor;
+      default: return loc.student;
+    }
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return AlertDialog(
+          title: Text(loc.privacyPolicyTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Text(
+              loc.privacyPolicyContent,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(loc.closeButton),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final realStats = ref.watch(userStatsProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final loc = AppLocalizations.of(context)!;
+    final currentLocale = ref.watch(localeControllerProvider);
     
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
@@ -38,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
                     IconButton(
                       onPressed: () => context.push('/profile/edit'),
                       icon: const Icon(Icons.edit_note_rounded, color: AppColors.brand),
-                      tooltip: 'Editar perfil',
+                      tooltip: loc.editProfile,
                     ),
                   ],
                 ),
@@ -104,7 +176,7 @@ class ProfileScreen extends ConsumerWidget {
                     Text(
                       user?.fullName.isNotEmpty == true
                           ? user!.fullName
-                          : (user?.isAdmin == true ? 'Administrador' : 'Usuario'),
+                          : (user?.isAdmin == true ? loc.admin : loc.user),
                       style: TextStyle(
                           color: textColor,
                           fontSize: 22,
@@ -122,7 +194,7 @@ class ProfileScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _Badge(
-                          label: user?.role ?? 'ESTUDIANTE',
+                          label: _translateRole(user?.role ?? 'ESTUDIANTE', loc),
                           color: user?.role == 'ADMIN'
                               ? AppColors.amber
                               : user?.role == 'INSTRUCTOR'
@@ -160,27 +232,27 @@ class ProfileScreen extends ConsumerWidget {
                         physics: const NeverScrollableScrollPhysics(),
                         children: [
                           _StatCard(
-                              label: 'Sesiones totales',
+                              label: loc.totalSessions,
                               value: '${realStats?.totalSessions ?? 0}',
                               color: textColor,
                               cardColor: cardColor,
                               borderColor: borderColor),
                           _StatCard(
-                              label: 'Promedio global',
+                              label: loc.averageScore,
                               value:
                                   '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%',
                               color: AppColors.green,
                               cardColor: cardColor,
                               borderColor: borderColor),
                           _StatCard(
-                              label: 'Horas práctica',
+                              label: loc.practiceHours,
                               value:
                                   '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
                               color: AppColors.cyan,
                               cardColor: cardColor,
                               borderColor: borderColor),
                           _StatCard(
-                              label: 'Racha actual',
+                              label: loc.currentStreak,
                               value: '${realStats?.streakDays ?? 0}d',
                               color: AppColors.amber,
                               cardColor: cardColor,
@@ -193,9 +265,9 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Settings
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: SectionLabel('Configuración'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: SectionLabel(loc.settings),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -207,9 +279,13 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _ToggleTile(label: 'Modo Escuro', value: isDark, onChanged: (v) {
+                      _ToggleTile(label: loc.darkMode, value: isDark, onChanged: (v) {
                         ref.read(themeModeProvider.notifier).toggleTheme(v);
                       }, textColor: textColor, trackColor: borderColor),
+                      Divider(color: borderColor, height: 0.5),
+                      _ToggleTile(label: loc.alerts, value: true, onChanged: (_) {}, textColor: textColor, trackColor: borderColor),
+                      Divider(color: borderColor, height: 0.5),
+                      _NavTile(label: loc.language, value: currentLocale.languageCode == 'en' ? 'English' : 'Español', onTap: () => _showLanguageSelector(context, ref, loc), textColor: textColor, secondaryColor: secondaryTextColor),
                     ],
                   ),
                 ),
@@ -218,9 +294,9 @@ class ProfileScreen extends ConsumerWidget {
 
               // Admin/Instructor Section: Equipment
               if (user?.isAdmin == true || user?.isInstructor == true) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  child: SectionLabel('Equipos y Conectividad'),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: SectionLabel(loc.equipmentSectionTitle),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -236,8 +312,8 @@ class ProfileScreen extends ConsumerWidget {
                           final devices = ref.watch(devicesStreamProvider).valueOrNull ?? [];
                           final connectedCount = devices.where((d) => d.status == 'online').length;
                           return _NavTile(
-                            label: 'Maniquíes SIERCP',
-                            value: connectedCount > 0 ? '$connectedCount conectados' : 'Desconectados',
+                            label: loc.manikinsLabel,
+                            value: connectedCount > 0 ? loc.devicesConnectedCount(connectedCount) : loc.disconnected,
                             onTap: () => context.push('/admin/devices'),
                             textColor: textColor,
                             secondaryColor: connectedCount > 0 ? AppColors.green : secondaryTextColor,
@@ -252,9 +328,9 @@ class ProfileScreen extends ConsumerWidget {
               ],
 
               // About
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: SectionLabel('Acerca de'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: SectionLabel(loc.about),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -266,14 +342,23 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _NavTile(label: 'Versión de la app', value: '2.0.0',
+                      _NavTile(label: loc.appVersion, value: '2.0.0',
                           textColor: textColor, secondaryColor: secondaryTextColor, onTap: () {}),
                       Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: 'Guías AHA 2020', value: '',
-                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () {}),
+                      _NavTile(label: loc.ahaGuidelines, value: '',
+                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () async {
+                            final url = Uri.parse('https://cpr.heart.org/-/media/cpr-files/cpr-guidelines-files/highlights/hghlghts_2020eccguidelines_spanish.pdf');
+                            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(loc.errorOpeningLink)),
+                                );
+                              }
+                            }
+                          }),
                       Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: 'Política de privacidad', value: '',
-                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () {}),
+                      _NavTile(label: loc.privacyPolicy, value: '',
+                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () => _showPrivacyPolicy(context)),
                     ],
                   ),
                 ),
@@ -288,7 +373,7 @@ class ProfileScreen extends ConsumerWidget {
                     await ref.read(authStateProvider.notifier).logout();
                   },
                   icon: const Icon(Icons.logout, size: 16),
-                  label: const Text('Cerrar sesión'),
+                  label: Text(loc.logout),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.red,
                     side: const BorderSide(color: AppColors.red, width: 0.5),
@@ -360,6 +445,9 @@ class _ToggleTileState extends State<_ToggleTile> {
   void initState() { super.initState(); _val = widget.value; }
 
   @override
+  void didUpdateWidget(_ToggleTile old) { super.didUpdateWidget(old); if (old.value != widget.value) _val = widget.value; }
+
+  @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     child: Row(
@@ -414,4 +502,3 @@ class _NavTile extends StatelessWidget {
     ),
   );
 }
-

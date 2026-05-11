@@ -1,0 +1,336 @@
+{
+  "@@locale": "en",
+  
+  "profileTitle": "Profile",
+  "settings": "Settings",
+  "darkMode": "Dark Mode",
+  "alerts": "Alert Notifications",
+  "language": "Language",
+  "about": "About",
+  "appVersion": "App Version",
+  "ahaGuidelines": "AHA 2020 Guidelines",
+  "privacyPolicy": "Privacy Policy",
+  "logout": "Log Out",
+  "totalSessions": "Total Sessions",
+  "averageScore": "Overall Average",
+  "practiceHours": "Practice Hours",
+  "currentStreak": "Current Streak",
+  "student": "STUDENT",
+  "instructor": "INSTRUCTOR",
+  "admin": "ADMIN",
+  "user": "User",
+
+  "selectLanguage": "Select Language",
+
+  "loginTitle": "Log In",
+  "loginSubtitle": "CPR Training System",
+  "loginInstruction": "Enter with your institutional email",
+  "emailLabel": "Email Address",
+  "emailHint": "user@siercp.edu.co",
+  "passwordLabel": "Password",
+  "forgotPassword": "Forgot your password?",
+  "noAccountRegister": "Don't have an account? Register here",
+  "loginErrorEmptyFields": "Enter your email and password",
+  "forgotPassErrorEmpty": "Enter your email to reset your password.",
+  "forgotPassSuccess": "📧 Reset email sent.",
+  "registerTitle": "Create Account",
+  "registerSubtitle": "Join SIERCP and start your training",
+  "roleStudentLabel": "Student",
+  "roleInstructorLabel": "Instructor",
+  "firstName": "First Name",
+  "lastName": "Last Name",
+  "idLabel": "ID Number",
+  "idHint": "Ex: 1234567890",
+  "requiredField": "Required",
+  "min5Digits": "Minimum 5 digits",
+  "invalidEmail": "Invalid email",
+  "min6Chars": "Minimum 6 characters",
+  "acceptPrivacy1": "I accept the ",
+  "acceptPrivacy2": "Privacy Policy",
+  "registerPrivacyError": "You must accept the Privacy Policy",
+  "closeButton": "Close",
+  "privacyPolicyTitle": "Privacy Policy",
+  "privacyPolicyContent": "1. Introduction\n\nThe CPR Training System is committed to protecting the privacy and security of its users' personal information. This policy explains how we collect, use, store, and protect personal data in accordance with current Colombian regulations (Law 1581 of 2012 and complementary standards).\n\n2. Information We Collect\n\nWe may collect the following information:\n\nPersonal data: full name, identification number, email, phone number.\nAcademic or professional data: institution, position, previous certifications.\nSystem usage data: module progress, evaluation results, access dates.\nTechnical information: IP address, device type, and browser.\n\n3. Purpose of Data Processing\n\nThe collected information will be used to:\n\nManage system registration and access.\nMonitor user progress in CPR modules.\nIssue participation or approval certificates.\nSend relevant information about training or updates.\nImprove service quality and user experience.\n\n4. Storage and Security\n\nInformation will be stored in secure databases, and technical, administrative, and organizational measures will be implemented to prevent unauthorized access, loss, or alteration of information.\n\n5. Sharing Information\n\nPersonal data will not be sold or shared with third parties, except:\n\nWhen required by a competent authority.\nWhen necessary to issue official certifications.\nWhen the user provides express authorization.\n\n6. User Rights\n\nIn accordance with Colombian legislation, users have the right to:\n\nKnow, update, and rectify their personal data.\nRequest proof of the authorization granted.\nRevoke authorization or request the deletion of their data.\nFile complaints with the Superintendency of Industry and Commerce.\n\n7. Use of Cookies\n\nThe system may use cookies to improve the browsing experience and analyze platform usage.\n\n8. Policy Modifications\n\nWe reserve the right to update this policy at any time. Changes will be published on the platform.\n\n9. Contact\n\nFor inquiries related to privacy and data processing, you can communicate through the official system email.",
+
+  "navDashboard": "Dashboard",
+  "navUsers": "Users",
+  "navDevices": "Manikins",
+  "navProfile": "Profile",
+  "navHome": "Home",
+  "navSession": "Session",
+  "navHistory": "History",
+  "navCourses": "Courses",
+  "coursesTitle": "Courses",
+  "searchingDevice": "Searching...",
+  "deviceError": "Error",
+  "noDevice": "No manikin",
+  "searchingManikin": "Searching manikin...",
+  "manikinNotDetected": "⚠️ Manikin not detected. Check ESP32 connection.",
+
+  "adminDashboardTitle": "Control Panel",
+  "welcomeName": "Welcome, {name}",
+  "@welcomeName": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "adminSubtitle": "SIERCP Administrator",
+  "instructorSubtitle": "Instructor",
+  "studentSubtitle": "STUDENT",
+  "historicalSummary": "Historical Summary",
+  "sessionsToday": "Sessions Today",
+  "avgDepth": "Avg. Depth",
+  "avgRate": "Avg. Rate",
+  "compressionScore": "Compressions OK %",
+  "depthHint": "Range: 50–60mm",
+  "rateHint": "Goal: 100–120",
+  "scoreHint": "Goal: 85%+",
+  "courseProgress": "Course Progress",
+  "systemAlerts": "System Alerts",
+  "latestAlerts": "Latest Alerts",
+  "noRecentAlerts": "No recent alerts.",
+  "adminUsersSub": "Instructors and Students",
+  "adminDevicesSub": "Connection status",
+  "adminCoursesSub": "Manage programs",
+  "adminReportsSub": "Global statistics",
+  "newCourse": "New Course",
+  "myStudents": "My Students",
+  "exportData": "Export",
+  "myActiveCourses": "My active courses",
+  "viewAll": "View all",
+  "noCoursesCreated": "You haven't created any courses yet. Create the first one.",
+  "noCoursesCreatedPlain": "You haven't created any courses yet",
+  "noCoursesJoinedPlain": "You are not enrolled in any course",
+  "noCoursesCreatedDesc": "Create your first course to start managing students.",
+  "noCoursesJoinedDesc": "Ask your instructor for the code to join or wait to be enrolled.",
+  "createFirstCourseBtn": "Create first course",
+  "joinWithCodeBtn": "Join with code",
+  "joinCourseBtn": "Join course",
+  "joinCourseTitle": "Join a course",
+  "courseCodeLabel": "Course code",
+  "courseCodeHint": "Ex: X9J2P1",
+  "joinSuccess": "You have successfully joined the course",
+  "joinError": "Error: Verify the code ({error})",
+  "@joinError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "createCourseTitle": "Create new course",
+  "courseNameLabel": "Course name",
+  "courseDescLabel": "Description",
+  "studentsCedulaLabel": "Students (IDs)",
+  "studentsCedulaHint": "Ex: 1234567, 9876543...",
+  "createSuccess": "Course created successfully",
+  "enrollStudentTitle": "Enroll student",
+  "cedulaLabel": "ID / Identification number",
+  "cedulaHint": "Ex: 1234567890",
+  "enrollInfo": "The student must be registered in SIERCP with that ID.",
+  "enrollBtn": "Enroll",
+  "enrollSuccess": "Student enrolled successfully",
+  "cprCertificate": "SIERCP Certificate",
+  "courseDetail": "Detail",
+  "courseEnroll": "Enroll",
+  "courseExport": "Export",
+  "courseLive": "Live",
+  "exportGradesSuccess": "Grades CSV exported",
+  "exportGradesError": "Error exporting: {error}",
+  "@exportGradesError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "courseStudentsTitle": "Course students",
+  "noStudentsInscribed": "No students enrolled",
+  "cancelBtn": "Cancel",
+  "unirseBtn": "Join",
+  "joinErrorInvalidCode": "Error: Verify the code",
+  "coursesSubtitleManage": "CPR training management",
+  "coursesSubtitleStudent": "Your training courses",
+  "activeCourses": "Active courses",
+  "myCourses": "My courses",
+  "loadCoursesError": "Error loading courses: {error}",
+  "@loadCoursesError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "createBtn": "Create",
+  "studentsCount": "{count} students",
+  "@studentsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noCourseAssigned": "No course assigned",
+  "noCourseAssignedDesc": "Your instructor hasn't enrolled you in any course yet. Contact your instructor to join a CPR training program.",
+  "viewAvailableCourses": "View available courses",
+  "deviceConnected": "Device connected",
+  "deviceDisconnected": "No device",
+  "startCPRTitle": "Start CPR Session",
+  "startCPRDescConnected": "Select a scenario to start",
+  "startCPRDescDisconnected": "Connect the ESP32 manikin before starting",
+  "startTrainingBtn": "Start training",
+  "completedPct": "{pct}% completed",
+  "@completedPct": {
+    "placeholders": {
+      "pct": { "type": "String" }
+    }
+  },
+  "deadlineStr": "Due: {month}/{day}",
+  "@deadlineStr": {
+    "placeholders": {
+      "day": { "type": "int" },
+      "month": { "type": "int" }
+    }
+  },
+  
+  "historyLoadError": "Error loading history",
+  "historyTitle": "History",
+  "historySubtitle": "All your CPR sessions",
+  "exportError": "Export error: {error}",
+  "@exportError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "exportCsv": "Export CSV",
+  "exportPdf": "Export PDF (latest session)",
+  "exportBtn": "Export",
+  "globalAvg": "Global average",
+  "bestSession": "Best session",
+  "totalSessions": "Total sessions",
+  "sessionsCountLabel": "{count} sessions",
+  "@sessionsCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "studentNameFallback": "Student",
+  "withMetrics": "With metrics",
+  "scoreProgression": "Score progression",
+  "latestSessions": "Latest sessions",
+  "noSessions": "No registered sessions.",
+  "cprSession": "CPR Session",
+  "compLabel": "comp.",
+  "approved": "approved",
+  "review": "review",
+  "noData": "no data",
+
+  "selectScenarioTitle": "Select Scenario",
+  "selectScenarioSubtitle": "Choose the clinical case to simulate",
+  "manikinBtn": "Manikin",
+  "scenarioInfoBanner": "Select a scenario and connect the ESP32 manikin to start.",
+  "lockedScenarioMsg": "Complete the previous modules to unlock.",
+  "newBadge": "New",
+
+  "demoTitle1": "🏠 Cardiac arrest at home",
+  "demoSub1": "Adult · 52 years · Sudden collapse",
+  "demoDesc1": "Family member finds the victim unconscious on the floor. No pulse or breathing.",
+  "demoTitle2": "🚗 Traffic accident",
+  "demoSub2": "Adult · 35 years · Multiple traumas",
+  "demoDesc2": "Victim found on the road, unresponsive. Evaluate the scene before acting.",
+  "demoTitle3": "🌊 Drowning in pool",
+  "demoSub3": "Adult · No breathing or pulse",
+  "demoDesc3": "Rescued from the pool. Drowning protocol: rescue breaths first.",
+  "demoTitle4": "🏋️ Collapse during exercise",
+  "demoSub4": "Adult · 28 years · Athlete",
+  "demoDesc4": "Sudden collapse in the gym. Possible ventricular fibrillation. Use the AED.",
+  "demoTitle5": "🍽️ Severe choking",
+  "demoSub5": "Adult · Airway obstruction",
+  "demoDesc5": "Family dinner. Heimlich maneuver + CPR if consciousness is lost.",
+  "demoTitle6": "⚡ Electrical shock",
+  "demoSub6": "Adult · Workplace accident",
+  "demoDesc6": "Electrocuted worker. Secure the scene before touching the victim.",
+  "demoTitle7": "🛏️ Opioid overdose",
+  "demoSub7": "Adult · Intoxication · Slow breathing",
+  "demoDesc7": "Overdose victim: Naloxone if available + CPR if cardiac arrest occurs.",
+  "demoTitle8": "🚨 Heart attack evolving to arrest",
+  "demoSub8": "Adult · 60 years · Chest pain",
+  "demoDesc8": "Patient with chest pain that evolves into cardiac arrest. Act fast.",
+
+  "scanQr": "Scan QR",
+  "qrHint": "Type the code or tap the QR icon to scan.",
+  "qrSuccess": "QR scanned successfully",
+  "scanAgain": "Scan again",
+  "aimQrHint": "Point at the course QR code",
+  "qrScannerTitle": "Scan QR Code",
+  "cameraPermissionRequired": "Camera permission required",
+  "grantPermission": "Grant permission",
+  "createCourseBtn": "Create",
+  "courseCreatedSuccess": "Course created successfully",
+  "enrollSuccess": "Student enrolled successfully",
+  "joinSuccess": "You have successfully joined the course",
+  "deleteCourseConfirmTitle": "Delete course?",
+  "deleteCourseConfirmDesc": "This action will deactivate the course \"{title}\". Students will no longer be able to access it.",
+  "@deleteCourseConfirmDesc": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "deleteBtn": "Delete",
+  "editCourseTitle": "Edit course",
+  "saveBtn": "Save",
+  "modulesBtn": "Modules",
+  "studentsBtn": "Students",
+  "qrBtn": "QR",
+  "completed": "Completed",
+  "remainingSessions": "{count} sessions remaining",
+  "@remainingSessions": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "shareInviteText": "Join my CPR course at SIERCP!\nCourse: {title}\nInvitation code: {code}\n\nOr scan the QR from the app.",
+  "@shareInviteText": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "code": { "type": "String" }
+    }
+  },
+  "shareInviteSubject": "SIERCP Course Invitation",
+  "shareInviteBtn": "Share invitation",
+  "recentActivity": "Recent Activity",
+  "ahaTipTitle": "AHA 2025 Tip",
+  "ahaTipBody": "Remember that compression depth should be at least 5 cm (2 inches) but no more than 6 cm (2.4 inches). Allow full chest recoil after each compression.",
+  "totalStudents": "Students",
+  "activeManikins": "Manikins",
+  "alertsToday": "Alerts Today",
+  "manageUsers": "Users",
+  "manageManikins": "Manikins",
+  "manageCourses": "Courses",
+  "manageReports": "Reports",
+  "manageAnalytics": "Analytics",
+  "quickNewCourse": "New Course",
+  "quickMyStudents": "My Students",
+  "quickExport": "Export",
+  "activeCoursesTitle": "My active courses",
+  "navDashboard": "Dashboard",
+  "navReports": "Reports",
+  "navAnalytics": "Analytics",
+  "equipmentSectionTitle": "Equipment & Connectivity",
+  "manikinsLabel": "SIERCP Manikins",
+  "disconnected": "Disconnected",
+  "editProfile": "Edit Profile",
+  "errorOpeningLink": "Could not open the link",
+  "devicesConnectedCount": "{count} connected",
+  "@devicesConnectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noInternet": "NO INTERNET CONNECTION",
+  "continueLearning": "Continue Learning",
+  "viewDetail": "View Detail",
+  "continueTraining": "Continue Training",
+  "connected": "Connected",
+  "noDeviceMini": "No disp.",
+  "approvedAndSessions": "{approvedCount}/{requiredCount} approved · {totalDone} sessions",
+  "@approvedAndSessions": {
+    "placeholders": {
+      "approvedCount": { "type": "int" },
+      "requiredCount": { "type": "int" },
+      "totalDone": { "type": "int" }
+    }
+  }
+}

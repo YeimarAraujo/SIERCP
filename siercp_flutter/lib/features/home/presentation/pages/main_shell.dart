@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class NavItem {
   final String label;
@@ -16,39 +17,39 @@ class MainShell extends ConsumerWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
-  List<NavItem> _getNavItems(bool isAdmin, bool isInstructor) {
+  List<NavItem> _getNavItems(bool isAdmin, bool isInstructor, AppLocalizations loc) {
     if (isAdmin) {
-      return const [
+      return [
         NavItem(
-            'Dashboard', Icons.dashboard_outlined, Icons.dashboard, '/home'),
-        NavItem('Usuarios', Icons.group_outlined, Icons.group, '/admin/users'),
-        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
+            loc.navDashboard, Icons.dashboard_outlined, Icons.dashboard, '/home'),
+        NavItem(loc.navUsers, Icons.group_outlined, Icons.group, '/admin/users'),
+        NavItem(loc.navReports, Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
             '/reports'),
-        NavItem('Analíticas', Icons.analytics_outlined, Icons.analytics,
+        NavItem(loc.navAnalytics, Icons.analytics_outlined, Icons.analytics,
             '/analytics'),
-        NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
+        NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     } else if (isInstructor) {
-      return const [
-        NavItem('Inicio', Icons.home_outlined, Icons.home, '/home'),
-        NavItem('Sesión', Icons.favorite_outline, Icons.favorite, '/scenarios'),
-        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart,
+      return [
+        NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
+        NavItem(loc.navSession, Icons.favorite_outline, Icons.favorite, '/scenarios'),
+        NavItem(loc.navHistory, Icons.show_chart_outlined, Icons.show_chart,
             '/history'),
         NavItem(
-            'Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
-        NavItem('Reportes', Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
+            loc.navCourses, Icons.menu_book_outlined, Icons.menu_book, '/courses'),
+        NavItem(loc.navReports, Icons.picture_as_pdf_outlined, Icons.picture_as_pdf,
             '/reports'),
-        NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
+        NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     } else {
-      return const [
-        NavItem('Inicio', Icons.home_outlined, Icons.home, '/home'),
-        NavItem('Sesión', Icons.favorite_outline, Icons.favorite, '/scenarios'),
-        NavItem('Historial', Icons.show_chart_outlined, Icons.show_chart,
+      return [
+        NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
+        NavItem(loc.navSession, Icons.favorite_outline, Icons.favorite, '/scenarios'),
+        NavItem(loc.navHistory, Icons.show_chart_outlined, Icons.show_chart,
             '/history'),
         NavItem(
-            'Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
-        NavItem('Perfil', Icons.person_outline, Icons.person, '/profile'),
+            loc.navCourses, Icons.menu_book_outlined, Icons.menu_book, '/courses'),
+        NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     }
   }
@@ -56,9 +57,10 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final loc = AppLocalizations.of(context)!;
     final isAdmin = user?.isAdmin ?? false;
     final isInstructor = user?.isInstructor ?? false;
-    final navItems = _getNavItems(isAdmin, isInstructor);
+    final navItems = _getNavItems(isAdmin, isInstructor, loc);
 
     final location = GoRouterState.of(context).matchedLocation;
     int index = navItems.indexWhere((item) =>

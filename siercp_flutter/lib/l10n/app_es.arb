@@ -1,0 +1,339 @@
+{
+  "@@locale": "es",
+  
+  "profileTitle": "Perfil",
+  "@profileTitle": {
+    "description": "El título de la pantalla de perfil"
+  },
+  "settings": "Configuración",
+  "darkMode": "Modo Oscuro",
+  "alerts": "Notificaciones de alerta",
+  "language": "Idioma",
+  "about": "Acerca de",
+  "appVersion": "Versión de la app",
+  "ahaGuidelines": "Guías AHA 2020",
+  "privacyPolicy": "Política de privacidad",
+  "logout": "Cerrar sesión",
+  "totalSessions": "Sesiones totales",
+  "averageScore": "Promedio global",
+  "practiceHours": "Horas práctica",
+  "currentStreak": "Racha actual",
+  "student": "ESTUDIANTE",
+  "instructor": "INSTRUCTOR",
+  "admin": "ADMINISTRADOR",
+  "user": "Usuario",
+  
+  "selectLanguage": "Seleccionar idioma",
+
+  "loginTitle": "Iniciar sesión",
+  "loginSubtitle": "Sistema de Entrenamiento RCP",
+  "loginInstruction": "Ingresa con tu correo institucional",
+  "emailLabel": "Correo electrónico",
+  "emailHint": "usuario@siercp.edu.co",
+  "passwordLabel": "Contraseña",
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "noAccountRegister": "¿No tienes cuenta? Regístrate aquí",
+  "loginErrorEmptyFields": "Ingresa tu correo y contraseña",
+  "forgotPassErrorEmpty": "Ingresa tu correo para restablecer la contraseña.",
+  "forgotPassSuccess": "📧 Correo de restablecimiento enviado.",
+  "registerTitle": "Crear cuenta",
+  "registerSubtitle": "Únete a SIERCP y comienza tu entrenamiento",
+  "roleStudentLabel": "Estudiante",
+  "roleInstructorLabel": "Instructor",
+  "firstName": "Nombre",
+  "lastName": "Apellido",
+  "idLabel": "Número de identificación / Cédula",
+  "idHint": "Ej: 1234567890",
+  "requiredField": "Requerido",
+  "min5Digits": "Mínimo 5 dígitos",
+  "invalidEmail": "Correo inválido",
+  "min6Chars": "Mínimo 6 caracteres",
+  "acceptPrivacy1": "Acepto las ",
+  "acceptPrivacy2": "Políticas de privacidad",
+  "registerPrivacyError": "Debes aceptar las Políticas de privacidad",
+  "closeButton": "Cerrar",
+  "privacyPolicyTitle": "Políticas de Privacidad",
+  "privacyPolicyContent": "1. Introducción\n\nEl Sistema de Entrenamiento en RCP se compromete a proteger la privacidad y seguridad de la información personal de sus usuarios. Esta política explica cómo recopilamos, usamos, almacenamos y protegemos los datos personales conforme a la normativa vigente en Colombia (Ley 1581 de 2012 y normas complementarias).\n\n2. Información que Recopilamos\n\nPodemos recopilar la siguiente información:\n\nDatos personales: nombre completo, número de identificación, correo electrónico, número de teléfono.\nDatos académicos o profesionales: institución, cargo, certificaciones previas.\nDatos de uso del sistema: progreso en módulos, resultados de evaluaciones, fechas de acceso.\nInformación técnica: dirección IP, tipo de dispositivo y navegador.\n\n3. Finalidad del Tratamiento de Datos\n\nLa información recopilada será utilizada para:\n\nGestionar el registro y acceso al sistema.\nRealizar seguimiento del progreso del usuario en los módulos de RCP.\nEmitir certificados de participación o aprobación.\nEnviar información relevante sobre capacitaciones o actualizaciones.\nMejorar la calidad del servicio y la experiencia del usuario.\n\n4. Almacenamiento y Seguridad\n\nLa información será almacenada en bases de datos seguras y se implementarán medidas técnicas, administrativas y organizativas para evitar acceso no autorizado, pérdida o alteración de la información.\n\n5. Compartición de Información\n\nLos datos personales no serán vendidos ni compartidos con terceros, salvo:\n\nCuando sea requerido por autoridad competente.\nCuando sea necesario para emitir certificaciones oficiales.\nCuando el usuario otorgue autorización expresa.\n\n6. Derechos del Usuario\n\nDe acuerdo con la legislación colombiana, el usuario tiene derecho a:\n\nConocer, actualizar y rectificar sus datos personales.\nSolicitar prueba de la autorización otorgada.\nRevocar la autorización o solicitar la eliminación de sus datos.\nPresentar quejas ante la Superintendencia de Industria y Comercio.\n\n7. Uso de Cookies\n\nEl sistema puede utilizar cookies para mejorar la experiencia de navegación y analizar el uso de la plataforma.\n\n8. Modificaciones a la Política\n\nNos reservamos el derecho de actualizar esta política en cualquier momento. Los cambios serán publicados en la plataforma.\n\n9. Contacto\n\nPara consultas relacionadas con la privacidad y tratamiento de datos, puede comunicarse a través del correo electrónico oficial del sistema.",
+
+  "navDashboard": "Dashboard",
+  "navUsers": "Usuarios",
+  "navDevices": "Maniquíes",
+  "navProfile": "Perfil",
+  "navHome": "Inicio",
+  "navSession": "Sesión",
+  "navHistory": "Historial",
+  "navCourses": "Cursos",
+  "coursesTitle": "Cursos",
+  "searchingDevice": "Buscando...",
+  "deviceError": "Error",
+  "noDevice": "Sin maniquí",
+  "searchingManikin": "Buscando maniquí...",
+  "manikinNotDetected": "⚠️ Maniquí no detectado. Verificar conexión del ESP32.",
+
+  "adminDashboardTitle": "Panel de Control",
+  "welcomeName": "Bienvenido, {name}",
+  "@welcomeName": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "adminSubtitle": "Administrador SIERCP",
+  "instructorSubtitle": "Instructor",
+  "studentSubtitle": "ESTUDIANTE",
+  "historicalSummary": "Resumen histórico",
+  "sessionsToday": "Sesiones hoy",
+  "avgDepth": "Prof. promedio",
+  "avgRate": "Frecuencia media",
+  "compressionScore": "% Compresiones OK",
+  "depthHint": "Rango: 50–60mm",
+  "rateHint": "Meta: 100–120",
+  "scoreHint": "Meta: 85%+",
+  "courseProgress": "Progreso del curso",
+  "systemAlerts": "Alertas del sistema",
+  "latestAlerts": "Últimas alertas",
+  "noRecentAlerts": "Sin alertas recientes.",
+  "adminUsersSub": "Instructores y Estudiantes",
+  "adminDevicesSub": "Estado de conexión",
+  "adminCoursesSub": "Gestionar programas",
+  "adminReportsSub": "Estadísticas globales",
+  "newCourse": "Nuevo Curso",
+  "myStudents": "Mis Estudiantes",
+  "exportData": "Exportar",
+  "myActiveCourses": "Mis cursos activos",
+  "viewAll": "Ver todos",
+  "noCoursesCreated": "Aún no has creado ningún curso. Crea el primero.",
+  "noCoursesCreatedPlain": "Aún no has creado ningún curso",
+  "noCoursesJoinedPlain": "No estás inscrito en ningún curso",
+  "noCoursesCreatedDesc": "Crea tu primer curso para comenzar a gestionar estudiantes.",
+  "noCoursesJoinedDesc": "Pide a tu instructor el código para unirte o aguarda a que te inscriban.",
+  "createFirstCourseBtn": "Crear primer curso",
+  "joinWithCodeBtn": "Unirse con código",
+  "joinCourseBtn": "Unirse a curso",
+  "joinCourseTitle": "Unirse a un curso",
+  "courseCodeLabel": "Código del curso",
+  "courseCodeHint": "Ej: X9J2P1",
+  "joinSuccess": "Te has unido al curso con éxito",
+  "joinError": "Error: Verifica el código ({error})",
+  "@joinError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "createCourseTitle": "Crear nuevo curso",
+  "courseNameLabel": "Nombre del curso",
+  "courseDescLabel": "Descripción",
+  "studentsCedulaLabel": "Estudiantes (cédulas)",
+  "studentsCedulaHint": "Ej: 1234567, 9876543...",
+  "createSuccess": "Curso creado con éxito",
+  "enrollStudentTitle": "Inscribir estudiante",
+  "cedulaLabel": "Cédula / Número de identificación",
+  "cedulaHint": "Ej: 1234567890",
+  "enrollInfo": "El estudiante debe estar registrado en SIERCP con esa cédula.",
+  "enrollBtn": "Inscribir",
+  "enrollSuccess": "Estudiante inscrito con éxito",
+  "cprCertificate": "Certificado SIERCP",
+  "courseDetail": "Detalle",
+  "courseEnroll": "Inscribir",
+  "courseExport": "Exportar",
+  "courseLive": "En Vivo",
+  "exportGradesSuccess": "CSV de notas exportado",
+  "exportGradesError": "Error al exportar: {error}",
+  "@exportGradesError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "courseStudentsTitle": "Estudiantes del curso",
+  "noStudentsInscribed": "Sin estudiantes inscritos",
+  "cancelBtn": "Cancelar",
+  "unirseBtn": "Unirse",
+  "joinErrorInvalidCode": "Error: Verifica el código",
+  "coursesSubtitleManage": "Gestión de entrenamiento RCP",
+  "coursesSubtitleStudent": "Tus cursos de entrenamiento",
+  "activeCourses": "Cursos activos",
+  "myCourses": "Mis cursos",
+  "loadCoursesError": "Error al cargar cursos: {error}",
+  "@loadCoursesError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "createBtn": "Crear",
+  "studentsCount": "{count} estudiantes",
+  "@studentsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noCourseAssigned": "Sin curso asignado",
+  "noCourseAssignedDesc": "Tu instructor aún no te ha inscrito en ningún curso. Contacta a tu instructor para unirte a un programa de entrenamiento RCP.",
+  "viewAvailableCourses": "Ver cursos disponibles",
+  "deviceConnected": "Dispositivo conectado",
+  "deviceDisconnected": "Sin dispositivo",
+  "startCPRTitle": "Iniciar sesión RCP",
+  "startCPRDescConnected": "Selecciona un escenario para comenzar",
+  "startCPRDescDisconnected": "Conecta el maniquí ESP32 antes de iniciar",
+  "startTrainingBtn": "Comenzar entrenamiento",
+  "completedPct": "{pct}% completado",
+  "@completedPct": {
+    "placeholders": {
+      "pct": { "type": "String" }
+    }
+  },
+  "deadlineStr": "Entrega: {day}/{month}",
+  "@deadlineStr": {
+    "placeholders": {
+      "day": { "type": "int" },
+      "month": { "type": "int" }
+    }
+  },
+  
+  "historyLoadError": "Error al cargar historial",
+  "historyTitle": "Historial",
+  "historySubtitle": "Todas tus sesiones de RCP",
+  "exportError": "Error al exportar: {error}",
+  "@exportError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "exportCsv": "Exportar CSV",
+  "exportPdf": "Exportar PDF (última sesión)",
+  "exportBtn": "Exportar",
+  "globalAvg": "Promedio global",
+  "bestSession": "Mejor sesión",
+  "totalSessions": "Total sesiones",
+  "sessionsCountLabel": "{count} sesiones",
+  "@sessionsCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "studentNameFallback": "Estudiante",
+  "withMetrics": "Con métricas",
+  "scoreProgression": "Progresión de calificaciones",
+  "latestSessions": "Últimas sesiones",
+  "noSessions": "Sin sesiones registradas.",
+  "cprSession": "Sesión RCP",
+  "compLabel": "comp.",
+  "approved": "aprobado",
+  "review": "revisar",
+  "noData": "sin datos",
+
+  "selectScenarioTitle": "Seleccionar escenario",
+  "selectScenarioSubtitle": "Elige el caso clínico a simular",
+  "manikinBtn": "Maniquí",
+  "scenarioInfoBanner": "Selecciona un escenario y conecta el maniquí ESP32 para comenzar.",
+  "lockedScenarioMsg": "Completa los módulos anteriores para desbloquear.",
+  "newBadge": "Nuevo",
+
+  "demoTitle1": "🏠 Paro cardíaco en casa",
+  "demoSub1": "Adulto · 52 años · Colapso repentino",
+  "demoDesc1": "Familiar encuentra a la víctima inconsciente en el suelo. Sin pulso ni respiración.",
+  "demoTitle2": "🚗 Accidente de tránsito",
+  "demoSub2": "Adulto · 35 años · Múltiples traumas",
+  "demoDesc2": "Víctima encontrada en la vía, sin respuesta. Evalúa la escena antes de actuar.",
+  "demoTitle3": "🌊 Ahogamiento en piscina",
+  "demoSub3": "Adulto · Sin respiración ni pulso",
+  "demoDesc3": "Rescatado de la piscina. Protocolo de ahogamiento: ventilaciones primero.",
+  "demoTitle4": "🏋️ Colapso durante ejercicio",
+  "demoSub4": "Adulto · 28 años · Atleta",
+  "demoDesc4": "Colapso súbito en el gimnasio. Posible fibrilación ventricular. Usa el DEA.",
+  "demoTitle5": "🍽️ Atragantamiento severo",
+  "demoSub5": "Adulto · Obstrucción de vía aérea",
+  "demoDesc5": "Cena familiar. Maniobra de Heimlich + RCP si pierde el conocimiento.",
+  "demoTitle6": "⚡ Descarga eléctrica",
+  "demoSub6": "Adulto · Accidente laboral",
+  "demoDesc6": "Trabajador electrocutado. Asegurar la escena antes de tocar a la víctima.",
+  "demoTitle7": "🛏️ Sobredosis por opioides",
+  "demoSub7": "Adulto · Intoxicación · Respiración lenta",
+  "demoDesc7": "Víctima con sobredosis: Naloxona si disponible + RCP si paro cardíaco.",
+  "demoTitle8": "🚨 Infarto que evoluciona a paro",
+  "demoSub8": "Adulto · 60 años · Dolor torácico",
+  "demoDesc8": "Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.",
+
+  "scanQr": "Escanear QR",
+  "qrHint": "Escribe el código o toca el ícono QR para escanear.",
+  "qrSuccess": "QR escaneado correctamente",
+  "scanAgain": "Escanear de nuevo",
+  "aimQrHint": "Apunta al código QR del curso",
+  "qrScannerTitle": "Escanear código QR",
+  "cameraPermissionRequired": "Se requiere permiso de cámara",
+  "grantPermission": "Otorgar permiso",
+  "createCourseBtn": "Crear",
+  "courseCreatedSuccess": "Curso creado con éxito",
+  "enrollSuccess": "Estudiante inscrito con éxito",
+  "joinSuccess": "Te has unido al curso con éxito",
+  "deleteCourseConfirmTitle": "¿Eliminar curso?",
+  "deleteCourseConfirmDesc": "Esta acción desactivará el curso \"{title}\". Los alumnos no podrán acceder.",
+  "@deleteCourseConfirmDesc": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "deleteBtn": "Eliminar",
+  "editCourseTitle": "Modificar curso",
+  "saveBtn": "Guardar",
+  "modulesBtn": "Módulos",
+  "studentsBtn": "Alumnos",
+  "qrBtn": "QR",
+  "completed": "Completado",
+  "remainingSessions": "Faltan {count} sesiones",
+  "@remainingSessions": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "shareInviteText": "¡Únete a mi curso de RCP en SIERCP!\nCurso: {title}\nCódigo de invitación: {code}\n\nO escanea el QR desde la app.",
+  "@shareInviteText": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "code": { "type": "String" }
+    }
+  },
+  "shareInviteSubject": "Invitación a curso SIERCP",
+  "shareInviteBtn": "Compartir invitación",
+  "recentActivity": "Actividad Reciente",
+  "ahaTipTitle": "Consejo AHA 2025",
+  "ahaTipBody": "Recuerda que la profundidad de las compresiones debe ser de al menos 5 cm (2 pulgadas) pero no más de 6 cm (2.4 pulgadas). Permite la expansión torácica completa después de cada compresión.",
+  "totalStudents": "Estudiantes",
+  "activeManikins": "Maniquíes",
+  "alertsToday": "Alertas Hoy",
+  "manageUsers": "Usuarios",
+  "manageManikins": "Maniquíes",
+  "manageCourses": "Cursos",
+  "manageReports": "Reportes",
+  "manageAnalytics": "Analíticas",
+  "quickNewCourse": "Nuevo Curso",
+  "quickMyStudents": "Mis Estudiantes",
+  "quickExport": "Exportar",
+  "activeCoursesTitle": "Mis cursos activos",
+  "navDashboard": "Dashboard",
+  "navReports": "Reportes",
+  "navAnalytics": "Analíticas",
+  "equipmentSectionTitle": "Equipos y Conectividad",
+  "manikinsLabel": "Maniquíes SIERCP",
+  "disconnected": "Desconectados",
+  "editProfile": "Editar perfil",
+  "errorOpeningLink": "No se pudo abrir el enlace",
+  "devicesConnectedCount": "{count} conectados",
+  "@devicesConnectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noInternet": "SIN CONEXIÓN A INTERNET",
+  "continueLearning": "Continuar Aprendizaje",
+  "viewDetail": "Ver detalle",
+  "continueTraining": "Continuar entrenamiento",
+  "connected": "Conectado",
+  "noDeviceMini": "Sin disp.",
+  "approvedAndSessions": "{approvedCount}/{requiredCount} aprobadas · {totalDone} sesiones",
+  "@approvedAndSessions": {
+    "placeholders": {
+      "approvedCount": { "type": "int" },
+      "requiredCount": { "type": "int" },
+      "totalDone": { "type": "int" }
+    }
+  }
+}

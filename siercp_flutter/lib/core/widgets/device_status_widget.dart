@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/features/guides/presentation/providers/guide_provider.dart';
 import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class DeviceConnectionWidget extends ConsumerWidget {
   final bool compact;
@@ -11,13 +12,14 @@ class DeviceConnectionWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(deviceConnectionProvider);
+    final loc = AppLocalizations.of(context)!;
 
     return InkWell(
       onTap: () => context.push('/session/device-select'),
       borderRadius: BorderRadius.circular(20),
       child: _buildChip(
         context,
-        label: status.isConnected ? 'Maniquí conectado' : 'Sin maniquí (Tocar para conectar)',
+        label: status.isConnected ? loc.deviceConnected : loc.noDevice,
         color: status.isConnected ? AppColors.green : AppColors.red,
         icon: status.isConnected
             ? Icons.sensors_rounded
@@ -136,12 +138,13 @@ class DeviceStatusBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(deviceConnectionProvider);
+    final loc = AppLocalizations.of(context)!;
 
     if (status.isConnected) return const SizedBox.shrink();
     
     return _banner(
       context,
-      msg: '⚠️ Maniquí no detectado. Verificar conexión del ESP32.',
+      msg: loc.manikinNotDetected,
       color: AppColors.red,
       icon: Icons.sensors_off_rounded,
     );

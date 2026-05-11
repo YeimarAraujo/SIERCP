@@ -15,6 +15,7 @@ import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/core/widgets/section_label.dart';
 import 'package:siercp/features/session/data/models/session.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class CoursesScreen extends ConsumerStatefulWidget {
   const CoursesScreen({super.key});
@@ -32,192 +33,198 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.add_circle_outline_rounded,
-                color: AppColors.brand, size: 20),
-            SizedBox(width: 10),
-            Text('Crear nuevo curso'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return AlertDialog(
+          title: Row(
             children: [
-              TextField(
-                controller: nameCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del curso',
-                  prefixIcon: Icon(Icons.menu_book_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descCtrl,
-                maxLines: 2,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  prefixIcon: Icon(Icons.description_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: estudiantesCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Estudiantes (cédulas)',
-                  hintText: 'Ej: 1234567, 9876543...',
-                  prefixIcon: Icon(Icons.people_alt_outlined),
-                ),
-              ),
+              const Icon(Icons.add_circle_outline_rounded,
+                  color: AppColors.brand, size: 20),
+              const SizedBox(width: 10),
+              Text(loc.createCourseTitle),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.check_rounded, size: 16),
-            label: const Text('Crear'),
-            onPressed: () async {
-              try {
-                final user = ref.read(currentUserProvider);
-                await ref.read(sessionServiceProvider).createCourse(
-                      name: nameCtrl.text.trim(),
-                      description: descCtrl.text.trim(),
-                      instructorId: user?.id ?? '',
-                      instructorName: user?.fullName ?? '',
-                    );
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ref.invalidate(coursesProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Row(children: [
-                        Icon(Icons.check_circle_outline,
-                            color: Colors.white, size: 16),
-                        SizedBox(width: 8),
-                        Text('Curso creado con éxito'),
-                      ]),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: AppColors.red.withValues(alpha: 0.9),
-                    ),
-                  );
-                }
-              }
-            },
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: loc.courseNameLabel,
+                    prefixIcon: const Icon(Icons.menu_book_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: loc.courseDescLabel,
+                    prefixIcon: const Icon(Icons.description_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: estudiantesCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: loc.studentsCedulaLabel,
+                    hintText: loc.studentsCedulaHint,
+                    prefixIcon: const Icon(Icons.people_alt_outlined),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.cancelBtn)),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check_rounded, size: 16),
+              label: Text(loc.createBtn),
+              onPressed: () async {
+                try {
+                  final user = ref.read(currentUserProvider);
+                  await ref.read(sessionServiceProvider).createCourse(
+                        name: nameCtrl.text.trim(),
+                        description: descCtrl.text.trim(),
+                        instructorId: user?.id ?? '',
+                        instructorName: user?.fullName ?? '',
+                      );
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    ref.invalidate(coursesProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(children: [
+                          const Icon(Icons.check_circle_outline,
+                              color: Colors.white, size: 16),
+                          const SizedBox(width: 8),
+                          Text(loc.courseCreatedSuccess),
+                        ]),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: AppColors.red.withValues(alpha: 0.9),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
-  // ─── Enroll student by cedula dialog ────────────────────────────────────────
   void _showEnrollDialog(String courseId) {
     final cedulaCtrl = TextEditingController();
     bool loading = false;
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.person_add_outlined, color: AppColors.brand, size: 20),
-              SizedBox(width: 10),
-              Text('Inscribir estudiante'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: cedulaCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Cédula / Número de identificación',
-                  hintText: 'Ej: 1234567890',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'El estudiante debe estar registrado en SIERCP con esa cédula.',
-                style: TextStyle(
-                  color: Theme.of(ctx).textTheme.bodyMedium?.color,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar')),
-            ElevatedButton.icon(
-              icon: loading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.person_add_rounded, size: 16),
-              label: const Text('Inscribir'),
-              onPressed: loading
-                  ? null
-                  : () async {
-                      setSt(() => loading = true);
-                      try {
-                        final user = ref.read(currentUserProvider);
-                        await ref
-                            .read(adminServiceProvider)
-                            .enrollStudentByCedula(
-                              courseId: courseId,
-                              cedula: cedulaCtrl.text.trim(),
-                              instructorId: user?.id ?? '',
-                            );
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          ref.invalidate(coursesProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Row(children: [
-                                Icon(Icons.check_circle_outline,
-                                    color: Colors.white, size: 16),
-                                SizedBox(width: 8),
-                                Text('Estudiante inscrito con éxito'),
-                              ]),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        setSt(() => loading = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: $e'),
-                              backgroundColor:
-                                  AppColors.red.withValues(alpha: 0.9),
-                            ),
-                          );
-                        }
-                      }
-                    },
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
+          builder: (ctx, setSt) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.person_add_outlined,
+                    color: AppColors.brand, size: 20),
+                const SizedBox(width: 10),
+                Text(loc.enrollStudentTitle),
+              ],
             ),
-          ],
-        ),
-      ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: cedulaCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: loc.cedulaLabel,
+                    hintText: loc.cedulaHint,
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  loc.enrollInfo,
+                  style: TextStyle(
+                    color: Theme.of(ctx).textTheme.bodyMedium?.color,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(loc.cancelBtn)),
+              ElevatedButton.icon(
+                icon: loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.person_add_rounded, size: 16),
+                label: Text(loc.enrollBtn),
+                onPressed: loading
+                    ? null
+                    : () async {
+                        setSt(() => loading = true);
+                        try {
+                          final user = ref.read(currentUserProvider);
+                          await ref
+                              .read(adminServiceProvider)
+                              .enrollStudentByCedula(
+                                courseId: courseId,
+                                cedula: cedulaCtrl.text.trim(),
+                                instructorId: user?.id ?? '',
+                              );
+                          if (mounted) {
+                            Navigator.pop(ctx);
+                            ref.invalidate(coursesProvider);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(children: [
+                                  const Icon(Icons.check_circle_outline,
+                                      color: Colors.white, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(loc.enrollSuccess),
+                                ]),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setSt(() => loading = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor:
+                                    AppColors.red.withValues(alpha: 0.9),
+                              ),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -228,213 +235,216 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.sensor_door_outlined,
-                  color: AppColors.brand, size: 20),
-              SizedBox(width: 10),
-              Text('Unirse a un curso'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Text field with QR scan button ───────────────────────────
-              TextField(
-                controller: codeCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Código del curso',
-                  hintText: 'Ej: X9J2P1',
-                  prefixIcon: const Icon(Icons.key_outlined),
-                  suffixIcon: IconButton(
-                    tooltip: 'Escanear QR',
-                    icon: const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppColors.brand),
-                    onPressed: () async {
-                      // Cerramos el diálogo actual y abrimos el scanner
-                      Navigator.pop(ctx);
-                      final scanned = await Navigator.of(context).push<String>(
-                        MaterialPageRoute(
-                          builder: (_) => const _QRScannerPage(),
-                        ),
-                      );
-                      if (scanned != null && scanned.isNotEmpty) {
-                        // Reabrimos el diálogo con el código ya relleno
-                        if (context.mounted) {
-                          _showJoinDialogWithCode(scanned);
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
+          builder: (ctx, setSt) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.sensor_door_outlined,
+                    color: AppColors.brand, size: 20),
+                const SizedBox(width: 10),
+                Text(loc.joinCourseTitle),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: codeCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    labelText: loc.courseCodeLabel,
+                    hintText: loc.courseCodeHint,
+                    prefixIcon: const Icon(Icons.key_outlined),
+                    suffixIcon: IconButton(
+                      tooltip: loc.scanQr,
+                      icon: const Icon(Icons.qr_code_scanner_rounded,
+                          color: AppColors.brand),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final scanned =
+                            await Navigator.of(context).push<String>(
+                          MaterialPageRoute(
+                            builder: (_) => const _QRScannerPage(),
+                          ),
+                        );
+                        if (scanned != null && scanned.isNotEmpty) {
+                          if (context.mounted) {
+                            _showJoinDialogWithCode(scanned);
+                          }
                         }
-                      }
-                    },
+                      },
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              // ── Quick scan hint ──────────────────────────────────────────
-              Row(
-                children: [
-                  Icon(Icons.info_outline_rounded,
-                      size: 12,
-                      color: Theme.of(ctx)
-                          .textTheme
-                          .bodySmall
-                          ?.color
-                          ?.withValues(alpha: 0.6)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Escribe el código o toca el ícono QR para escanear.',
-                      style: TextStyle(
-                        fontSize: 11,
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 12,
                         color: Theme.of(ctx)
                             .textTheme
                             .bodySmall
                             ?.color
-                            ?.withValues(alpha: 0.7),
+                            ?.withValues(alpha: 0.6)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        loc.qrHint,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(ctx)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.7),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.cancelBtn),
+              ),
+              ElevatedButton.icon(
+                icon: loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.login_rounded, size: 16),
+                label: Text(loc.unirseBtn),
+                onPressed: loading
+                    ? null
+                    : () => _doJoinCourse(
+                          ctx,
+                          codeCtrl.text.trim().toUpperCase(),
+                          setSt,
+                          (v) => loading = v,
+                        ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              icon: loading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.login_rounded, size: 16),
-              label: const Text('Unirse'),
-              onPressed: loading
-                  ? null
-                  : () => _doJoinCourse(
-                        ctx,
-                        codeCtrl.text.trim().toUpperCase(),
-                        setSt,
-                        (v) => loading = v,
-                      ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  /// Igual que _showJoinDialog pero con el código ya rellenado tras escanear
   void _showJoinDialogWithCode(String code) {
     final codeCtrl = TextEditingController(text: code);
     bool loading = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.qr_code_rounded, color: AppColors.brand, size: 20),
-              SizedBox(width: 10),
-              Text('Unirse a un curso'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Green banner: QR escaneado ───────────────────────────────
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: AppColors.green.withValues(alpha: 0.3),
-                      width: 0.8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle_outline_rounded,
-                        color: AppColors.green, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'QR escaneado correctamente',
-                      style: TextStyle(
-                          color: AppColors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: codeCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Código del curso',
-                  prefixIcon: const Icon(Icons.key_outlined),
-                  suffixIcon: IconButton(
-                    tooltip: 'Escanear de nuevo',
-                    icon: const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppColors.brand),
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      final scanned = await Navigator.of(context).push<String>(
-                        MaterialPageRoute(
-                          builder: (_) => const _QRScannerPage(),
-                        ),
-                      );
-                      if (scanned != null &&
-                          scanned.isNotEmpty &&
-                          context.mounted) {
-                        _showJoinDialogWithCode(scanned);
-                      }
-                    },
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
+          builder: (ctx, setSt) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.qr_code_rounded,
+                    color: AppColors.brand, size: 20),
+                const SizedBox(width: 10),
+                Text(loc.joinCourseTitle),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: AppColors.green.withValues(alpha: 0.3),
+                        width: 0.8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded,
+                          color: AppColors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        loc.qrSuccess,
+                        style: const TextStyle(
+                            color: AppColors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    labelText: loc.courseCodeLabel,
+                    prefixIcon: const Icon(Icons.key_outlined),
+                    suffixIcon: IconButton(
+                      tooltip: loc.scanAgain,
+                      icon: const Icon(Icons.qr_code_scanner_rounded,
+                          color: AppColors.brand),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final scanned =
+                            await Navigator.of(context).push<String>(
+                          MaterialPageRoute(
+                            builder: (_) => const _QRScannerPage(),
+                          ),
+                        );
+                        if (scanned != null &&
+                            scanned.isNotEmpty &&
+                            context.mounted) {
+                          _showJoinDialogWithCode(scanned);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.cancelBtn),
+              ),
+              ElevatedButton.icon(
+                icon: loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.login_rounded, size: 16),
+                label: Text(loc.unirseBtn),
+                onPressed: loading
+                    ? null
+                    : () => _doJoinCourse(
+                          ctx,
+                          codeCtrl.text.trim().toUpperCase(),
+                          setSt,
+                          (v) => loading = v,
+                        ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              icon: loading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.login_rounded, size: 16),
-              label: const Text('Unirse'),
-              onPressed: loading
-                  ? null
-                  : () => _doJoinCourse(
-                        ctx,
-                        codeCtrl.text.trim().toUpperCase(),
-                        setSt,
-                        (v) => loading = v,
-                      ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -458,14 +468,16 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             identificacion: user?.identificacion,
           );
       if (mounted) {
+        final loc = AppLocalizations.of(context)!;
         Navigator.pop(ctx);
         ref.invalidate(coursesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text('Te has unido al curso con éxito'),
+              const Icon(Icons.check_circle_outline,
+                  color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(loc.joinSuccess),
             ]),
             backgroundColor: AppColors.green,
           ),
@@ -475,9 +487,10 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
       debugPrint('❌ ERROR joinCourse: $e');
       setSt(() => setLoading(false));
       if (mounted) {
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: Verifica el código ($e)'),
+            content: Text('${loc.joinErrorInvalidCode} ($e)'),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -489,6 +502,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   Widget build(BuildContext context) {
     final coursesAsync = ref.watch(coursesProvider);
     final currentUser = ref.watch(currentUserProvider);
+    final loc = AppLocalizations.of(context)!;
     final isInstructor = currentUser?.isInstructor ?? false;
     final isAdmin = currentUser?.isAdmin ?? false;
     final canManage = isInstructor || isAdmin;
@@ -517,7 +531,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Cursos',
+                          Text(loc.coursesTitle,
                               style: TextStyle(
                                 color: textP,
                                 fontSize: 20,
@@ -526,8 +540,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           const SizedBox(height: 2),
                           Text(
                             canManage
-                                ? 'Gestión de entrenamiento RCP'
-                                : 'Tus cursos de entrenamiento',
+                                ? loc.coursesSubtitleManage
+                                : loc.coursesSubtitleStudent,
                             style: TextStyle(color: textS, fontSize: 12),
                           ),
                         ],
@@ -536,7 +550,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         ElevatedButton.icon(
                           onPressed: _showCreateDialog,
                           icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text('Nuevo'),
+                          label: Text(loc.newBadge),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(0, 38),
                             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -551,7 +565,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   child: SectionLabel(
-                    canManage ? 'Cursos activos' : 'Mis cursos',
+                    canManage ? loc.activeCourses : loc.myCourses,
                   ),
                 ),
               ),
@@ -566,7 +580,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
                     child: Center(
-                      child: Text('Error al cargar cursos: $e',
+                      child: Text(loc.loadCoursesError(e.toString()),
                           style: TextStyle(color: textS)),
                     ),
                   ),
@@ -621,7 +635,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('Unirse a curso'),
+              label: Text(loc.joinCourseBtn),
             )
           : null,
     );
@@ -671,11 +685,8 @@ class _QRScannerPageState extends State<_QRScannerPage> {
     final raw = barcode?.rawValue;
     if (raw == null || raw.isEmpty) return;
 
-    // Extraemos solo el código: si el QR contiene un JSON u otra estructura
-    // buscamos el campo "code", si no, usamos el valor raw completo.
     String code = raw;
     try {
-      // Soporte para QR generado como: siercp://course?code=X9J2P1
       final uri = Uri.tryParse(raw);
       if (uri != null && uri.queryParameters.containsKey('code')) {
         code = uri.queryParameters['code']!;
@@ -689,13 +700,14 @@ class _QRScannerPageState extends State<_QRScannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const Text('Escanear código QR',
-            style: TextStyle(color: Colors.white, fontSize: 16)),
+        title: Text(loc.qrScannerTitle,
+            style: const TextStyle(color: Colors.white, fontSize: 16)),
         actions: [
           IconButton(
             icon: Icon(
@@ -716,7 +728,6 @@ class _QRScannerPageState extends State<_QRScannerPage> {
       ),
       body: Stack(
         children: [
-          // ── Camera view ──────────────────────────────────────────────────
           if (!_hasPermission)
             Center(
               child: Column(
@@ -725,14 +736,14 @@ class _QRScannerPageState extends State<_QRScannerPage> {
                   const Icon(Icons.camera_alt_outlined,
                       size: 48, color: Colors.white38),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Se requiere permiso de cámara',
-                    style: TextStyle(color: Colors.white70),
+                  Text(
+                    loc.cameraPermissionRequired,
+                    style: const TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _checkPermission,
-                    child: const Text('Otorgar permiso'),
+                    child: Text(loc.grantPermission),
                   ),
                 ],
               ),
@@ -742,11 +753,7 @@ class _QRScannerPageState extends State<_QRScannerPage> {
               controller: _ctrl,
               onDetect: _onDetect,
             ),
-
-          // ── Overlay: dark frame with transparent window ──────────────────
           _ScannerOverlay(),
-
-          // ── Bottom hint ──────────────────────────────────────────────────
           Positioned(
             bottom: 40,
             left: 0,
@@ -760,9 +767,9 @@ class _QRScannerPageState extends State<_QRScannerPage> {
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'Apunta al código QR del curso',
-                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  child: Text(
+                    loc.aimQrHint,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
                   ),
                 ),
               ],
@@ -934,6 +941,7 @@ class CourseQrDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context)!;
     final bg = isDark ? AppColors.darkCard : Colors.white;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -1004,7 +1012,7 @@ class CourseQrDialog extends StatelessWidget {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'QR del curso',
+                                  loc.qrBtn,
                                   style: TextStyle(
                                     color: theme.textTheme.bodyLarge?.color,
                                     fontSize: 16,
@@ -1071,7 +1079,7 @@ class CourseQrDialog extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Muestra este QR o comparte el código con tus estudiantes.',
+                            loc.qrHint,
                             style: TextStyle(
                               color: theme.textTheme.bodySmall?.color
                                   ?.withValues(alpha: 0.7),
@@ -1083,18 +1091,13 @@ class CourseQrDialog extends StatelessWidget {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                final text =
-                                    '¡Únete a mi curso de RCP en SIERCP!\n'
-                                    'Curso: $courseTitle\n'
-                                    'Código de invitación: $inviteCode\n\n'
-                                    'O escanea el QR desde la app.';
                                 Share.share(
-                                  text,
-                                  subject: 'Invitación a curso SIERCP',
+                                  loc.shareInviteText(courseTitle, inviteCode),
+                                  subject: loc.shareInviteSubject,
                                 );
                               },
                               icon: const Icon(Icons.share_rounded, size: 18),
-                              label: const Text('Compartir invitación'),
+                              label: Text(loc.shareInviteBtn),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brand,
                                 foregroundColor: Colors.white,
@@ -1124,7 +1127,7 @@ class CourseQrDialog extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'QR del curso',
+                            loc.qrBtn,
                             style: TextStyle(
                               color: theme.textTheme.bodyLarge?.color,
                               fontSize: 16,
@@ -1221,7 +1224,7 @@ class CourseQrDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Muestra este QR o comparte el código con tus estudiantes.',
+                      loc.qrHint,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: theme.textTheme.bodySmall?.color
@@ -1234,15 +1237,12 @@ class CourseQrDialog extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          final text = '¡Únete a mi curso de RCP en SIERCP!\n'
-                              'Curso: $courseTitle\n'
-                              'Código de invitación: $inviteCode\n\n'
-                              'O escanea el QR desde la app.';
-                          Share.share(text,
-                              subject: 'Invitación a curso SIERCP');
+                          Share.share(
+                              loc.shareInviteText(courseTitle, inviteCode),
+                              subject: loc.shareInviteSubject);
                         },
                         icon: const Icon(Icons.share_rounded, size: 18),
-                        label: const Text('Compartir invitación'),
+                        label: Text(loc.shareInviteBtn),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brand,
                           foregroundColor: Colors.white,
@@ -1272,6 +1272,7 @@ class _EmptyCoursesState extends StatelessWidget {
     final theme = Theme.of(context);
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
+    final loc = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 40),
@@ -1281,18 +1282,14 @@ class _EmptyCoursesState extends StatelessWidget {
               size: 52, color: textT.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
-            canManage
-                ? 'Aún no has creado ningún curso'
-                : 'No estás inscrito en ningún curso',
+            canManage ? loc.noCoursesCreatedPlain : loc.noCoursesJoinedPlain,
             textAlign: TextAlign.center,
             style: TextStyle(
                 color: textS, fontSize: 14, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 6),
           Text(
-            canManage
-                ? 'Crea tu primer curso para comenzar a gestionar estudiantes.'
-                : 'Pide a tu instructor el código para unirte o aguarda a que te inscriban.',
+            canManage ? loc.noCoursesCreatedDesc : loc.noCoursesJoinedDesc,
             textAlign: TextAlign.center,
             style: TextStyle(color: textT, fontSize: 12),
           ),
@@ -1301,7 +1298,7 @@ class _EmptyCoursesState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Crear primer curso'),
+              label: Text(loc.createFirstCourseBtn),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
             ),
           ] else ...[
@@ -1309,7 +1306,7 @@ class _EmptyCoursesState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.sensor_door_outlined, size: 16),
-              label: const Text('Unirse con código'),
+              label: Text(loc.joinWithCodeBtn),
               style: ElevatedButton.styleFrom(minimumSize: const Size(200, 46)),
             ),
           ],
@@ -1332,6 +1329,7 @@ class _CourseCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
@@ -1362,6 +1360,7 @@ class _CourseCard extends ConsumerWidget {
     final progressColor = isComplete ? AppColors.green : AppColors.brand;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
+
     final card = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1430,7 +1429,6 @@ class _CourseCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    // ── Invite code + tap para mostrar QR ───────────────────
                     if (course.inviteCode != null && canManage)
                       Row(
                         children: [
@@ -1447,8 +1445,7 @@ class _CourseCard extends ConsumerWidget {
                                 color: AppColors.brand.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                    color:
-                                        AppColors.brand.withValues(alpha: 0.25),
+                                    color: AppColors.brand.withValues(alpha: 0.25),
                                     width: 0.5),
                               ),
                               child: Row(
@@ -1484,14 +1481,16 @@ class _CourseCard extends ConsumerWidget {
                               },
                               itemBuilder: (ctx) => [
                                 if (canEdit)
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'edit',
                                     child: Row(
                                       children: [
-                                        Icon(Icons.edit_outlined, size: 16),
-                                        SizedBox(width: 8),
-                                        Text('Modificar',
-                                            style: TextStyle(fontSize: 13)),
+                                        const Icon(Icons.edit_outlined,
+                                            size: 16),
+                                        const SizedBox(width: 8),
+                                        Text(loc.editCourseTitle,
+                                            style: const TextStyle(
+                                                fontSize: 13)),
                                       ],
                                     ),
                                   ),
@@ -1503,8 +1502,8 @@ class _CourseCard extends ConsumerWidget {
                                         Icon(Icons.delete_outline_rounded,
                                             size: 16, color: AppColors.red),
                                         const SizedBox(width: 8),
-                                        Text('Eliminar',
-                                            style: TextStyle(
+                                        Text(loc.deleteBtn,
+                                            style: const TextStyle(
                                                 fontSize: 13,
                                                 color: AppColors.red)),
                                       ],
@@ -1530,7 +1529,7 @@ class _CourseCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${(progress * 100).toInt()}% completado',
+                    Text(loc.completedPct((progress * 100).toInt().toString()),
                         style: TextStyle(color: textT, fontSize: 10)),
                     if (canManage)
                       Consumer(
@@ -1553,7 +1552,7 @@ class _CourseCard extends ConsumerWidget {
                                     '${course.studentCount ?? 0}',
                                     style:
                                         TextStyle(color: textT, fontSize: 10)),
-                                data: (list) => Text('${list.length} est.',
+                                data: (list) => Text(loc.studentsCount(list.length),
                                     style:
                                         TextStyle(color: textT, fontSize: 10)),
                               ),
@@ -1564,8 +1563,8 @@ class _CourseCard extends ConsumerWidget {
                     else
                       Text(
                           isComplete
-                              ? 'Completado'
-                              : 'Faltan $remaining sesiones',
+                              ? loc.completed
+                              : loc.remainingSessions(remaining),
                           style: TextStyle(color: textT, fontSize: 10)),
                   ],
                 ),
@@ -1580,18 +1579,18 @@ class _CourseCard extends ConsumerWidget {
                 children: [
                   _ActionButton(
                     icon: Icons.layers_outlined,
-                    label: 'Módulos',
+                    label: loc.modulesBtn,
                     color: AppColors.accent,
                     onTap: () => context.push('/course-editor/${course.id}'),
                   ),
                   _ActionButton(
                     icon: Icons.person_add_outlined,
-                    label: 'Inscribir',
+                    label: loc.courseEnroll,
                     onTap: onEnroll,
                   ),
                   _ActionButton(
                     icon: Icons.groups_2_outlined,
-                    label: 'Alumnos',
+                    label: loc.studentsBtn,
                     onTap: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -1600,13 +1599,13 @@ class _CourseCard extends ConsumerWidget {
                   ),
                   _ActionButton(
                     icon: Icons.download_outlined,
-                    label: 'Exportar',
+                    label: loc.courseExport,
                     color: AppColors.green,
                     onTap: () => _exportStudentGrades(context, ref, course),
                   ),
                   _ActionButton(
                     icon: Icons.qr_code_2_rounded,
-                    label: 'QR',
+                    label: loc.qrBtn,
                     color: AppColors.cyan,
                     onTap: () => course.inviteCode != null
                         ? CourseQrDialog.show(
@@ -1618,7 +1617,7 @@ class _CourseCard extends ConsumerWidget {
                   ),
                   _ActionButton(
                     icon: Icons.monitor_heart_outlined,
-                    label: 'En Vivo',
+                    label: loc.courseLive,
                     color: AppColors.cyan,
                     onTap: () => context.push('/live/${course.id}'),
                   ),
@@ -1652,20 +1651,20 @@ class _CourseCard extends ConsumerWidget {
   }
 
   Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
+    final loc = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar curso?'),
-        content: Text(
-            'Esta acción desactivará el curso "${course.title}". Los alumnos no podrán acceder.'),
+        title: Text(loc.deleteCourseConfirmTitle),
+        content: Text(loc.deleteCourseConfirmDesc(course.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
+              child: Text(loc.cancelBtn)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.red),
-            child: const Text('Eliminar'),
+            child: Text(loc.deleteBtn),
           ),
         ],
       ),
@@ -1681,29 +1680,30 @@ class _CourseCard extends ConsumerWidget {
     final nameCtrl = TextEditingController(text: course.title);
     final descCtrl = TextEditingController(text: course.description);
 
+    final loc = AppLocalizations.of(context)!;
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Modificar curso'),
+        title: Text(loc.editCourseTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre')),
+                decoration: InputDecoration(labelText: loc.courseNameLabel)),
             const SizedBox(height: 12),
             TextField(
                 controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Descripción')),
+                decoration: InputDecoration(labelText: loc.courseDescLabel)),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
+              child: Text(loc.cancelBtn)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
+            child: Text(loc.saveBtn),
           ),
         ],
       ),
@@ -1727,26 +1727,28 @@ class _CourseCard extends ConsumerWidget {
       final firestoreSvc = ref.read(firestoreServiceProvider);
       final exportSvc = ref.read(exportServiceProvider);
 
-      // Obtener lista fresca de estudiantes
       final students = await firestoreSvc.getCourseStudents(course.id);
 
       await exportSvc.exportCourseGradesCSV(course, students);
       if (context.mounted) {
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-              SizedBox(width: 8),
-              Text('CSV de notas exportado'),
+              const Icon(Icons.check_circle_outline,
+                  color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(loc.exportGradesSuccess),
             ]),
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al exportar: $e'),
+            content: Text(loc.exportGradesError(e.toString())),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
           ),
         );
@@ -1838,7 +1840,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                   const Icon(Icons.groups_2_outlined,
                       color: AppColors.brand, size: 20),
                   const SizedBox(width: 10),
-                  Text('Estudiantes del curso',
+                  Text(AppLocalizations.of(context)!.courseStudentsTitle,
                       style: TextStyle(
                           color: textP,
                           fontSize: 16,
@@ -1863,7 +1865,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
                             Icon(Icons.person_off_outlined,
                                 size: 40, color: textS),
                             const SizedBox(height: 12),
-                            Text('Sin estudiantes inscritos',
+                            Text(AppLocalizations.of(context)!.noStudentsInscribed,
                                 style: TextStyle(color: textS, fontSize: 13)),
                           ],
                         ),
@@ -1949,7 +1951,9 @@ class _StudentTile extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Icon(Icons.history_outlined, size: 10, color: textS),
                     const SizedBox(width: 4),
-                    Text('${student['sessionCount'] ?? 0} sesiones',
+                    Text(
+                        AppLocalizations.of(context)!
+                            .sessionsCountLabel(student['sessionCount'] ?? 0),
                         style: TextStyle(color: textS, fontSize: 10)),
                   ],
                 ),

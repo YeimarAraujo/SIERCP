@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/auth/data/firebase_auth_service.dart';
+import 'package:siercp/l10n/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -43,8 +44,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _login() async {
+    final loc = AppLocalizations.of(context)!;
     if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
-      setState(() => _error = 'Ingresa tu correo y contraseña');
+      setState(() => _error = loc.loginErrorEmptyFields);
       _shakeCtrl.forward(from: 0);
       return;
     }
@@ -67,9 +69,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _forgotPassword() async {
+    final loc = AppLocalizations.of(context)!;
     if (_emailCtrl.text.trim().isEmpty) {
-      setState(
-          () => _error = 'Ingresa tu correo para restablecer la contraseña.');
+      setState(() => _error = loc.forgotPassErrorEmpty);
       return;
     }
     try {
@@ -78,8 +80,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           .sendPasswordReset(_emailCtrl.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📧 Correo de restablecimiento enviado.'),
+          SnackBar(
+            content: Text(loc.forgotPassSuccess),
             backgroundColor: AppColors.green,
           ),
         );
@@ -98,6 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final surface = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: bg,
@@ -146,7 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sistema de Entrenamiento RCP',
+                      loc.loginSubtitle,
                       style: TextStyle(color: textS, fontSize: 12),
                     ),
                   ],
@@ -179,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Iniciar sesión',
+                        loc.loginTitle,
                         style: TextStyle(
                           color: textP,
                           fontSize: 18,
@@ -188,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Ingresa con tu correo institucional',
+                        loc.loginInstruction,
                         style: TextStyle(color: textS, fontSize: 12),
                       ),
                       const SizedBox(height: 20),
@@ -196,10 +199,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
                         style: TextStyle(color: textP),
-                        decoration: const InputDecoration(
-                          labelText: 'Correo electrónico',
-                          hintText: 'usuario@siercp.edu.co',
-                          prefixIcon: Icon(Icons.email_outlined),
+                        decoration: InputDecoration(
+                          labelText: loc.emailLabel,
+                          hintText: loc.emailHint,
+                          prefixIcon: const Icon(Icons.email_outlined),
                         ),
                         onFieldSubmitted: (_) => _login(),
                       ),
@@ -209,7 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         obscureText: _obscure,
                         style: TextStyle(color: textP),
                         decoration: InputDecoration(
-                          labelText: 'Contraseña',
+                          labelText: loc.passwordLabel,
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             onPressed: () =>
@@ -228,7 +231,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: _forgotPassword,
-                          child: const Text('¿Olvidaste tu contraseña?'),
+                          child: Text(loc.forgotPassword),
                         ),
                       ),
 
@@ -274,7 +277,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Iniciar sesión'),
+                            : Text(loc.loginTitle),
                       ),
                     ],
                   ),
@@ -290,7 +293,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: TextButton(
                       onPressed: () => context.push('/register'),
-                      child: const Text('¿No tienes cuenta? Regístrate aquí'),
+                      child: Text(loc.noAccountRegister),
                     ),
                   ),
                   Expanded(child: Divider(color: border)),

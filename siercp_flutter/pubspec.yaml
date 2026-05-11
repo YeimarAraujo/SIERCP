@@ -49,7 +49,7 @@ dependencies:
   file_picker: ^8.1.7
 
   # ── Utilitarios ─────────────────────────────────────────────────────────
-  intl: ^0.19.0
+  intl: ^0.20.2
   uuid: ^4.4.0
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
@@ -57,12 +57,15 @@ dependencies:
   shared_preferences: ^2.5.5
   path_provider: ^2.1.4
   path: ^1.9.0
+  url_launcher: ^6.3.2
 
   # ── Exportación PDF / CSV ────────────────────────────────────────────────
   pdf: ^3.10.8
   csv: ^6.0.0
   share_plus: ^10.1.4 
   printing: ^5.13.1
+  flutter_localizations:
+    sdk: flutter
 
   # ── BLE & Audio ──────────────────────────────────────────────────────────
   flutter_blue_plus: ^2.2.1
@@ -86,6 +89,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/images/

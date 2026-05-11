@@ -7,10 +7,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:siercp/l10n/app_localizations.dart';
+
 import 'package:siercp/firebase_options.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/core/routes.dart';
 import 'package:siercp/core/theme/theme_provider.dart';
+import 'package:siercp/core/theme/locale_provider.dart';
 import 'package:siercp/core/services/local_storage_service.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
@@ -93,6 +97,7 @@ class SiercpApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
+    final currentLocale = ref.watch(localeControllerProvider);
 
     // Inicializar el servicio de sincronización
     ref.watch(syncServiceProvider);
@@ -103,6 +108,17 @@ class SiercpApp extends ConsumerWidget {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: currentThemeMode,
+        locale: currentLocale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es'),
+          Locale('en'),
+        ],
         routerConfig: router,
         debugShowCheckedModeBanner: false,
       ),
