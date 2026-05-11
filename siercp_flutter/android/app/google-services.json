@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "153485090858",
+    "firebase_url": "https://siercp-default-rtdb.firebaseio.com",
     "project_id": "siercp",
     "storage_bucket": "siercp.firebasestorage.app"
   },

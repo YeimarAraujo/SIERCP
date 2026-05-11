@@ -52,6 +52,8 @@
   "acceptPrivacy2": "Políticas de privacidad",
   "registerPrivacyError": "Debes aceptar las Políticas de privacidad",
   "closeButton": "Cerrar",
+  "privacyPolicyTitle": "Políticas de Privacidad",
+  "privacyPolicyContent": "1. Introducción\n\nEl Sistema de Entrenamiento en RCP se compromete a proteger la privacidad y seguridad de la información personal de sus usuarios. Esta política explica cómo recopilamos, usamos, almacenamos y protegemos los datos personales conforme a la normativa vigente en Colombia (Ley 1581 de 2012 y normas complementarias).\n\n2. Información que Recopilamos\n\nPodemos recopilar la siguiente información:\n\nDatos personales: nombre completo, número de identificación, correo electrónico, número de teléfono.\nDatos académicos o profesionales: institución, cargo, certificaciones previas.\nDatos de uso del sistema: progreso en módulos, resultados de evaluaciones, fechas de acceso.\nInformación técnica: dirección IP, tipo de dispositivo y navegador.\n\n3. Finalidad del Tratamiento de Datos\n\nLa información recopilada será utilizada para:\n\nGestionar el registro y acceso al sistema.\nRealizar seguimiento del progreso del usuario en los módulos de RCP.\nEmitir certificados de participación o aprobación.\nEnviar información relevante sobre capacitaciones o actualizaciones.\nMejorar la calidad del servicio y la experiencia del usuario.\n\n4. Almacenamiento y Seguridad\n\nLa información será almacenada en bases de datos seguras y se implementarán medidas técnicas, administrativas y organizativas para evitar acceso no autorizado, pérdida o alteración de la información.\n\n5. Compartición de Información\n\nLos datos personales no serán vendidos ni compartidos con terceros, salvo:\n\nCuando sea requerido por autoridad competente.\nCuando sea necesario para emitir certificaciones oficiales.\nCuando el usuario otorgue autorización expresa.\n\n6. Derechos del Usuario\n\nDe acuerdo con la legislación colombiana, el usuario tiene derecho a:\n\nConocer, actualizar y rectificar sus datos personales.\nSolicitar prueba de la autorización otorgada.\nRevocar la autorización o solicitar la eliminación de sus datos.\nPresentar quejas ante la Superintendencia de Industria y Comercio.\n\n7. Uso de Cookies\n\nEl sistema puede utilizar cookies para mejorar la experiencia de navegación y analizar el uso de la plataforma.\n\n8. Modificaciones a la Política\n\nNos reservamos el derecho de actualizar esta política en cualquier momento. Los cambios serán publicados en la plataforma.\n\n9. Contacto\n\nPara consultas relacionadas con la privacidad y tratamiento de datos, puede comunicarse a través del correo electrónico oficial del sistema.",
 
   "navDashboard": "Dashboard",
   "navUsers": "Usuarios",
@@ -145,6 +147,7 @@
   "noStudentsInscribed": "Sin estudiantes inscritos",
   "cancelBtn": "Cancelar",
   "unirseBtn": "Unirse",
+  "joinErrorInvalidCode": "Error: Verifica el código",
   "coursesSubtitleManage": "Gestión de entrenamiento RCP",
   "coursesSubtitleStudent": "Tus cursos de entrenamiento",
   "activeCourses": "Cursos activos",
@@ -247,5 +250,90 @@
   "demoDesc7": "Víctima con sobredosis: Naloxona si disponible + RCP si paro cardíaco.",
   "demoTitle8": "🚨 Infarto que evoluciona a paro",
   "demoSub8": "Adulto · 60 años · Dolor torácico",
-  "demoDesc8": "Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido."
+  "demoDesc8": "Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.",
+
+  "scanQr": "Escanear QR",
+  "qrHint": "Escribe el código o toca el ícono QR para escanear.",
+  "qrSuccess": "QR escaneado correctamente",
+  "scanAgain": "Escanear de nuevo",
+  "aimQrHint": "Apunta al código QR del curso",
+  "qrScannerTitle": "Escanear código QR",
+  "cameraPermissionRequired": "Se requiere permiso de cámara",
+  "grantPermission": "Otorgar permiso",
+  "createCourseBtn": "Crear",
+  "courseCreatedSuccess": "Curso creado con éxito",
+  "enrollSuccess": "Estudiante inscrito con éxito",
+  "joinSuccess": "Te has unido al curso con éxito",
+  "deleteCourseConfirmTitle": "¿Eliminar curso?",
+  "deleteCourseConfirmDesc": "Esta acción desactivará el curso \"{title}\". Los alumnos no podrán acceder.",
+  "@deleteCourseConfirmDesc": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "deleteBtn": "Eliminar",
+  "editCourseTitle": "Modificar curso",
+  "saveBtn": "Guardar",
+  "modulesBtn": "Módulos",
+  "studentsBtn": "Alumnos",
+  "qrBtn": "QR",
+  "completed": "Completado",
+  "remainingSessions": "Faltan {count} sesiones",
+  "@remainingSessions": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "shareInviteText": "¡Únete a mi curso de RCP en SIERCP!\nCurso: {title}\nCódigo de invitación: {code}\n\nO escanea el QR desde la app.",
+  "@shareInviteText": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "code": { "type": "String" }
+    }
+  },
+  "shareInviteSubject": "Invitación a curso SIERCP",
+  "shareInviteBtn": "Compartir invitación",
+  "recentActivity": "Actividad Reciente",
+  "ahaTipTitle": "Consejo AHA 2025",
+  "ahaTipBody": "Recuerda que la profundidad de las compresiones debe ser de al menos 5 cm (2 pulgadas) pero no más de 6 cm (2.4 pulgadas). Permite la expansión torácica completa después de cada compresión.",
+  "totalStudents": "Estudiantes",
+  "activeManikins": "Maniquíes",
+  "alertsToday": "Alertas Hoy",
+  "manageUsers": "Usuarios",
+  "manageManikins": "Maniquíes",
+  "manageCourses": "Cursos",
+  "manageReports": "Reportes",
+  "manageAnalytics": "Analíticas",
+  "quickNewCourse": "Nuevo Curso",
+  "quickMyStudents": "Mis Estudiantes",
+  "quickExport": "Exportar",
+  "activeCoursesTitle": "Mis cursos activos",
+  "navDashboard": "Dashboard",
+  "navReports": "Reportes",
+  "navAnalytics": "Analíticas",
+  "equipmentSectionTitle": "Equipos y Conectividad",
+  "manikinsLabel": "Maniquíes SIERCP",
+  "disconnected": "Desconectados",
+  "editProfile": "Editar perfil",
+  "errorOpeningLink": "No se pudo abrir el enlace",
+  "devicesConnectedCount": "{count} conectados",
+  "@devicesConnectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noInternet": "SIN CONEXIÓN A INTERNET",
+  "continueLearning": "Continuar Aprendizaje",
+  "viewDetail": "Ver detalle",
+  "continueTraining": "Continuar entrenamiento",
+  "connected": "Conectado",
+  "noDeviceMini": "Sin disp.",
+  "approvedAndSessions": "{approvedCount}/{requiredCount} aprobadas · {totalDone} sesiones",
+  "@approvedAndSessions": {
+    "placeholders": {
+      "approvedCount": { "type": "int" },
+      "requiredCount": { "type": "int" },
+      "totalDone": { "type": "int" }
+    }
+  }
 }

@@ -374,6 +374,18 @@ abstract class AppLocalizations {
   /// **'Cerrar'**
   String get closeButton;
 
+  /// No description provided for @privacyPolicyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Políticas de Privacidad'**
+  String get privacyPolicyTitle;
+
+  /// No description provided for @privacyPolicyContent.
+  ///
+  /// In es, this message translates to:
+  /// **'1. Introducción\n\nEl Sistema de Entrenamiento en RCP se compromete a proteger la privacidad y seguridad de la información personal de sus usuarios. Esta política explica cómo recopilamos, usamos, almacenamos y protegemos los datos personales conforme a la normativa vigente en Colombia (Ley 1581 de 2012 y normas complementarias).\n\n2. Información que Recopilamos\n\nPodemos recopilar la siguiente información:\n\nDatos personales: nombre completo, número de identificación, correo electrónico, número de teléfono.\nDatos académicos o profesionales: institución, cargo, certificaciones previas.\nDatos de uso del sistema: progreso en módulos, resultados de evaluaciones, fechas de acceso.\nInformación técnica: dirección IP, tipo de dispositivo y navegador.\n\n3. Finalidad del Tratamiento de Datos\n\nLa información recopilada será utilizada para:\n\nGestionar el registro y acceso al sistema.\nRealizar seguimiento del progreso del usuario en los módulos de RCP.\nEmitir certificados de participación o aprobación.\nEnviar información relevante sobre capacitaciones o actualizaciones.\nMejorar la calidad del servicio y la experiencia del usuario.\n\n4. Almacenamiento y Seguridad\n\nLa información será almacenada en bases de datos seguras y se implementarán medidas técnicas, administrativas y organizativas para evitar acceso no autorizado, pérdida o alteración de la información.\n\n5. Compartición de Información\n\nLos datos personales no serán vendidos ni compartidos con terceros, salvo:\n\nCuando sea requerido por autoridad competente.\nCuando sea necesario para emitir certificaciones oficiales.\nCuando el usuario otorgue autorización expresa.\n\n6. Derechos del Usuario\n\nDe acuerdo con la legislación colombiana, el usuario tiene derecho a:\n\nConocer, actualizar y rectificar sus datos personales.\nSolicitar prueba de la autorización otorgada.\nRevocar la autorización o solicitar la eliminación de sus datos.\nPresentar quejas ante la Superintendencia de Industria y Comercio.\n\n7. Uso de Cookies\n\nEl sistema puede utilizar cookies para mejorar la experiencia de navegación y analizar el uso de la plataforma.\n\n8. Modificaciones a la Política\n\nNos reservamos el derecho de actualizar esta política en cualquier momento. Los cambios serán publicados en la plataforma.\n\n9. Contacto\n\nPara consultas relacionadas con la privacidad y tratamiento de datos, puede comunicarse a través del correo electrónico oficial del sistema.'**
+  String get privacyPolicyContent;
+
   /// No description provided for @navDashboard.
   ///
   /// In es, this message translates to:
@@ -830,6 +842,12 @@ abstract class AppLocalizations {
   /// **'Unirse'**
   String get unirseBtn;
 
+  /// No description provided for @joinErrorInvalidCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: Verifica el código'**
+  String get joinErrorInvalidCode;
+
   /// No description provided for @coursesSubtitleManage.
   ///
   /// In es, this message translates to:
@@ -1237,6 +1255,325 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.'**
   String get demoDesc8;
+
+  /// No description provided for @scanQr.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear QR'**
+  String get scanQr;
+
+  /// No description provided for @qrHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe el código o toca el ícono QR para escanear.'**
+  String get qrHint;
+
+  /// No description provided for @qrSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'QR escaneado correctamente'**
+  String get qrSuccess;
+
+  /// No description provided for @scanAgain.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear de nuevo'**
+  String get scanAgain;
+
+  /// No description provided for @aimQrHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Apunta al código QR del curso'**
+  String get aimQrHint;
+
+  /// No description provided for @qrScannerTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear código QR'**
+  String get qrScannerTitle;
+
+  /// No description provided for @cameraPermissionRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Se requiere permiso de cámara'**
+  String get cameraPermissionRequired;
+
+  /// No description provided for @grantPermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Otorgar permiso'**
+  String get grantPermission;
+
+  /// No description provided for @createCourseBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear'**
+  String get createCourseBtn;
+
+  /// No description provided for @courseCreatedSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Curso creado con éxito'**
+  String get courseCreatedSuccess;
+
+  /// No description provided for @deleteCourseConfirmTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Eliminar curso?'**
+  String get deleteCourseConfirmTitle;
+
+  /// No description provided for @deleteCourseConfirmDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta acción desactivará el curso \"{title}\". Los alumnos no podrán acceder.'**
+  String deleteCourseConfirmDesc(String title);
+
+  /// No description provided for @deleteBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar'**
+  String get deleteBtn;
+
+  /// No description provided for @editCourseTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Modificar curso'**
+  String get editCourseTitle;
+
+  /// No description provided for @saveBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar'**
+  String get saveBtn;
+
+  /// No description provided for @modulesBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Módulos'**
+  String get modulesBtn;
+
+  /// No description provided for @studentsBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Alumnos'**
+  String get studentsBtn;
+
+  /// No description provided for @qrBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'QR'**
+  String get qrBtn;
+
+  /// No description provided for @completed.
+  ///
+  /// In es, this message translates to:
+  /// **'Completado'**
+  String get completed;
+
+  /// No description provided for @remainingSessions.
+  ///
+  /// In es, this message translates to:
+  /// **'Faltan {count} sesiones'**
+  String remainingSessions(int count);
+
+  /// No description provided for @shareInviteText.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Únete a mi curso de RCP en SIERCP!\nCurso: {title}\nCódigo de invitación: {code}\n\nO escanea el QR desde la app.'**
+  String shareInviteText(String title, String code);
+
+  /// No description provided for @shareInviteSubject.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación a curso SIERCP'**
+  String get shareInviteSubject;
+
+  /// No description provided for @shareInviteBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir invitación'**
+  String get shareInviteBtn;
+
+  /// No description provided for @recentActivity.
+  ///
+  /// In es, this message translates to:
+  /// **'Actividad Reciente'**
+  String get recentActivity;
+
+  /// No description provided for @ahaTipTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Consejo AHA 2025'**
+  String get ahaTipTitle;
+
+  /// No description provided for @ahaTipBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Recuerda que la profundidad de las compresiones debe ser de al menos 5 cm (2 pulgadas) pero no más de 6 cm (2.4 pulgadas). Permite la expansión torácica completa después de cada compresión.'**
+  String get ahaTipBody;
+
+  /// No description provided for @totalStudents.
+  ///
+  /// In es, this message translates to:
+  /// **'Estudiantes'**
+  String get totalStudents;
+
+  /// No description provided for @activeManikins.
+  ///
+  /// In es, this message translates to:
+  /// **'Maniquíes'**
+  String get activeManikins;
+
+  /// No description provided for @alertsToday.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas Hoy'**
+  String get alertsToday;
+
+  /// No description provided for @manageUsers.
+  ///
+  /// In es, this message translates to:
+  /// **'Usuarios'**
+  String get manageUsers;
+
+  /// No description provided for @manageManikins.
+  ///
+  /// In es, this message translates to:
+  /// **'Maniquíes'**
+  String get manageManikins;
+
+  /// No description provided for @manageCourses.
+  ///
+  /// In es, this message translates to:
+  /// **'Cursos'**
+  String get manageCourses;
+
+  /// No description provided for @manageReports.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes'**
+  String get manageReports;
+
+  /// No description provided for @manageAnalytics.
+  ///
+  /// In es, this message translates to:
+  /// **'Analíticas'**
+  String get manageAnalytics;
+
+  /// No description provided for @quickNewCourse.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo Curso'**
+  String get quickNewCourse;
+
+  /// No description provided for @quickMyStudents.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis Estudiantes'**
+  String get quickMyStudents;
+
+  /// No description provided for @quickExport.
+  ///
+  /// In es, this message translates to:
+  /// **'Exportar'**
+  String get quickExport;
+
+  /// No description provided for @activeCoursesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis cursos activos'**
+  String get activeCoursesTitle;
+
+  /// No description provided for @navReports.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes'**
+  String get navReports;
+
+  /// No description provided for @navAnalytics.
+  ///
+  /// In es, this message translates to:
+  /// **'Analíticas'**
+  String get navAnalytics;
+
+  /// No description provided for @equipmentSectionTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Equipos y Conectividad'**
+  String get equipmentSectionTitle;
+
+  /// No description provided for @manikinsLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Maniquíes SIERCP'**
+  String get manikinsLabel;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In es, this message translates to:
+  /// **'Desconectados'**
+  String get disconnected;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar perfil'**
+  String get editProfile;
+
+  /// No description provided for @errorOpeningLink.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir el enlace'**
+  String get errorOpeningLink;
+
+  /// No description provided for @devicesConnectedCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count} conectados'**
+  String devicesConnectedCount(int count);
+
+  /// No description provided for @noInternet.
+  ///
+  /// In es, this message translates to:
+  /// **'SIN CONEXIÓN A INTERNET'**
+  String get noInternet;
+
+  /// No description provided for @continueLearning.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar Aprendizaje'**
+  String get continueLearning;
+
+  /// No description provided for @viewDetail.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver detalle'**
+  String get viewDetail;
+
+  /// No description provided for @continueTraining.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar entrenamiento'**
+  String get continueTraining;
+
+  /// No description provided for @connected.
+  ///
+  /// In es, this message translates to:
+  /// **'Conectado'**
+  String get connected;
+
+  /// No description provided for @noDeviceMini.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin disp.'**
+  String get noDeviceMini;
+
+  /// No description provided for @approvedAndSessions.
+  ///
+  /// In es, this message translates to:
+  /// **'{approvedCount}/{requiredCount} aprobadas · {totalDone} sesiones'**
+  String approvedAndSessions(
+      int approvedCount, int requiredCount, int totalDone);
 }
 
 class _AppLocalizationsDelegate

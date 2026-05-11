@@ -149,6 +149,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get closeButton => 'Cerrar';
 
   @override
+  String get privacyPolicyTitle => 'Políticas de Privacidad';
+
+  @override
+  String get privacyPolicyContent =>
+      '1. Introducción\n\nEl Sistema de Entrenamiento en RCP se compromete a proteger la privacidad y seguridad de la información personal de sus usuarios. Esta política explica cómo recopilamos, usamos, almacenamos y protegemos los datos personales conforme a la normativa vigente en Colombia (Ley 1581 de 2012 y normas complementarias).\n\n2. Información que Recopilamos\n\nPodemos recopilar la siguiente información:\n\nDatos personales: nombre completo, número de identificación, correo electrónico, número de teléfono.\nDatos académicos o profesionales: institución, cargo, certificaciones previas.\nDatos de uso del sistema: progreso en módulos, resultados de evaluaciones, fechas de acceso.\nInformación técnica: dirección IP, tipo de dispositivo y navegador.\n\n3. Finalidad del Tratamiento de Datos\n\nLa información recopilada será utilizada para:\n\nGestionar el registro y acceso al sistema.\nRealizar seguimiento del progreso del usuario en los módulos de RCP.\nEmitir certificados de participación o aprobación.\nEnviar información relevante sobre capacitaciones o actualizaciones.\nMejorar la calidad del servicio y la experiencia del usuario.\n\n4. Almacenamiento y Seguridad\n\nLa información será almacenada en bases de datos seguras y se implementarán medidas técnicas, administrativas y organizativas para evitar acceso no autorizado, pérdida o alteración de la información.\n\n5. Compartición de Información\n\nLos datos personales no serán vendidos ni compartidos con terceros, salvo:\n\nCuando sea requerido por autoridad competente.\nCuando sea necesario para emitir certificaciones oficiales.\nCuando el usuario otorgue autorización expresa.\n\n6. Derechos del Usuario\n\nDe acuerdo con la legislación colombiana, el usuario tiene derecho a:\n\nConocer, actualizar y rectificar sus datos personales.\nSolicitar prueba de la autorización otorgada.\nRevocar la autorización o solicitar la eliminación de sus datos.\nPresentar quejas ante la Superintendencia de Industria y Comercio.\n\n7. Uso de Cookies\n\nEl sistema puede utilizar cookies para mejorar la experiencia de navegación y analizar el uso de la plataforma.\n\n8. Modificaciones a la Política\n\nNos reservamos el derecho de actualizar esta política en cualquier momento. Los cambios serán publicados en la plataforma.\n\n9. Contacto\n\nPara consultas relacionadas con la privacidad y tratamiento de datos, puede comunicarse a través del correo electrónico oficial del sistema.';
+
+  @override
   String get navDashboard => 'Dashboard';
 
   @override
@@ -388,6 +395,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get unirseBtn => 'Unirse';
 
   @override
+  String get joinErrorInvalidCode => 'Error: Verifica el código';
+
+  @override
   String get coursesSubtitleManage => 'Gestión de entrenamiento RCP';
 
   @override
@@ -614,4 +624,175 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get demoDesc8 =>
       'Paciente con dolor torácico que evoluciona a paro cardíaco. Actúa rápido.';
+
+  @override
+  String get scanQr => 'Escanear QR';
+
+  @override
+  String get qrHint => 'Escribe el código o toca el ícono QR para escanear.';
+
+  @override
+  String get qrSuccess => 'QR escaneado correctamente';
+
+  @override
+  String get scanAgain => 'Escanear de nuevo';
+
+  @override
+  String get aimQrHint => 'Apunta al código QR del curso';
+
+  @override
+  String get qrScannerTitle => 'Escanear código QR';
+
+  @override
+  String get cameraPermissionRequired => 'Se requiere permiso de cámara';
+
+  @override
+  String get grantPermission => 'Otorgar permiso';
+
+  @override
+  String get createCourseBtn => 'Crear';
+
+  @override
+  String get courseCreatedSuccess => 'Curso creado con éxito';
+
+  @override
+  String get deleteCourseConfirmTitle => '¿Eliminar curso?';
+
+  @override
+  String deleteCourseConfirmDesc(String title) {
+    return 'Esta acción desactivará el curso \"$title\". Los alumnos no podrán acceder.';
+  }
+
+  @override
+  String get deleteBtn => 'Eliminar';
+
+  @override
+  String get editCourseTitle => 'Modificar curso';
+
+  @override
+  String get saveBtn => 'Guardar';
+
+  @override
+  String get modulesBtn => 'Módulos';
+
+  @override
+  String get studentsBtn => 'Alumnos';
+
+  @override
+  String get qrBtn => 'QR';
+
+  @override
+  String get completed => 'Completado';
+
+  @override
+  String remainingSessions(int count) {
+    return 'Faltan $count sesiones';
+  }
+
+  @override
+  String shareInviteText(String title, String code) {
+    return '¡Únete a mi curso de RCP en SIERCP!\nCurso: $title\nCódigo de invitación: $code\n\nO escanea el QR desde la app.';
+  }
+
+  @override
+  String get shareInviteSubject => 'Invitación a curso SIERCP';
+
+  @override
+  String get shareInviteBtn => 'Compartir invitación';
+
+  @override
+  String get recentActivity => 'Actividad Reciente';
+
+  @override
+  String get ahaTipTitle => 'Consejo AHA 2025';
+
+  @override
+  String get ahaTipBody =>
+      'Recuerda que la profundidad de las compresiones debe ser de al menos 5 cm (2 pulgadas) pero no más de 6 cm (2.4 pulgadas). Permite la expansión torácica completa después de cada compresión.';
+
+  @override
+  String get totalStudents => 'Estudiantes';
+
+  @override
+  String get activeManikins => 'Maniquíes';
+
+  @override
+  String get alertsToday => 'Alertas Hoy';
+
+  @override
+  String get manageUsers => 'Usuarios';
+
+  @override
+  String get manageManikins => 'Maniquíes';
+
+  @override
+  String get manageCourses => 'Cursos';
+
+  @override
+  String get manageReports => 'Reportes';
+
+  @override
+  String get manageAnalytics => 'Analíticas';
+
+  @override
+  String get quickNewCourse => 'Nuevo Curso';
+
+  @override
+  String get quickMyStudents => 'Mis Estudiantes';
+
+  @override
+  String get quickExport => 'Exportar';
+
+  @override
+  String get activeCoursesTitle => 'Mis cursos activos';
+
+  @override
+  String get navReports => 'Reportes';
+
+  @override
+  String get navAnalytics => 'Analíticas';
+
+  @override
+  String get equipmentSectionTitle => 'Equipos y Conectividad';
+
+  @override
+  String get manikinsLabel => 'Maniquíes SIERCP';
+
+  @override
+  String get disconnected => 'Desconectados';
+
+  @override
+  String get editProfile => 'Editar perfil';
+
+  @override
+  String get errorOpeningLink => 'No se pudo abrir el enlace';
+
+  @override
+  String devicesConnectedCount(int count) {
+    return '$count conectados';
+  }
+
+  @override
+  String get noInternet => 'SIN CONEXIÓN A INTERNET';
+
+  @override
+  String get continueLearning => 'Continuar Aprendizaje';
+
+  @override
+  String get viewDetail => 'Ver detalle';
+
+  @override
+  String get continueTraining => 'Continuar entrenamiento';
+
+  @override
+  String get connected => 'Conectado';
+
+  @override
+  String get noDeviceMini => 'Sin disp.';
+
+  @override
+  String approvedAndSessions(
+      int approvedCount, int requiredCount, int totalDone) {
+    return '$approvedCount/$requiredCount aprobadas · $totalDone sesiones';
+  }
 }

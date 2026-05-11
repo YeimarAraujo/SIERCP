@@ -47,15 +47,20 @@ service cloud.firestore {
             get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid()) ||
           isOwner(studentId);
       }
+
+      match /modules/{moduleId} {
+        allow read: if isAuth();
+        allow write: if isAdmin() ||
+          (isInstructor() &&
+            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+      }
     }
 
     // ── sessions ─────────────────────────────────────────────────────────────
     match /sessions/{sessionId} {
-      allow read:   if isAdmin() || isOwner(resource.data.studentId) ||
-        (isInstructor() &&
-          exists(/databases/$(database)/documents/courses/$(resource.data.courseId)/enrollments/$(resource.data.studentId)));
+      allow read:   if isAuth() && (isAdmin() || isInstructor() || resource.data.studentId == uid());
       allow create: if isAuth() && request.resource.data.studentId == uid();
-      allow update: if isAdmin() || isOwner(resource.data.studentId);
+      allow update: if isAuth() && (isAdmin() || resource.data.studentId == uid());
       allow delete: if isAdmin();
 
       match /compressions/{id} {

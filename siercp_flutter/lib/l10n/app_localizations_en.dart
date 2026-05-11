@@ -147,6 +147,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get closeButton => 'Close';
 
   @override
+  String get privacyPolicyTitle => 'Privacy Policy';
+
+  @override
+  String get privacyPolicyContent =>
+      '1. Introduction\n\nThe CPR Training System is committed to protecting the privacy and security of its users\' personal information. This policy explains how we collect, use, store, and protect personal data in accordance with current Colombian regulations (Law 1581 of 2012 and complementary standards).\n\n2. Information We Collect\n\nWe may collect the following information:\n\nPersonal data: full name, identification number, email, phone number.\nAcademic or professional data: institution, position, previous certifications.\nSystem usage data: module progress, evaluation results, access dates.\nTechnical information: IP address, device type, and browser.\n\n3. Purpose of Data Processing\n\nThe collected information will be used to:\n\nManage system registration and access.\nMonitor user progress in CPR modules.\nIssue participation or approval certificates.\nSend relevant information about training or updates.\nImprove service quality and user experience.\n\n4. Storage and Security\n\nInformation will be stored in secure databases, and technical, administrative, and organizational measures will be implemented to prevent unauthorized access, loss, or alteration of information.\n\n5. Sharing Information\n\nPersonal data will not be sold or shared with third parties, except:\n\nWhen required by a competent authority.\nWhen necessary to issue official certifications.\nWhen the user provides express authorization.\n\n6. User Rights\n\nIn accordance with Colombian legislation, users have the right to:\n\nKnow, update, and rectify their personal data.\nRequest proof of the authorization granted.\nRevoke authorization or request the deletion of their data.\nFile complaints with the Superintendency of Industry and Commerce.\n\n7. Use of Cookies\n\nThe system may use cookies to improve the browsing experience and analyze platform usage.\n\n8. Policy Modifications\n\nWe reserve the right to update this policy at any time. Changes will be published on the platform.\n\n9. Contact\n\nFor inquiries related to privacy and data processing, you can communicate through the official system email.';
+
+  @override
   String get navDashboard => 'Dashboard';
 
   @override
@@ -386,6 +393,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unirseBtn => 'Join';
 
   @override
+  String get joinErrorInvalidCode => 'Error: Verify the code';
+
+  @override
   String get coursesSubtitleManage => 'CPR training management';
 
   @override
@@ -611,4 +621,175 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get demoDesc8 =>
       'Patient with chest pain that evolves into cardiac arrest. Act fast.';
+
+  @override
+  String get scanQr => 'Scan QR';
+
+  @override
+  String get qrHint => 'Type the code or tap the QR icon to scan.';
+
+  @override
+  String get qrSuccess => 'QR scanned successfully';
+
+  @override
+  String get scanAgain => 'Scan again';
+
+  @override
+  String get aimQrHint => 'Point at the course QR code';
+
+  @override
+  String get qrScannerTitle => 'Scan QR Code';
+
+  @override
+  String get cameraPermissionRequired => 'Camera permission required';
+
+  @override
+  String get grantPermission => 'Grant permission';
+
+  @override
+  String get createCourseBtn => 'Create';
+
+  @override
+  String get courseCreatedSuccess => 'Course created successfully';
+
+  @override
+  String get deleteCourseConfirmTitle => 'Delete course?';
+
+  @override
+  String deleteCourseConfirmDesc(String title) {
+    return 'This action will deactivate the course \"$title\". Students will no longer be able to access it.';
+  }
+
+  @override
+  String get deleteBtn => 'Delete';
+
+  @override
+  String get editCourseTitle => 'Edit course';
+
+  @override
+  String get saveBtn => 'Save';
+
+  @override
+  String get modulesBtn => 'Modules';
+
+  @override
+  String get studentsBtn => 'Students';
+
+  @override
+  String get qrBtn => 'QR';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String remainingSessions(int count) {
+    return '$count sessions remaining';
+  }
+
+  @override
+  String shareInviteText(String title, String code) {
+    return 'Join my CPR course at SIERCP!\nCourse: $title\nInvitation code: $code\n\nOr scan the QR from the app.';
+  }
+
+  @override
+  String get shareInviteSubject => 'SIERCP Course Invitation';
+
+  @override
+  String get shareInviteBtn => 'Share invitation';
+
+  @override
+  String get recentActivity => 'Recent Activity';
+
+  @override
+  String get ahaTipTitle => 'AHA 2025 Tip';
+
+  @override
+  String get ahaTipBody =>
+      'Remember that compression depth should be at least 5 cm (2 inches) but no more than 6 cm (2.4 inches). Allow full chest recoil after each compression.';
+
+  @override
+  String get totalStudents => 'Students';
+
+  @override
+  String get activeManikins => 'Manikins';
+
+  @override
+  String get alertsToday => 'Alerts Today';
+
+  @override
+  String get manageUsers => 'Users';
+
+  @override
+  String get manageManikins => 'Manikins';
+
+  @override
+  String get manageCourses => 'Courses';
+
+  @override
+  String get manageReports => 'Reports';
+
+  @override
+  String get manageAnalytics => 'Analytics';
+
+  @override
+  String get quickNewCourse => 'New Course';
+
+  @override
+  String get quickMyStudents => 'My Students';
+
+  @override
+  String get quickExport => 'Export';
+
+  @override
+  String get activeCoursesTitle => 'My active courses';
+
+  @override
+  String get navReports => 'Reports';
+
+  @override
+  String get navAnalytics => 'Analytics';
+
+  @override
+  String get equipmentSectionTitle => 'Equipment & Connectivity';
+
+  @override
+  String get manikinsLabel => 'SIERCP Manikins';
+
+  @override
+  String get disconnected => 'Disconnected';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get errorOpeningLink => 'Could not open the link';
+
+  @override
+  String devicesConnectedCount(int count) {
+    return '$count connected';
+  }
+
+  @override
+  String get noInternet => 'NO INTERNET CONNECTION';
+
+  @override
+  String get continueLearning => 'Continue Learning';
+
+  @override
+  String get viewDetail => 'View Detail';
+
+  @override
+  String get continueTraining => 'Continue Training';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get noDeviceMini => 'No disp.';
+
+  @override
+  String approvedAndSessions(
+      int approvedCount, int requiredCount, int totalDone) {
+    return '$approvedCount/$requiredCount approved · $totalDone sessions';
+  }
 }
