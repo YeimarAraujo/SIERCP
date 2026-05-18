@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    // ── Auth helpers ─────────────────────────────────────────────────────────
     function isAuth() { return request.auth != null; }
-    function uid()   { return request.auth.uid; }
+    function uid()    { return request.auth.uid; }
 
     function userDoc() {
       return get(/databases/$(database)/documents/users/$(uid())).data;
@@ -15,12 +15,104 @@ service cloud.firestore {
     function isInstructor() { return isAuth() && role() == 'INSTRUCTOR'; }
     function isOwner(id)    { return isAuth() && uid() == id; }
 
+    // ── Institution plan helpers ──────────────────────────────────────────────
+    // Returns the admin membership doc for the caller's institution.
+    function institutionMembership(institutionId) {
+      return get(/databases/$(database)/documents/institutions/$(institutionId)/planMembership/current).data;
+    }
+
+    function planOf(institutionId) {
+      return institutionMembership(institutionId).planType;
+    }
+
+    function planActive(institutionId) {
+      let m = institutionMembership(institutionId);
+      return m.isActive == true
+          && m.status == 'approved'
+          && (m.planExpiresAt == null || m.planExpiresAt > request.time);
+    }
+
+    // Limit helpers — returns true when the institution is within its quota.
+    function withinUserLimit(institutionId) {
+      let m = institutionMembership(institutionId);
+      let plan = m.planType;
+      let count = m.usageCurrentUsers;
+      return plan == 'enterprise'
+          || plan == 'corporate'  && count < 200
+          || plan == 'business'   && count < 50
+          || plan == 'pyme'       && count < 15
+          || (plan == 'sstConLicencia' || plan == 'sstSinLicencia' || plan == 'credits') && count < 1;
+    }
+
+    function withinCourseLimit(institutionId) {
+      let m = institutionMembership(institutionId);
+      let plan = m.planType;
+      let count = m.usageCurrentCourses;
+      return plan == 'enterprise'
+          || plan == 'corporate'
+          || plan == 'sstConLicencia'
+          || plan == 'sstSinLicencia'
+          || plan == 'business'   && count < 10
+          || plan == 'pyme'       && count < 3;
+    }
+
+    function withinCertLimit(institutionId) {
+      let m = institutionMembership(institutionId);
+      let plan = m.planType;
+      let count = m.usageCertificatesThisMonth;
+      // credits plan: check creditBalance instead of monthly count
+      return plan == 'enterprise'
+          || plan == 'corporate'
+          || plan == 'sstConLicencia'
+          || plan == 'sstSinLicencia'
+          || plan == 'credits'   && m.creditBalance > 0
+          || plan == 'business'  && count < 200
+          || plan == 'pyme'      && count < 50;
+    }
+
+    function canUseLiveSessions(institutionId) {
+      let plan = planOf(institutionId);
+      return plan == 'enterprise' || plan == 'corporate' || plan == 'business';
+    }
+
+    function canUseMultiSite(institutionId) {
+      let plan = planOf(institutionId);
+      return plan == 'enterprise' || plan == 'corporate';
+    }
+
+    function hasSstAccess(institutionId) {
+      let m = institutionMembership(institutionId);
+      let plan = m.planType;
+      // sstConLicencia requires verified SST license
+      return plan != 'sstConLicencia'
+          || (m.sstLicenseVerified == true
+              && (m.sstLicenseExpiresAt == null || m.sstLicenseExpiresAt > request.time));
+    }
+
     // ── users ────────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read:   if isOwner(userId) || isAdmin() || isInstructor();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // ── institutions ─────────────────────────────────────────────────────────
+    match /institutions/{institutionId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+
+      // Plan membership sub-document — written by backend/Cloud Functions only
+      match /planMembership/{docId} {
+        allow read:  if isAuth() && (isAdmin() || userDoc().institutionId == institutionId);
+        allow write: if isAdmin();
+      }
+    }
+
+    // ── memberships ──────────────────────────────────────────────────────────
+    match /memberships/{id} {
+      allow read:  if isAuth() && (isAdmin() || resource.data.userId == uid());
+      allow write: if isAdmin();
     }
 
     // ── manikins ─────────────────────────────────────────────────────────────
@@ -31,42 +123,58 @@ service cloud.firestore {
 
     // ── courses ──────────────────────────────────────────────────────────────
     match /courses/{courseId} {
-      allow read:   if isAuth();
-      allow create: if isInstructor() || isAdmin();
-      allow update: if isAdmin() ||
-        (isInstructor() && resource.data.instructorId == uid());
+      allow read: if isAuth();
+
+      allow create: if (isInstructor() || isAdmin())
+          && planActive(request.resource.data.institutionId)
+          && withinCourseLimit(request.resource.data.institutionId);
+
+      allow update: if isAdmin()
+          || (isInstructor() && resource.data.instructorId == uid());
+
       allow delete: if isAdmin();
 
       match /enrollments/{studentId} {
-        allow read: if isAdmin() ||
-          (isInstructor() &&
-            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid()) ||
-          isOwner(studentId);
-        allow write: if isAdmin() ||
-          (isInstructor() &&
-            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid()) ||
-          isOwner(studentId);
+        allow read: if isAdmin()
+            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+            || isOwner(studentId);
+
+        // Enrollment respects user-count quota
+        allow create: if (isAdmin()
+            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+            || isOwner(studentId))
+            && withinUserLimit(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
+
+        allow update, delete: if isAdmin()
+            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+            || isOwner(studentId);
       }
 
       match /modules/{moduleId} {
         allow read: if isAuth();
-        allow write: if isAdmin() ||
-          (isInstructor() &&
-            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+        allow write: if isAdmin()
+            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
       }
     }
 
     // ── sessions ─────────────────────────────────────────────────────────────
     match /sessions/{sessionId} {
       allow read:   if isAuth() && (isAdmin() || isInstructor() || resource.data.studentId == uid());
-      allow create: if isAuth() && request.resource.data.studentId == uid();
+
+      allow create: if isAuth()
+          && request.resource.data.studentId == uid()
+          && planActive(request.resource.data.institutionId)
+          // Live sessions require Business plan or above
+          && (request.resource.data.isLive != true
+              || canUseLiveSessions(request.resource.data.institutionId));
+
       allow update: if isAuth() && (isAdmin() || resource.data.studentId == uid());
       allow delete: if isAdmin();
 
       match /compressions/{id} {
-        allow read:         if isAuth();
-        allow create:       if isAuth();
-        allow update, delete: if isAdmin();
+        allow read:            if isAuth();
+        allow create:          if isAuth();
+        allow update, delete:  if isAdmin();
       }
 
       match /alerts/{id} {
@@ -74,10 +182,59 @@ service cloud.firestore {
       }
     }
 
-    // ── scenarios ─────────────────────────────────────────────────────────────
-    match /scenarios/{id} {
-      allow read:  if isAuth();
+    // ── certificates ─────────────────────────────────────────────────────────
+    // Certificate issuance is gated by monthly/credit quota.
+    match /certificates/{certId} {
+      allow read: if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
+
+      allow create: if (isAdmin() || isInstructor())
+          && planActive(request.resource.data.institutionId)
+          && withinCertLimit(request.resource.data.institutionId);
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── SST-gated content ─────────────────────────────────────────────────────
+    // Guides marked sst:true require a valid SST license for sstConLicencia plan.
+    match /guides/{id} {
+      allow read: if isAuth()
+          && (isAdmin()
+              || !resource.data.requiresSstLicense
+              || hasSstAccess(userDoc().institutionId));
+      allow write: if isAdmin() || isInstructor();
+    }
+
+    match /guideProgress/{id} {
+      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
+      allow write: if isAuth() && request.resource.data.userId == uid();
+    }
+
+    // ── enrollments (root collection) ────────────────────────────────────────
+    match /enrollments/{id} {
+      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
       allow write: if isAdmin();
+    }
+
+    // ── notifications ─────────────────────────────────────────────────────────
+    match /notifications/{id} {
+      allow read:  if isAuth() && resource.data.userId == uid();
+      allow write: if isAdmin();
+    }
+
+    // ── attendance & records ──────────────────────────────────────────────────
+    match /attendance/{id} {
+      allow read, write: if isAdmin() || isInstructor();
+    }
+
+    match /records/{id} {
+      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
+      allow write: if isAdmin();
+    }
+
+    // ── Default Deny ──────────────────────────────────────────────────────────
+    match /{path=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

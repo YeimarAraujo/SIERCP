@@ -2,7 +2,10 @@
 ## Sistema Inteligente de Entrenamiento de Reanimación Cardiopulmonar
 
 Aplicación móvil multiplataforma (iOS + Android) desarrollada en Flutter para el monitoreo,
-entrenamiento y evaluación objetiva de la técnica de RCP según los estándares AHA 2020.
+entrenamiento y evaluación objetiva de la técnica de RCP según los estándares AHA 2025.
+
+> [!IMPORTANT]
+> Consulta el documento [ARCHITECTURE_MASTER.md](../ARCHITECTURE_MASTER.md) para detalles sobre la arquitectura modular, seguridad y modelo de negocio del ecosistema completo.
 
 ---
 
@@ -14,7 +17,7 @@ entrenamiento y evaluación objetiva de la técnica de RCP según los estándare
 | Dart | 3.0+ |
 | Android Studio | Hedgehog+ (o VS Code con extensiones Flutter/Dart) |
 | Xcode (solo macOS) | 15+ |
-| Backend SIERCP (Django) | corriendo en localhost:8000 |
+| Backend SIERCP (Next.js) | corriendo vía npm run dev |
 
 ---
 
@@ -42,19 +45,17 @@ assets/fonts/SpaceMono-Regular.ttf
 assets/fonts/SpaceMono-Bold.ttf
 ```
 
-### 5. Configurar URL del backend
+### 5. Configurar Variables de Entorno
 
-Edita `lib/core/constants.dart`:
-```dart
-// Emulador Android → usa 10.0.2.2 para acceder a localhost del host
-static const String baseUrlDev = 'http://10.0.2.2:8000/api';
-
-// Dispositivo físico → usa la IP de tu máquina en la red local
-static const String baseUrlDev = 'http://192.168.1.X:8000/api';
-
-// Producción
-static const String baseUrl = 'https://api.siercp.edu.co/api';
+Crea un archivo `config.json` en la raíz de `siercp_flutter`:
+```json
+{
+  "RTDB_URL": "https://tu-proyecto.firebaseio.com"
+}
 ```
+
+> [!IMPORTANT]
+> Nunca subas el archivo `config.json` al repositorio. Ya está incluido en el `.gitignore`.
 
 ### 6. Ejecutar la app
 ```bash
@@ -117,8 +118,7 @@ App inicio
   └─► SplashScreen
         ├─ Token válido ──► HomeScreen (con rol)
         └─ Sin token   ──► LoginScreen
-                              └─ POST /api/auth/login/
-                                    └─ Guarda JWT → HomeScreen
+                                └─ Autenticación vía Firebase Auth
 ```
 
 ## Roles y vistas
@@ -159,13 +159,11 @@ flutter build ios --release
 
 ---
 
-## Variables de entorno recomendadas (con flutter_dotenv)
-
-Para producción, agrega el paquete `flutter_dotenv` y crea un archivo `.env`:
+Para manejar múltiples entornos, usa el archivo `config.json` y ejecútalo con:
+```bash
+flutter run --dart-define-from-file=config.json
 ```
-API_BASE_URL=https://api.siercp.edu.co/api
-WS_BASE_URL=wss://api.siercp.edu.co/ws
-```
+O simplemente presiona **F5** en VS Code, ya que el archivo `.vscode/launch.json` ya está configurado.
 
 ---
 

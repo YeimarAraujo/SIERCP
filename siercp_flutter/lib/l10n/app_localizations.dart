@@ -1574,6 +1574,312 @@ abstract class AppLocalizations {
   /// **'{approvedCount}/{requiredCount} aprobadas · {totalDone} sesiones'**
   String approvedAndSessions(
       int approvedCount, int requiredCount, int totalDone);
+
+  /// No description provided for @navSimulation.
+  ///
+  /// In es, this message translates to:
+  /// **'Simulación'**
+  String get navSimulation;
+
+  /// No description provided for @simulationTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Simulación'**
+  String get simulationTitle;
+
+  /// No description provided for @simulationSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluaciones teóricas y prácticas'**
+  String get simulationSubtitle;
+
+  /// No description provided for @theoreticalEval.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluación Teórica'**
+  String get theoreticalEval;
+
+  /// No description provided for @theoreticalEvalDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Responde preguntas dinámicas basadas en AHA y MinSalud'**
+  String get theoreticalEvalDesc;
+
+  /// No description provided for @practicalEval.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluación Práctica'**
+  String get practicalEval;
+
+  /// No description provided for @practicalEvalDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Práctica con el maniquí ESP32 conectado'**
+  String get practicalEvalDesc;
+
+  /// No description provided for @quizTopicsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona un tema'**
+  String get quizTopicsTitle;
+
+  /// No description provided for @quizTopicsSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluaciones basadas en lineamientos AHA y MinSalud'**
+  String get quizTopicsSubtitle;
+
+  /// No description provided for @quizStart.
+  ///
+  /// In es, this message translates to:
+  /// **'Comenzar evaluación'**
+  String get quizStart;
+
+  /// No description provided for @quizQuestionLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Pregunta {current} de {total}'**
+  String quizQuestionLabel(int current, int total);
+
+  /// No description provided for @quizTimeLeft.
+  ///
+  /// In es, this message translates to:
+  /// **'Tiempo restante'**
+  String get quizTimeLeft;
+
+  /// No description provided for @quizSubmit.
+  ///
+  /// In es, this message translates to:
+  /// **'Finalizar evaluación'**
+  String get quizSubmit;
+
+  /// No description provided for @quizResultTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Resultado'**
+  String get quizResultTitle;
+
+  /// No description provided for @quizPassed.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Aprobado!'**
+  String get quizPassed;
+
+  /// No description provided for @quizFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No aprobado'**
+  String get quizFailed;
+
+  /// No description provided for @quizScore.
+  ///
+  /// In es, this message translates to:
+  /// **'{score}%'**
+  String quizScore(String score);
+
+  /// No description provided for @quizXpEarned.
+  ///
+  /// In es, this message translates to:
+  /// **'+{xp} XP ganados'**
+  String quizXpEarned(int xp);
+
+  /// No description provided for @quizCorrectOf.
+  ///
+  /// In es, this message translates to:
+  /// **'{correct} de {total} correctas'**
+  String quizCorrectOf(int correct, int total);
+
+  /// No description provided for @quizRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Intentar de nuevo'**
+  String get quizRetry;
+
+  /// No description provided for @quizReviewAnswers.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver respuestas'**
+  String get quizReviewAnswers;
+
+  /// No description provided for @quizLevelUp.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Subiste al nivel {level}!'**
+  String quizLevelUp(int level);
+
+  /// No description provided for @quizNewBadge.
+  ///
+  /// In es, this message translates to:
+  /// **'Insignia obtenida'**
+  String get quizNewBadge;
+
+  /// No description provided for @quizPlanRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Requiere plan {plan}'**
+  String quizPlanRequired(String plan);
+
+  /// No description provided for @quizLoading.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando preguntas...'**
+  String get quizLoading;
+
+  /// No description provided for @quizSubmitting.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviando respuestas...'**
+  String get quizSubmitting;
+
+  /// No description provided for @quizErrorLoad.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al cargar las preguntas. Intenta de nuevo.'**
+  String get quizErrorLoad;
+
+  /// No description provided for @quizErrorSubmit.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar respuestas. Intenta de nuevo.'**
+  String get quizErrorSubmit;
+
+  /// No description provided for @quizAnswerAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Responde todas las preguntas antes de enviar'**
+  String get quizAnswerAll;
+
+  /// No description provided for @quizTimeUp.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Tiempo agotado!'**
+  String get quizTimeUp;
+
+  /// No description provided for @quizMinScore.
+  ///
+  /// In es, this message translates to:
+  /// **'Mínimo aprobatorio: 70%'**
+  String get quizMinScore;
+
+  /// No description provided for @practicalTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluación Práctica'**
+  String get practicalTitle;
+
+  /// No description provided for @practicalSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Elige el tipo de práctica a realizar'**
+  String get practicalSubtitle;
+
+  /// No description provided for @practicalRcp.
+  ///
+  /// In es, this message translates to:
+  /// **'RCP con Maniquí'**
+  String get practicalRcp;
+
+  /// No description provided for @practicalRcpDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Practica compresiones y ventilaciones con retroalimentación en tiempo real'**
+  String get practicalRcpDesc;
+
+  /// No description provided for @practicalScenarios.
+  ///
+  /// In es, this message translates to:
+  /// **'Escenarios Clínicos'**
+  String get practicalScenarios;
+
+  /// No description provided for @practicalScenariosDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Simula casos de emergencia con el protocolo completo'**
+  String get practicalScenariosDesc;
+
+  /// No description provided for @practicalDeviceRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Se requiere maniquí ESP32 conectado'**
+  String get practicalDeviceRequired;
+
+  /// No description provided for @practicalConnectFirst.
+  ///
+  /// In es, this message translates to:
+  /// **'Conectar maniquí'**
+  String get practicalConnectFirst;
+
+  /// No description provided for @calendarTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi Calendario'**
+  String get calendarTitle;
+
+  /// No description provided for @calendarSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de sesiones, evaluaciones y certificados'**
+  String get calendarSubtitle;
+
+  /// No description provided for @calendarInstitutionTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Calendario Institucional'**
+  String get calendarInstitutionTitle;
+
+  /// No description provided for @calendarNoEvents.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin actividad este día'**
+  String get calendarNoEvents;
+
+  /// No description provided for @calendarEventQuiz.
+  ///
+  /// In es, this message translates to:
+  /// **'Evaluación'**
+  String get calendarEventQuiz;
+
+  /// No description provided for @calendarEventSession.
+  ///
+  /// In es, this message translates to:
+  /// **'Sesión'**
+  String get calendarEventSession;
+
+  /// No description provided for @calendarEventCertificate.
+  ///
+  /// In es, this message translates to:
+  /// **'Certificado'**
+  String get calendarEventCertificate;
+
+  /// No description provided for @calendarLoading.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando eventos...'**
+  String get calendarLoading;
+
+  /// No description provided for @calendarError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al cargar el calendario'**
+  String get calendarError;
+
+  /// No description provided for @calendarRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get calendarRetry;
+
+  /// No description provided for @calendarBannerTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi Calendario'**
+  String get calendarBannerTitle;
+
+  /// No description provided for @calendarBannerSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de actividad y progreso'**
+  String get calendarBannerSubtitle;
 }
 
 class _AppLocalizationsDelegate

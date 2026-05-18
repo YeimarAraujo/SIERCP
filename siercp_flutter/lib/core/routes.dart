@@ -17,6 +17,12 @@ import 'package:siercp/features/guides/presentation/pages/add_guide_screen.dart'
 import 'package:siercp/features/users/presentation/pages/profile_screen.dart';
 import 'package:siercp/features/scenarios/presentation/pages/scenario_select_screen.dart';
 import 'package:siercp/features/scenarios/presentation/pages/scenario_detail_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/simulation_menu_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/theoretical_hub_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/quiz_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/quiz_result_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/practical_hub_screen.dart';
+import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
 import 'package:siercp/features/users/presentation/pages/manage_users_screen.dart';
@@ -39,6 +45,7 @@ import 'package:siercp/features/notifications/presentation/pages/notifications_s
 import 'package:siercp/features/users/presentation/pages/instructor_students_screen.dart';
 import 'package:siercp/features/users/presentation/pages/student_detail_screen.dart';
 import 'package:siercp/features/analytics/presentation/dashboard/analytics_screen.dart';
+import 'package:siercp/features/calendar/presentation/pages/calendar_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -109,6 +116,35 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
           GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
+          // ── Simulación ───────────────────────────────────────────────
+          GoRoute(
+            path: '/simulation',
+            builder: (_, __) => const SimulationMenuScreen(),
+            routes: [
+              GoRoute(
+                path: 'theoretical',
+                builder: (_, __) => const TheoreticalHubScreen(),
+              ),
+              GoRoute(
+                path: 'theoretical/quiz/:topicId',
+                builder: (_, state) => QuizScreen(
+                  topicId: state.pathParameters['topicId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'theoretical/result/:sessionId',
+                builder: (_, state) => QuizResultScreen(
+                  sessionId: state.pathParameters['sessionId']!,
+                  result: state.extra as QuizSessionResult?,
+                ),
+              ),
+              GoRoute(
+                path: 'practical',
+                builder: (_, __) => const PracticalHubScreen(),
+              ),
+            ],
+          ),
+          // Alias legacy: /scenarios sigue funcionando
           GoRoute(
               path: '/scenarios',
               builder: (_, __) => const ScenarioSelectScreen()),
@@ -274,6 +310,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
 
           // ── Reportes PDF ──────────────────────────────────────────────────
+          GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
           GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
 
           // ── Admin routes ──────────────────────────────────────────────────

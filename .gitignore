@@ -209,3 +209,6 @@ __marimo__/
 build/
 **/.dart_tool/
 **/build/
+config.json
+.env.local
+.env

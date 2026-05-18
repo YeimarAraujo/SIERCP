@@ -10,14 +10,12 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final service = SyncService(
     ref.read(firestoreServiceProvider),
     ref.read(localStorageServiceProvider),
-    ref,
   );
 
   // Escuchar cambios de conectividad para disparar sincronización
   ref.listen(isOnlineProvider, (previous, next) {
     if (next == true && (previous == false || previous == null)) {
-      debugPrint(
-          '🌐 Conexión recuperada, disparando sincronización de cola...');
+      debugPrint('Conexión recuperada, disparando sincronización de cola...');
       service.processQueue();
     }
   });
@@ -28,10 +26,9 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 class SyncService {
   final FirestoreService _db;
   final LocalStorageService _localStorage;
-  final Ref _ref;
   bool _isSyncing = false;
 
-  SyncService(this._db, this._localStorage, this._ref);
+  SyncService(this._db, this._localStorage);
 
   Future<void> processQueue() async {
     if (_isSyncing) return;
@@ -77,10 +74,10 @@ class SyncService {
 
         if (success) {
           await _localStorage.removeSyncItem(id);
-          debugPrint('✅ Item de sincronización procesado: $id');
+          debugPrint('Item de sincronización procesado: $id');
         }
       } catch (e) {
-        debugPrint('⚠️ Error al sincronizar item $id: $e');
+        debugPrint('Error al sincronizar item $id: $e');
         // Si falla por red, paramos y esperamos a la próxima vez que recupere conexión
         break;
       }

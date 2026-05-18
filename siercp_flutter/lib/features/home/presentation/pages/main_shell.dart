@@ -32,7 +32,7 @@ class MainShell extends ConsumerWidget {
     } else if (isInstructor) {
       return [
         NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
-        NavItem(loc.navSession, Icons.favorite_outline, Icons.favorite, '/scenarios'),
+        NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology, '/simulation'),
         NavItem(loc.navHistory, Icons.show_chart_outlined, Icons.show_chart,
             '/history'),
         NavItem(
@@ -44,7 +44,7 @@ class MainShell extends ConsumerWidget {
     } else {
       return [
         NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
-        NavItem(loc.navSession, Icons.favorite_outline, Icons.favorite, '/scenarios'),
+        NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology, '/simulation'),
         NavItem(loc.navHistory, Icons.show_chart_outlined, Icons.show_chart,
             '/history'),
         NavItem(

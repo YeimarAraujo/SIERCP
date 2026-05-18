@@ -13,13 +13,24 @@ class BleService extends ChangeNotifier {
       "12345678-1234-5678-1234-56789abcdef1";
   static const String audioCharUuid = "12345678-1234-5678-1234-56789abcdef2";
 
+  static const int _maxRetries = 5;
+  static const Duration _baseRetryDelay = Duration(seconds: 2);
+
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _telemetryChar;
   BluetoothCharacteristic? _audioChar;
 
   StreamSubscription? _notifySub;
   StreamSubscription? _connectionSub;
+  StreamSubscription? _rssiSub;
   final _telemetryController = StreamController<RcpTelemetry>.broadcast();
+
+  Timer? _reconnectTimer;
+  int _retryCount = 0;
+  bool _intentionalDisconnect = false;
+
+  int? _rssi;
+  int? get rssi => _rssi;
 
   Stream<RcpTelemetry> get telemetryStream => _telemetryController.stream;
 
@@ -27,28 +38,57 @@ class BleService extends ChangeNotifier {
   BluetoothDevice? get connectedDevice => _connectedDevice;
 
   Future<void> connectToDevice(BluetoothDevice device) async {
+    _intentionalDisconnect = false;
+    _retryCount = 0;
+    await _doConnect(device);
+  }
+
+  Future<void> _doConnect(BluetoothDevice device) async {
     try {
       await device.connect(autoConnect: false, license: License.free);
       _connectedDevice = device;
+      _retryCount = 0;
 
-      // Optimización de conectividad: Solicitar MTU mayor para paquetes de telemetría de 44 bytes
-      // El valor por defecto de 23 bytes fragmentaría el paquete.
       if (defaultTargetPlatform == TargetPlatform.android) {
         try {
           await device.requestMtu(247);
           debugPrint("MTU negociado exitosamente");
         } catch (e) {
-          debugPrint(
-              "No se pudo negociar MTU, se usará el valor por defecto: $e");
+          debugPrint("No se pudo negociar MTU, se usará el valor por defecto: $e");
         }
       }
 
-      // Escuchar desconexiones
+      // RSSI polling cada 3 s
+      _rssiSub?.cancel();
+      _rssiSub = Stream.periodic(const Duration(seconds: 3))
+          .asyncMap((_) async {
+        try {
+          return await device.readRssi();
+        } catch (_) {
+          return null;
+        }
+      }).listen((value) {
+        if (value != null && _rssi != value) {
+          _rssi = value;
+          notifyListeners();
+        }
+      });
+
+      // Escuchar desconexiones con reconnect automático
       _connectionSub?.cancel();
       _connectionSub = device.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
           debugPrint("Dispositivo BLE desconectado");
-          disconnect();
+          _rssiSub?.cancel();
+          _rssiSub = null;
+          _rssi = null;
+          _telemetryChar = null;
+          _audioChar = null;
+          _connectedDevice = null;
+          notifyListeners();
+          if (!_intentionalDisconnect) {
+            _scheduleReconnect(device);
+          }
         }
       });
 
@@ -147,7 +187,34 @@ class BleService extends ChangeNotifier {
     }
   }
 
+  void _scheduleReconnect(BluetoothDevice device) {
+    if (_retryCount >= _maxRetries) {
+      debugPrint("BLE: máximo de reintentos alcanzado ($_maxRetries)");
+      return;
+    }
+    final delay = _baseRetryDelay * (1 << _retryCount); // backoff exponencial
+    _retryCount++;
+    debugPrint("BLE: reintento $_retryCount en ${delay.inSeconds}s");
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(delay, () async {
+      if (_intentionalDisconnect || _connectedDevice != null) return;
+      debugPrint("BLE: intentando reconectar...");
+      try {
+        await _doConnect(device);
+      } catch (e) {
+        debugPrint("BLE: fallo en reconexión: $e");
+      }
+    });
+  }
+
   Future<void> disconnect() async {
+    _intentionalDisconnect = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _retryCount = 0;
+    await _rssiSub?.cancel();
+    _rssiSub = null;
+    _rssi = null;
     await _notifySub?.cancel();
     _notifySub = null;
     await _connectionSub?.cancel();

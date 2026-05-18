@@ -792,4 +792,173 @@ class AppLocalizationsEn extends AppLocalizations {
       int approvedCount, int requiredCount, int totalDone) {
     return '$approvedCount/$requiredCount approved · $totalDone sessions';
   }
+
+  @override
+  String get navSimulation => 'Simulation';
+
+  @override
+  String get simulationTitle => 'Simulation';
+
+  @override
+  String get simulationSubtitle => 'Theoretical and practical evaluations';
+
+  @override
+  String get theoreticalEval => 'Theoretical Evaluation';
+
+  @override
+  String get theoreticalEvalDesc =>
+      'Answer dynamic questions based on AHA and MinSalud guidelines';
+
+  @override
+  String get practicalEval => 'Practical Evaluation';
+
+  @override
+  String get practicalEvalDesc => 'Practice with the ESP32 manikin connected';
+
+  @override
+  String get quizTopicsTitle => 'Select a topic';
+
+  @override
+  String get quizTopicsSubtitle =>
+      'Evaluations based on AHA and MinSalud guidelines';
+
+  @override
+  String get quizStart => 'Start evaluation';
+
+  @override
+  String quizQuestionLabel(int current, int total) {
+    return 'Question $current of $total';
+  }
+
+  @override
+  String get quizTimeLeft => 'Time remaining';
+
+  @override
+  String get quizSubmit => 'Finish evaluation';
+
+  @override
+  String get quizResultTitle => 'Result';
+
+  @override
+  String get quizPassed => 'Passed!';
+
+  @override
+  String get quizFailed => 'Not passed';
+
+  @override
+  String quizScore(String score) {
+    return '$score%';
+  }
+
+  @override
+  String quizXpEarned(int xp) {
+    return '+$xp XP earned';
+  }
+
+  @override
+  String quizCorrectOf(int correct, int total) {
+    return '$correct of $total correct';
+  }
+
+  @override
+  String get quizRetry => 'Try again';
+
+  @override
+  String get quizReviewAnswers => 'Review answers';
+
+  @override
+  String quizLevelUp(int level) {
+    return 'Level up! You reached level $level!';
+  }
+
+  @override
+  String get quizNewBadge => 'Badge earned';
+
+  @override
+  String quizPlanRequired(String plan) {
+    return 'Requires $plan plan';
+  }
+
+  @override
+  String get quizLoading => 'Loading questions...';
+
+  @override
+  String get quizSubmitting => 'Submitting answers...';
+
+  @override
+  String get quizErrorLoad => 'Failed to load questions. Please try again.';
+
+  @override
+  String get quizErrorSubmit => 'Failed to submit answers. Please try again.';
+
+  @override
+  String get quizAnswerAll => 'Answer all questions before submitting';
+
+  @override
+  String get quizTimeUp => 'Time\'s up!';
+
+  @override
+  String get quizMinScore => 'Minimum passing score: 70%';
+
+  @override
+  String get practicalTitle => 'Practical Evaluation';
+
+  @override
+  String get practicalSubtitle => 'Choose the type of practice';
+
+  @override
+  String get practicalRcp => 'CPR with Manikin';
+
+  @override
+  String get practicalRcpDesc =>
+      'Practice compressions and ventilations with real-time feedback';
+
+  @override
+  String get practicalScenarios => 'Clinical Scenarios';
+
+  @override
+  String get practicalScenariosDesc =>
+      'Simulate emergency cases with the full protocol';
+
+  @override
+  String get practicalDeviceRequired => 'ESP32 manikin connection required';
+
+  @override
+  String get practicalConnectFirst => 'Connect manikin';
+
+  @override
+  String get calendarTitle => 'My Calendar';
+
+  @override
+  String get calendarSubtitle => 'Session, evaluation and certificate history';
+
+  @override
+  String get calendarInstitutionTitle => 'Institution Calendar';
+
+  @override
+  String get calendarNoEvents => 'No activity on this day';
+
+  @override
+  String get calendarEventQuiz => 'Evaluation';
+
+  @override
+  String get calendarEventSession => 'Session';
+
+  @override
+  String get calendarEventCertificate => 'Certificate';
+
+  @override
+  String get calendarLoading => 'Loading events...';
+
+  @override
+  String get calendarError => 'Failed to load calendar';
+
+  @override
+  String get calendarRetry => 'Retry';
+
+  @override
+  String get calendarBannerTitle => 'My Calendar';
+
+  @override
+  String get calendarBannerSubtitle => 'Activity and progress history';
 }

@@ -21,6 +21,7 @@ import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
 import 'package:siercp/core/services/sync_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:siercp/core/constants/environment.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
@@ -40,10 +41,11 @@ void main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  // RTDB
-  FirebaseDatabase.instance.databaseURL =
-      'https://siercp-default-rtdb.firebaseio.com';
-  FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
+  // RTDB (Configurada exclusivamente vía --dart-define=RTDB_URL=...)
+  if (Environment.isConfigured) {
+    FirebaseDatabase.instance.databaseURL = Environment.rtdbUrl;
+    FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
+  }
 
   if (!kIsWeb) {
     if (Platform.isWindows || Platform.isLinux) {

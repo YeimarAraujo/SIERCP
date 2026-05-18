@@ -795,4 +795,175 @@ class AppLocalizationsEs extends AppLocalizations {
       int approvedCount, int requiredCount, int totalDone) {
     return '$approvedCount/$requiredCount aprobadas · $totalDone sesiones';
   }
+
+  @override
+  String get navSimulation => 'Simulación';
+
+  @override
+  String get simulationTitle => 'Simulación';
+
+  @override
+  String get simulationSubtitle => 'Evaluaciones teóricas y prácticas';
+
+  @override
+  String get theoreticalEval => 'Evaluación Teórica';
+
+  @override
+  String get theoreticalEvalDesc =>
+      'Responde preguntas dinámicas basadas en AHA y MinSalud';
+
+  @override
+  String get practicalEval => 'Evaluación Práctica';
+
+  @override
+  String get practicalEvalDesc => 'Práctica con el maniquí ESP32 conectado';
+
+  @override
+  String get quizTopicsTitle => 'Selecciona un tema';
+
+  @override
+  String get quizTopicsSubtitle =>
+      'Evaluaciones basadas en lineamientos AHA y MinSalud';
+
+  @override
+  String get quizStart => 'Comenzar evaluación';
+
+  @override
+  String quizQuestionLabel(int current, int total) {
+    return 'Pregunta $current de $total';
+  }
+
+  @override
+  String get quizTimeLeft => 'Tiempo restante';
+
+  @override
+  String get quizSubmit => 'Finalizar evaluación';
+
+  @override
+  String get quizResultTitle => 'Resultado';
+
+  @override
+  String get quizPassed => '¡Aprobado!';
+
+  @override
+  String get quizFailed => 'No aprobado';
+
+  @override
+  String quizScore(String score) {
+    return '$score%';
+  }
+
+  @override
+  String quizXpEarned(int xp) {
+    return '+$xp XP ganados';
+  }
+
+  @override
+  String quizCorrectOf(int correct, int total) {
+    return '$correct de $total correctas';
+  }
+
+  @override
+  String get quizRetry => 'Intentar de nuevo';
+
+  @override
+  String get quizReviewAnswers => 'Ver respuestas';
+
+  @override
+  String quizLevelUp(int level) {
+    return '¡Subiste al nivel $level!';
+  }
+
+  @override
+  String get quizNewBadge => 'Insignia obtenida';
+
+  @override
+  String quizPlanRequired(String plan) {
+    return 'Requiere plan $plan';
+  }
+
+  @override
+  String get quizLoading => 'Cargando preguntas...';
+
+  @override
+  String get quizSubmitting => 'Enviando respuestas...';
+
+  @override
+  String get quizErrorLoad =>
+      'Error al cargar las preguntas. Intenta de nuevo.';
+
+  @override
+  String get quizErrorSubmit => 'Error al enviar respuestas. Intenta de nuevo.';
+
+  @override
+  String get quizAnswerAll => 'Responde todas las preguntas antes de enviar';
+
+  @override
+  String get quizTimeUp => '¡Tiempo agotado!';
+
+  @override
+  String get quizMinScore => 'Mínimo aprobatorio: 70%';
+
+  @override
+  String get practicalTitle => 'Evaluación Práctica';
+
+  @override
+  String get practicalSubtitle => 'Elige el tipo de práctica a realizar';
+
+  @override
+  String get practicalRcp => 'RCP con Maniquí';
+
+  @override
+  String get practicalRcpDesc =>
+      'Practica compresiones y ventilaciones con retroalimentación en tiempo real';
+
+  @override
+  String get practicalScenarios => 'Escenarios Clínicos';
+
+  @override
+  String get practicalScenariosDesc =>
+      'Simula casos de emergencia con el protocolo completo';
+
+  @override
+  String get practicalDeviceRequired => 'Se requiere maniquí ESP32 conectado';
+
+  @override
+  String get practicalConnectFirst => 'Conectar maniquí';
+
+  @override
+  String get calendarTitle => 'Mi Calendario';
+
+  @override
+  String get calendarSubtitle =>
+      'Historial de sesiones, evaluaciones y certificados';
+
+  @override
+  String get calendarInstitutionTitle => 'Calendario Institucional';
+
+  @override
+  String get calendarNoEvents => 'Sin actividad este día';
+
+  @override
+  String get calendarEventQuiz => 'Evaluación';
+
+  @override
+  String get calendarEventSession => 'Sesión';
+
+  @override
+  String get calendarEventCertificate => 'Certificado';
+
+  @override
+  String get calendarLoading => 'Cargando eventos...';
+
+  @override
+  String get calendarError => 'Error al cargar el calendario';
+
+  @override
+  String get calendarRetry => 'Reintentar';
+
+  @override
+  String get calendarBannerTitle => 'Mi Calendario';
+
+  @override
+  String get calendarBannerSubtitle => 'Historial de actividad y progreso';
 }
