@@ -22,7 +22,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
   final _searchCtrl = TextEditingController();
   bool _isImporting = false;
 
-  static const _filters = ['TODOS', 'ADMIN', 'INSTRUCTOR', 'ESTUDIANTE'];
+  static const _filters = ['TODOS', 'SUPER_ADMIN', 'ADMIN', 'INSTRUCTOR', 'USUARIO_SST', 'USUARIO_PROFESIONAL', 'USUARIO'];
 
   @override
   void dispose() {
@@ -253,10 +253,14 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
 
   String _roleLabel(String role) {
     switch (role) {
-      case 'ADMIN': return 'Admin';
-      case 'INSTRUCTOR': return 'Instructores';
-      case 'ESTUDIANTE': return 'Estudiantes';
-      default: return role;
+      case 'TODOS':               return 'Todos';
+      case 'SUPER_ADMIN':        return 'Super Admin';
+      case 'ADMIN':              return 'Administradores';
+      case 'INSTRUCTOR':         return 'Instructores';
+      case 'USUARIO_SST':        return 'Usuarios SST';
+      case 'USUARIO_PROFESIONAL': return 'Profesionales';
+      case 'USUARIO':            return 'Usuarios';
+      default:                   return role;
     }
   }
 }

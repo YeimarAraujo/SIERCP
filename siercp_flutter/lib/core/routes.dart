@@ -22,6 +22,7 @@ import 'package:siercp/features/simulation/presentation/pages/theoretical_hub_sc
 import 'package:siercp/features/simulation/presentation/pages/quiz_screen.dart';
 import 'package:siercp/features/simulation/presentation/pages/quiz_result_screen.dart';
 import 'package:siercp/features/simulation/presentation/pages/practical_hub_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/practical_evaluations_screen.dart';
 import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
@@ -32,6 +33,7 @@ import 'package:siercp/features/users/presentation/pages/create_user_screen.dart
 import 'package:siercp/features/devices/presentation/pages/device_selection_screen.dart';
 import 'package:siercp/features/reports/presentation/pages/reports_screen.dart';
 import 'package:siercp/features/users/presentation/pages/edit_profile_screen.dart';
+import 'package:siercp/features/users/presentation/pages/certificates_screen.dart';
 import 'package:siercp/features/guides/data/models/guide.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/presentation/pages/course_editor_screen.dart';
@@ -141,6 +143,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'practical',
                 builder: (_, __) => const PracticalHubScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'evaluations',
+                    builder: (_, __) => const PracticalEvaluationsScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -152,6 +160,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/profile/edit',
               builder: (_, __) => const EditProfileScreen()),
+          GoRoute(
+              path: '/profile/certificados',
+              builder: (_, __) => const CertificatesScreen()),
           GoRoute(
               path: '/analytics',
               builder: (_, __) => const AnalyticsDashboardScreen()),

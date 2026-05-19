@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\\\\features\")",
+      "Bash(dir \"C:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\\\\core\")",
+      "Bash(dir \"C:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\\\\features\\\\home\\\\presentation\\\\pages\")",
+      "Bash(Get-ChildItem -Path src -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "PowerShell(Get-ChildItem \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\" -Recurse | Where-Object {$_.PSIsContainer} | Select-Object FullName | Sort-Object FullName)",
+      "PowerShell(tree.exe \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\" /f)",
+      "PowerShell(head -200)",
+      "Bash(cd /mnt/c/Programacion/SIERCP/SIERCP-WEB/src && find app -type d | sort | head -50)",
+      "Read(//mnt/c/Programacion/SIERCP/SIERCP-WEB/**)",
+      "PowerShell(Get-DirectoryTree \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\" -MaxDepth 2)",
+      "PowerShell(Get-DirectoryTree \"c:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\" -MaxDepth 3)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\student\\\\profile\\\\certificados\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\student\\\\\" -Force)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\student\\\\\" -Recurse -Filter \"*.tsx\" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)",
+      "Bash(xargs grep -l \"canCreateMoreCourses\\\\|courseLimit\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\" -Recurse -Directory)",
+      "Bash(Remove-Item \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\services\\\\quota.service.ts\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\shared\\\\components\\\\layout\" -Recurse -Force)",
+      "Bash(cd /c/Programacion/SIERCP/siercp_flutter && find lib/features -name \"*.dart\" | head -80)",
+      "Read(//c/c/Programacion/SIERCP/siercp_flutter/lib/**)",
+      "Bash(Get-ChildItem -Path . -Directory)"
+    ]
+  }
+}

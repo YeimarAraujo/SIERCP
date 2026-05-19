@@ -25,103 +25,286 @@ class CoursesScreen extends ConsumerStatefulWidget {
 }
 
 class _CoursesScreenState extends ConsumerState<CoursesScreen> {
-  // ─── Create course dialog ────────────────────────────────────────────────────
+  // ─── Create course bottom sheet ─────────────────────────────────────────────
   void _showCreateDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final estudiantesCtrl = TextEditingController();
+    final certCtrl = TextEditingController();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         final loc = AppLocalizations.of(ctx)!;
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.add_circle_outline_rounded,
-                  color: AppColors.brand, size: 20),
-              const SizedBox(width: 10),
-              Text(loc.createCourseTitle),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: loc.courseNameLabel,
-                    prefixIcon: const Icon(Icons.menu_book_outlined),
+        final theme = Theme.of(ctx);
+        final isDark = theme.brightness == Brightness.dark;
+        final currentUser = ref.read(currentUserProvider);
+        final coursesCreated = currentUser?.coursesCreated ?? 0;
+        final isUsuario = currentUser?.isUsuario ?? false;
+        bool loading = false;
+        String? errorMsg;
+
+        return StatefulBuilder(
+          builder: (ctx, setSt) {
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descCtrl,
-                  maxLines: 2,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: loc.courseDescLabel,
-                    prefixIcon: const Icon(Icons.description_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: estudiantesCtrl,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    labelText: loc.studentsCedulaLabel,
-                    hintText: loc.studentsCedulaHint,
-                    prefixIcon: const Icon(Icons.people_alt_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(loc.cancelBtn)),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.check_rounded, size: 16),
-              label: Text(loc.createBtn),
-              onPressed: () async {
-                try {
-                  final user = ref.read(currentUserProvider);
-                  await ref.read(sessionServiceProvider).createCourse(
-                        name: nameCtrl.text.trim(),
-                        description: descCtrl.text.trim(),
-                        instructorId: user?.id ?? '',
-                        instructorName: user?.fullName ?? '',
-                      );
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ref.invalidate(coursesProvider);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(children: [
-                          const Icon(Icons.check_circle_outline,
-                              color: Colors.white, size: 16),
-                          const SizedBox(width: 8),
-                          Text(loc.courseCreatedSuccess),
-                        ]),
+                  // Header gradient
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF1800AD), Color(0xFF6d4aff)],
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: AppColors.red.withValues(alpha: 0.9),
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.add_circle_outline_rounded,
+                              color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(loc.createCourseTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  )),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Configura el nuevo curso de entrenamiento',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isUsuario)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '$coursesCreated/3',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Form fields
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Column(
+                      children: [
+                        _SheetInput(
+                          controller: nameCtrl,
+                          label: loc.courseNameLabel,
+                          hint: 'Ej. Soporte Vital Básico — Grupo A',
+                          icon: Icons.menu_book_outlined,
+                          isDark: isDark,
+                          capitalization: TextCapitalization.sentences,
+                        ),
+                        const SizedBox(height: 12),
+                        _SheetInput(
+                          controller: descCtrl,
+                          label: loc.courseDescLabel,
+                          hint: 'Breve descripción del curso y sus objetivos',
+                          icon: Icons.description_outlined,
+                          isDark: isDark,
+                          maxLines: 2,
+                          capitalization: TextCapitalization.sentences,
+                        ),
+                        const SizedBox(height: 12),
+                        _SheetInput(
+                          controller: certCtrl,
+                          label: 'Certificación',
+                          hint: 'Ej. BLS Provider AHA 2025',
+                          icon: Icons.verified_outlined,
+                          isDark: isDark,
+                          capitalization: TextCapitalization.words,
+                        ),
+                        if (errorMsg != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.red.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: AppColors.red.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline,
+                                    color: AppColors.red.withValues(alpha: 0.8),
+                                    size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(errorMsg!,
+                                      style: TextStyle(
+                                          color: AppColors.red
+                                              .withValues(alpha: 0.9),
+                                          fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Actions
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text(loc.cancelBtn),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: loading
+                                ? null
+                                : () async {
+                                    final name = nameCtrl.text.trim();
+                                    if (name.isEmpty) {
+                                      setSt(() => errorMsg =
+                                          'El nombre del curso es requerido');
+                                      return;
+                                    }
+                                    setSt(() {
+                                      loading = true;
+                                      errorMsg = null;
+                                    });
+                                    try {
+                                      final user =
+                                          ref.read(currentUserProvider);
+                                      await ref
+                                          .read(sessionServiceProvider)
+                                          .createCourse(
+                                            name: name,
+                                            description: descCtrl.text.trim(),
+                                            instructorId: user?.id ?? '',
+                                            instructorName:
+                                                user?.fullName ?? '',
+                                          );
+                                      if (mounted) {
+                                        Navigator.pop(ctx);
+                                        ref.invalidate(coursesProvider);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(
+                                          content: Row(children: [
+                                            const Icon(
+                                                Icons.check_circle_outline,
+                                                color: Colors.white,
+                                                size: 16),
+                                            const SizedBox(width: 8),
+                                            Text(loc.courseCreatedSuccess),
+                                          ]),
+                                          backgroundColor: AppColors.green,
+                                        ));
+                                      }
+                                    } catch (e) {
+                                      setSt(() {
+                                        loading = false;
+                                        errorMsg = e.toString();
+                                      });
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brand,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.add_circle_outline_rounded,
+                                          size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(loc.createBtn,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -505,7 +688,11 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final loc = AppLocalizations.of(context)!;
     final isInstructor = currentUser?.isInstructor ?? false;
     final isAdmin = currentUser?.isAdmin ?? false;
+    final isUsuario = currentUser?.isUsuario ?? false;
     final canManage = isInstructor || isAdmin;
+    final canCreate = canManage || (isUsuario && (currentUser?.canCreateMoreCourses ?? false));
+    final isAtLimit = isUsuario && !(currentUser?.canCreateMoreCourses ?? true);
+    final coursesCreated = currentUser?.coursesCreated ?? 0;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -546,16 +733,46 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           ),
                         ],
                       ),
-                      if (canManage)
-                        ElevatedButton.icon(
-                          onPressed: _showCreateDialog,
-                          icon: const Icon(Icons.add_rounded, size: 16),
-                          label: Text(loc.newBadge),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(0, 38),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                          ),
-                        ),
+                      if (canCreate)
+                        isAtLimit
+                            ? Tooltip(
+                                message: 'Límite de 3 cursos alcanzado',
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.red.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: AppColors.red.withValues(alpha: 0.25),
+                                        width: 0.8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock_outline_rounded,
+                                          size: 14, color: AppColors.red.withValues(alpha: 0.7)),
+                                      const SizedBox(width: 6),
+                                      Text('$coursesCreated/3',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.red.withValues(alpha: 0.8),
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ElevatedButton.icon(
+                                onPressed: _showCreateDialog,
+                                icon: const Icon(Icons.add_rounded, size: 16),
+                                label: isUsuario
+                                    ? Text('Nuevo ($coursesCreated/3)')
+                                    : Text(loc.newBadge),
+                                style: ElevatedButton.styleFrom(
+                                  minimumSize: const Size(0, 38),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                ),
+                              ),
                     ],
                   ),
                 ),
@@ -586,9 +803,10 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                   ),
                   data: (courses) => courses.isEmpty
                       ? _EmptyCoursesState(
-                          canManage: canManage,
-                          onCreate:
-                              canManage ? _showCreateDialog : _showJoinDialog,
+                          canManage: canCreate && !isAtLimit,
+                          onCreate: canCreate && !isAtLimit
+                              ? _showCreateDialog
+                              : _showJoinDialog,
                         )
                       : Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1977,6 +2195,68 @@ class _StudentTile extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Sheet input helper ────────────────────────────────────────────────────────
+class _SheetInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool isDark;
+  final int maxLines;
+  final TextCapitalization capitalization;
+
+  const _SheetInput({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.isDark,
+    this.maxLines = 1,
+    this.capitalization = TextCapitalization.none,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      textCapitalization: capitalization,
+      style: TextStyle(
+        color: theme.textTheme.bodyLarge?.color,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 18),
+        filled: true,
+        fillColor: isDark
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+            : const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.25),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.brand, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     );
   }

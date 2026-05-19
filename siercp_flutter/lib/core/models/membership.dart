@@ -107,7 +107,7 @@ class MembershipModel {
   final String id;
   final String userId;
   final String institutionId;
-  final String role; // 'ADMIN', 'INSTRUCTOR', 'ESTUDIANTE'
+  final String role; // 'SUPER_ADMIN' | 'ADMIN' | 'INSTRUCTOR' | 'USUARIO_SST' | 'USUARIO_PROFESIONAL' | 'USUARIO'
   final MembershipStatus status;
   final bool isActive;
   final String? approvedBy;
@@ -190,7 +190,7 @@ class MembershipModel {
       id: doc.id,
       userId: d['userId'] ?? '',
       institutionId: d['institutionId'] ?? '',
-      role: d['role'] ?? 'ESTUDIANTE',
+      role: d['role'] ?? 'USUARIO',
       status: _parseStatus(d['status']),
       isActive: d['isActive'] ?? true,
       approvedBy: d['approvedBy'],

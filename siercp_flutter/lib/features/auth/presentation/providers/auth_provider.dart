@@ -53,7 +53,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
               email: firebaseUser.email ?? '',
               firstName: 'Usuario',
               lastName: 'Cargando...',
-              role: 'ESTUDIANTE',
+              role: 'USUARIO',
             ),
             isAuthenticated: true,
           );

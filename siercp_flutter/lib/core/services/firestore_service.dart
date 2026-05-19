@@ -474,6 +474,9 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _users.doc(instructorId).update({
+      'coursesCreated': FieldValue.increment(1),
+    });
     return ref.id;
   }
 

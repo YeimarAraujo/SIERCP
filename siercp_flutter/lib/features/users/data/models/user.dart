@@ -1,19 +1,98 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:siercp/core/constants/constants.dart';
+
+// ── Certificate verification ─────────────────────────────────────────────────
+
+enum CertVerificationStatus { none, pending, approved, rejected }
+
+extension CertVerificationStatusExt on CertVerificationStatus {
+  String get name => switch (this) {
+        CertVerificationStatus.none => 'NONE',
+        CertVerificationStatus.pending => 'PENDING',
+        CertVerificationStatus.approved => 'APPROVED',
+        CertVerificationStatus.rejected => 'REJECTED',
+      };
+
+  static CertVerificationStatus fromString(String? s) => switch (s) {
+        'PENDING' => CertVerificationStatus.pending,
+        'APPROVED' => CertVerificationStatus.approved,
+        'REJECTED' => CertVerificationStatus.rejected,
+        _ => CertVerificationStatus.none,
+      };
+}
+
+// ── User certificate document ─────────────────────────────────────────────────
+
+class UserCertificate {
+  final String id;
+  final String userId;
+  final String type; // 'PROFESIONAL' | 'SST_LICENCIA' | 'AHA' | 'OTRO'
+  final String issuer;
+  final String certificateNumber;
+  final String issueDate;
+  final String? expiryDate;
+  final String fileUrl;
+  final CertVerificationStatus verificationStatus;
+  final String? rejectionReason;
+  final DateTime? createdAt;
+
+  const UserCertificate({
+    required this.id,
+    required this.userId,
+    required this.type,
+    required this.issuer,
+    required this.certificateNumber,
+    required this.issueDate,
+    this.expiryDate,
+    required this.fileUrl,
+    this.verificationStatus = CertVerificationStatus.pending,
+    this.rejectionReason,
+    this.createdAt,
+  });
+
+  factory UserCertificate.fromFirestore(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return UserCertificate(
+      id: doc.id,
+      userId: d['userId'] ?? '',
+      type: d['type'] ?? 'OTRO',
+      issuer: d['issuer'] ?? '',
+      certificateNumber: d['certificateNumber'] ?? '',
+      issueDate: d['issueDate'] ?? '',
+      expiryDate: d['expiryDate'],
+      fileUrl: d['fileUrl'] ?? '',
+      verificationStatus:
+          CertVerificationStatusExt.fromString(d['verificationStatus']),
+      rejectionReason: d['rejectionReason'],
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+}
+
+// ── UserModel ─────────────────────────────────────────────────────────────────
 
 class UserModel {
   final String id;
   final String email;
   final String firstName;
   final String lastName;
+
+  /// Role string matching AppConstants role constants.
   final String role;
+
   final String? avatarUrl;
   final String? identificacion;
   final bool isActive;
   final DateTime? lastActive;
   final bool isOnline;
   final UserStats? stats;
+  final List<String>? memberships;
 
-  final List<String>? memberships; // IDs of membership documents
+  /// Number of courses this user has created (enforced against role limit).
+  final int coursesCreated;
+
+  /// Certificate verification tier.
+  final CertVerificationStatus certVerification;
 
   const UserModel({
     required this.id,
@@ -28,6 +107,8 @@ class UserModel {
     this.isOnline = false,
     this.stats,
     this.memberships,
+    this.coursesCreated = 0,
+    this.certVerification = CertVerificationStatus.none,
   });
 
   UserModel copyWith({
@@ -43,6 +124,8 @@ class UserModel {
     bool? isOnline,
     UserStats? stats,
     List<String>? memberships,
+    int? coursesCreated,
+    CertVerificationStatus? certVerification,
   }) =>
       UserModel(
         id: id ?? this.id,
@@ -57,7 +140,11 @@ class UserModel {
         isOnline: isOnline ?? this.isOnline,
         stats: stats ?? this.stats,
         memberships: memberships ?? this.memberships,
+        coursesCreated: coursesCreated ?? this.coursesCreated,
+        certVerification: certVerification ?? this.certVerification,
       );
+
+  // ── Display helpers ──────────────────────────────────────────────────────
 
   String get fullName => '$firstName $lastName'.trim();
 
@@ -68,9 +155,50 @@ class UserModel {
     return res.isEmpty ? 'U' : res;
   }
 
-  bool get isAdmin => role == 'ADMIN';
-  bool get isInstructor => role == 'INSTRUCTOR';
-  bool get isStudent => role == 'ESTUDIANTE';
+  String get roleLabel => switch (role) {
+        AppConstants.roleSuperAdmin => 'Super Administrador',
+        AppConstants.roleAdmin => 'Administrador',
+        AppConstants.roleInstructor => 'Instructor',
+        AppConstants.roleUsuarioSST => 'Usuario SST',
+        AppConstants.roleUsuarioProfesional => 'Usuario Profesional',
+        _ => 'Usuario',
+      };
+
+  // ── Role checks ──────────────────────────────────────────────────────────
+
+  bool get isSuperAdmin => role == AppConstants.roleSuperAdmin;
+  bool get isAdmin =>
+      role == AppConstants.roleAdmin || role == AppConstants.roleSuperAdmin;
+  bool get isInstructor =>
+      role == AppConstants.roleInstructor ||
+      role == AppConstants.roleAdmin ||
+      role == AppConstants.roleSuperAdmin;
+
+  bool get isUsuario =>
+      role == AppConstants.roleUsuario ||
+      role == AppConstants.roleUsuarioProfesional ||
+      role == AppConstants.roleUsuarioSST;
+
+  bool get isUsuarioPro => role == AppConstants.roleUsuarioProfesional;
+  bool get isUsuarioSST => role == AppConstants.roleUsuarioSST;
+
+  /// @deprecated Use [isUsuario].
+  bool get isStudent => isUsuario;
+
+  // ── Business rules ───────────────────────────────────────────────────────
+
+  int get courseLimit => switch (role) {
+        AppConstants.roleUsuario => AppConstants.courseLimitUsuario,
+        AppConstants.roleUsuarioProfesional =>
+          AppConstants.courseLimitUsuarioPro,
+        _ => 999999, // admin/instructor/sst: plan-controlled
+      };
+
+  bool get canCreateMoreCourses => coursesCreated < courseLimit;
+
+  bool get mustPayToCertify => role == AppConstants.roleUsuarioProfesional;
+
+  // ── Serialization ────────────────────────────────────────────────────────
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -80,14 +208,18 @@ class UserModel {
       email: d['email'] ?? '',
       firstName: d['firstName'] ?? '',
       lastName: d['lastName'] ?? '',
-      role: d['role'] ?? 'ESTUDIANTE',
+      role: d['role'] ?? AppConstants.roleUsuario,
       avatarUrl: d['avatarUrl'],
       identificacion: d['identificacion'],
       isActive: d['isActive'] ?? true,
       lastActive: (d['lastActive'] as Timestamp?)?.toDate(),
       isOnline: d['isOnline'] ?? false,
       stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
-      memberships: (d['memberships'] as List?)?.map((e) => e.toString()).toList(),
+      memberships:
+          (d['memberships'] as List?)?.map((e) => e.toString()).toList(),
+      coursesCreated: (d['coursesCreated'] as num?)?.toInt() ?? 0,
+      certVerification:
+          CertVerificationStatusExt.fromString(d['certVerification']),
     );
   }
 
@@ -100,7 +232,8 @@ class UserModel {
         'avatarUrl': avatarUrl,
         'identificacion': identificacion,
         'isActive': isActive,
-        'lastActive': lastActive != null ? Timestamp.fromDate(lastActive!) : null,
+        'lastActive':
+            lastActive != null ? Timestamp.fromDate(lastActive!) : null,
         'isOnline': isOnline,
         'stats': {
           'totalSessions': stats?.totalSessions ?? 0,
@@ -113,10 +246,13 @@ class UserModel {
           'averageRatePerMin': stats?.averageRatePerMin ?? 0.0,
         },
         'memberships': memberships,
-        'createdAt': FieldValue.serverTimestamp(),
+        'coursesCreated': coursesCreated,
+        'certVerification': certVerification.name,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }
+
+// ── UserStats ────────────────────────────────────────────────────────────────
 
 class UserStats {
   final int totalSessions;
@@ -150,6 +286,8 @@ class UserStats {
         averageRatePerMin: (m['averageRatePerMin'] ?? 0).toDouble(),
       );
 }
+
+// ── AuthTokens ────────────────────────────────────────────────────────────────
 
 class AuthTokens {
   final String accessToken;
