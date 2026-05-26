@@ -25,6 +25,24 @@
       ]
     },
     {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING" },
+        { "fieldPath": "startedAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "institutionId", "order": "ASCENDING" },
+        { "fieldPath": "startedAt",     "order": "DESCENDING" },
+        { "fieldPath": "__name__",      "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
@@ -44,12 +62,29 @@
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "userId",    "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "certificates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",   "order": "ASCENDING" },
+        { "fieldPath": "issuedAt", "order": "DESCENDING" },
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
     },
-
+    {
+      "collectionGroup": "certificates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "institutionId", "order": "ASCENDING" },
+        { "fieldPath": "issuedAt",      "order": "DESCENDING" },
+        { "fieldPath": "__name__",      "order": "DESCENDING" }
+      ]
+    },
     {
       "collectionGroup": "quizSessions",
       "queryScope": "COLLECTION",
@@ -77,45 +112,6 @@
         { "fieldPath": "__name__",  "order": "DESCENDING" }
       ]
     },
-
-    {
-      "collectionGroup": "sessions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId",    "order": "ASCENDING" },
-        { "fieldPath": "startedAt", "order": "DESCENDING" },
-        { "fieldPath": "__name__",  "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "sessions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "institutionId", "order": "ASCENDING" },
-        { "fieldPath": "startedAt",     "order": "DESCENDING" },
-        { "fieldPath": "__name__",      "order": "DESCENDING" }
-      ]
-    },
-
-    {
-      "collectionGroup": "certificates",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId",   "order": "ASCENDING" },
-        { "fieldPath": "issuedAt", "order": "DESCENDING" },
-        { "fieldPath": "__name__", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "certificates",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "institutionId", "order": "ASCENDING" },
-        { "fieldPath": "issuedAt",      "order": "DESCENDING" },
-        { "fieldPath": "__name__",      "order": "DESCENDING" }
-      ]
-    },
-
     {
       "collectionGroup": "quizTopics",
       "queryScope": "COLLECTION",
@@ -124,7 +120,59 @@
         { "fieldPath": "order",    "order": "ASCENDING" },
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "user_certificates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "platform_enrollments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",     "order": "ASCENDING" },
+        { "fieldPath": "userId",     "order": "ASCENDING" },
+        { "fieldPath": "enrolledAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "guides",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "order",    "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cohorts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "institutionId", "order": "ASCENDING" },
+        { "fieldPath": "status",        "order": "ASCENDING" },
+        { "fieldPath": "startDate",     "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "institutionId", "order": "ASCENDING" },
+        { "fieldPath": "status",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+      ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "enrollments",
+      "fieldPath": "studentId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }

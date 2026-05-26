@@ -16,16 +16,18 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _idCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
+  final _formKey        = GlobalKey<FormState>();
+  final _firstNameCtrl  = TextEditingController();
+  final _lastNameCtrl   = TextEditingController();
+  final _emailCtrl      = TextEditingController();
+  final _idCtrl         = TextEditingController();
+  final _phoneCtrl      = TextEditingController();
+  final _passCtrl       = TextEditingController();
+  final _confirmCtrl    = TextEditingController();
 
-  String _selectedRole = AppConstants.roleStudent;
-  bool _obscure = true;
-  bool _loading = false;
+  bool _obscurePass    = true;
+  bool _obscureConfirm = true;
+  bool _loading        = false;
   bool _acceptedPrivacy = false;
   String? _error;
 
@@ -35,7 +37,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _lastNameCtrl.dispose();
     _emailCtrl.dispose();
     _idCtrl.dispose();
+    _phoneCtrl.dispose();
     _passCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
   }
 
@@ -48,17 +52,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
     setState(() {
       _loading = true;
-      _error = null;
+      _error   = null;
     });
 
     try {
       await ref.read(authStateProvider.notifier).register(
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
-            firstName: _firstNameCtrl.text.trim(),
-            lastName: _lastNameCtrl.text.trim(),
-            role: _selectedRole,
+            email:          _emailCtrl.text.trim(),
+            password:       _passCtrl.text,
+            firstName:      _firstNameCtrl.text.trim(),
+            lastName:       _lastNameCtrl.text.trim(),
+            role:           AppConstants.roleUsuario,
             identificacion: _idCtrl.text.trim(),
+            phoneNumber:    _phoneCtrl.text.trim().isEmpty
+                                ? null
+                                : _phoneCtrl.text.trim(),
           );
       if (mounted) context.go('/home');
     } catch (e) {
@@ -93,10 +100,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final loc = AppLocalizations.of(context)!;
+    final loc   = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -120,9 +126,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Text(
                   loc.registerTitle,
                   style: TextStyle(
-                    color: textP,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
+                    color: textP, fontSize: 28, fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -130,37 +134,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   loc.registerSubtitle,
                   style: TextStyle(color: textS, fontSize: 14),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // Role selector
+                // ── Info banner ──────────────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkBg2 : AppColors.lightBg2,
+                    color: AppColors.brand.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(
+                        color: AppColors.brand.withValues(alpha: 0.2)),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _RoleTab(
-                        icon: Icons.person_outline,
-                        label: loc.roleStudentLabel,
-                        isSelected: _selectedRole == AppConstants.roleStudent,
-                        onTap: () => setState(
-                            () => _selectedRole = AppConstants.roleStudent),
-                      ),
-                      _RoleTab(
-                        icon: Icons.school_outlined,
-                        label: loc.roleInstructorLabel,
-                        isSelected: _selectedRole == AppConstants.roleInstructor,
-                        onTap: () => setState(
-                            () => _selectedRole = AppConstants.roleInstructor),
+                      const Icon(Icons.info_outline,
+                          size: 18, color: AppColors.brand),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Para obtener certificaciones necesitas subir tu licencia SST o certificados profesionales. Las instituciones pueden certificarte directamente al estar afiliado.',
+                          style: TextStyle(
+                            color: AppColors.brand, fontSize: 12, height: 1.4,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Name row
+                // ── Nombre y apellido ────────────────────────────────────────
                 Row(
                   children: [
                     Expanded(
@@ -194,7 +198,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Identificación
+                // ── Identificación ───────────────────────────────────────────
                 TextFormField(
                   controller: _idCtrl,
                   keyboardType: TextInputType.number,
@@ -212,7 +216,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Email
+                // ── Teléfono (opcional) ──────────────────────────────────────
+                TextFormField(
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]'))],
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono (opcional)',
+                    hintText: '+57 300 000 0000',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final digits = v.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 7) return 'Mínimo 7 dígitos';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // ── Email ────────────────────────────────────────────────────
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
@@ -223,35 +246,81 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return loc.requiredField;
-                    if (!v.contains('@')) return loc.invalidEmail;
+                    if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$')
+                        .hasMatch(v.trim())) { return loc.invalidEmail; }
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
 
-                // Password
+                // ── Contraseña ───────────────────────────────────────────────
                 TextFormField(
                   controller: _passCtrl,
-                  obscureText: _obscure,
+                  obscureText: _obscurePass,
                   decoration: InputDecoration(
                     labelText: loc.passwordLabel,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
                       icon: Icon(
-                        _obscure
+                        _obscurePass
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                         size: 20,
                       ),
                     ),
                   ),
-                  validator: (v) =>
-                      (v == null || v.length < 6) ? loc.min6Chars : null,
+                  validator: (v) {
+                    if (v == null || v.length < 10) return loc.min6Chars;
+                    final hasUpper = v.contains(RegExp(r'[A-Z]'));
+                    final hasDigit = v.contains(RegExp(r'[0-9]'));
+                    if (!hasUpper || !hasDigit) {
+                      return 'Debe incluir mayúsculas y números';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 14),
 
-                // Privacy Policy Checkbox
+                // ── Confirmar contraseña ─────────────────────────────────────
+                TextFormField(
+                  controller: _confirmCtrl,
+                  obscureText: _obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar contraseña',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return loc.requiredField;
+                    if (v != _passCtrl.text) return 'Las contraseñas no coinciden';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // ── Indicador de fortaleza de contraseña ─────────────────────
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _passCtrl,
+                  builder: (_, val, __) {
+                    final pass = val.text;
+                    if (pass.isEmpty) return const SizedBox.shrink();
+                    return _PasswordStrengthBar(password: pass);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // ── Política de privacidad ───────────────────────────────────
                 Row(
                   children: [
                     Checkbox(
@@ -260,19 +329,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           setState(() => _acceptedPrivacy = v ?? false),
                       activeColor: AppColors.brand,
                     ),
-                    Text(
-                      loc.acceptPrivacy1,
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    Text(loc.acceptPrivacy1,
+                        style: const TextStyle(fontSize: 13)),
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: _showPrivacyPolicy,
                       child: Text(
                         loc.acceptPrivacy2,
                         style: const TextStyle(
-                          color: AppColors.brand,
+                          color:      AppColors.brand,
                           decoration: TextDecoration.underline,
-                          fontSize: 13,
+                          fontSize:   13,
                         ),
                       ),
                     ),
@@ -280,7 +347,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Error
+                // ── Error ────────────────────────────────────────────────────
                 if (_error != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -306,20 +373,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 16),
                 ],
 
+                // ── Botón registrar ──────────────────────────────────────────
                 ElevatedButton(
                   onPressed: _loading ? null : _register,
                   child: _loading
                       ? const SizedBox(
                           height: 20,
-                          width: 20,
+                          width:  20,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                            strokeWidth: 2, color: Colors.white,
                           ),
                         )
                       : Text(loc.registerTitle),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // ── Link institución ─────────────────────────────────────────
+                Center(
+                  child: GestureDetector(
+                    onTap: () => context.push('/register-institution'),
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(fontSize: 13, color: textS),
+                        children: [
+                          const TextSpan(
+                              text: '¿Representas una institución o empresa? '),
+                          const TextSpan(
+                            text: 'Regístrate aquí',
+                            style: TextStyle(
+                              color:      AppColors.brand,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -329,59 +421,51 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-class _RoleTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+// ── Password strength indicator ───────────────────────────────────────────────
 
-  const _RoleTab({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
+class _PasswordStrengthBar extends StatelessWidget {
+  final String password;
+  const _PasswordStrengthBar({required this.password});
+
+  static int _score(String p) {
+    int s = 0;
+    if (p.length >= 8) s++;
+    if (RegExp(r'[A-Z]').hasMatch(p)) s++;
+    if (RegExp(r'[0-9]').hasMatch(p)) s++;
+    if (RegExp(r'[^A-Za-z0-9]').hasMatch(p)) s++;
+    return s;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.brand : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.brand.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 16,
-                  color: isSelected ? Colors.white : AppColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-                  fontSize: 13,
+    final score  = _score(password);
+    final color  = [AppColors.red, AppColors.amber, AppColors.cyan, AppColors.green][score.clamp(0, 3)];
+    final labels = ['Muy débil', 'Débil', 'Buena', 'Fuerte'];
+    final label  = password.length < 6 ? 'Muy débil' : labels[score.clamp(0, 3)];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(4, (i) {
+            return Expanded(
+              child: Container(
+                height: 4,
+                margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                decoration: BoxDecoration(
+                  color: i < score ? color : color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ],
-          ),
+            );
+          }),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

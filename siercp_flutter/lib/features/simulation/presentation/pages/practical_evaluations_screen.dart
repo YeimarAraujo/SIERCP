@@ -127,7 +127,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Con un solo rescatador, la relación es 30:2 igual que en adultos. Con dos rescatadores entrenados en pediatría, se usa 15:2.',
       ),
       _EvalQuestion(
-        question: '¿Con cuántas manos se realizan las compresiones en niños (1–8 años)?',
+        question:
+            '¿Con cuántas manos se realizan las compresiones en niños (1–8 años)?',
         options: [
           'Siempre con dos manos',
           'Siempre con una mano',
@@ -189,7 +190,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'En lactantes, el cuello es corto y dificulta la palpación carotídea. La arteria braquial (cara interna del brazo) es la referencia estándar AHA.',
       ),
       _EvalQuestion(
-        question: '¿Qué técnica se usa para comprimir el tórax de un lactante con un rescatador?',
+        question:
+            '¿Qué técnica se usa para comprimir el tórax de un lactante con un rescatador?',
         options: [
           'Dos manos con los pulgares superpuestos',
           'Dos dedos (índice y medio) sobre el esternón',
@@ -201,7 +203,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Con un solo rescatador se usan dos dedos (índice y medio) justo por debajo de la línea intermamilar. Con dos rescatadores se prefiere la técnica de dos pulgares con las manos rodeando el tórax.',
       ),
       _EvalQuestion(
-        question: '¿Cuál es la profundidad correcta de compresión en lactantes?',
+        question:
+            '¿Cuál es la profundidad correcta de compresión en lactantes?',
         options: [
           '2–3 cm (aprox. 4 cm o 1/3 del diámetro del tórax)',
           '5–6 cm',
@@ -239,7 +242,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Intermedio',
     questions: [
       _EvalQuestion(
-        question: '¿Por qué el paro en ahogamiento es diferente al paro cardíaco súbito?',
+        question:
+            '¿Por qué el paro en ahogamiento es diferente al paro cardíaco súbito?',
         options: [
           'No hay diferencia; se tratan igual',
           'El paro es de causa RESPIRATORIA, no cardíaca primaria',
@@ -251,7 +255,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'El ahogamiento produce hipoxia antes que el paro cardíaco. La causa primaria es respiratoria, por lo que la ventilación es la intervención más crítica.',
       ),
       _EvalQuestion(
-        question: 'El paciente tiene pulso débil pero no respira. ¿Qué debes hacer?',
+        question:
+            'El paciente tiene pulso débil pero no respira. ¿Qué debes hacer?',
         options: [
           'Iniciar compresiones torácicas de inmediato',
           'Dar solo ventilaciones de rescate (1 cada 5–6 seg) sin compresiones',
@@ -263,7 +268,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Si hay pulso pero no hay respiración, dar ventilaciones de rescate (1 cada 5–6 segundos = 10–12 rpm). Verificar pulso cada 2 minutos. NO comprimir mientras haya pulso.',
       ),
       _EvalQuestion(
-        question: '¿Cuántas ventilaciones de rescate iniciales se dan si el paciente evoluciona a paro completo (sin pulso)?',
+        question:
+            '¿Cuántas ventilaciones de rescate iniciales se dan si el paciente evoluciona a paro completo (sin pulso)?',
         options: [
           'Ninguna; ir directo a 30 compresiones',
           '2 ventilaciones iniciales',
@@ -275,7 +281,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020 (Drowning): Si el paciente evoluciona a paro completo, dar 5 ventilaciones de rescate iniciales para tratar la hipoxia, luego ciclos estándar 30:2.',
       ),
       _EvalQuestion(
-        question: '¿Cuál es el riesgo de aplicar compresiones torácicas cuando hay pulso en ahogamiento?',
+        question:
+            '¿Cuál es el riesgo de aplicar compresiones torácicas cuando hay pulso en ahogamiento?',
         options: [
           'No hay riesgo adicional',
           'Puede inducir fibrilación ventricular en un corazón que late',
@@ -301,7 +308,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Básico',
     questions: [
       _EvalQuestion(
-        question: '¿Qué cambio introdujo AHA 2025 para OVACE en adultos conscientes?',
+        question:
+            '¿Qué cambio introdujo AHA 2025 para OVACE en adultos conscientes?',
         options: [
           'Solo empujes abdominales (Heimlich)',
           'Solo golpes en la espalda',
@@ -313,7 +321,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2025 CPR/ECC Update: El nuevo protocolo alterna 5 golpes interescapulares con el talón de la mano + 5 empujes abdominales (Heimlich), en ciclos hasta expulsar el objeto. Antes (2020) solo se usaban empujes abdominales.',
       ),
       _EvalQuestion(
-        question: '¿Cómo se posiciona a la víctima para los golpes en la espalda?',
+        question:
+            '¿Cómo se posiciona a la víctima para los golpes en la espalda?',
         options: [
           'De pie, erguida y con la cabeza hacia atrás',
           'De pie, inclinada hacia adelante, con la cabeza por debajo del tórax',
@@ -325,7 +334,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'La víctima debe estar inclinada hacia adelante (cabeza más baja que el tórax) para que la gravedad ayude a expulsar el objeto. Párate detrás y da 5 golpes firmes entre los omóplatos con el talón de la mano.',
       ),
       _EvalQuestion(
-        question: 'La víctima pierde el conocimiento durante las maniobras. ¿Qué debes hacer?',
+        question:
+            'La víctima pierde el conocimiento durante las maniobras. ¿Qué debes hacer?',
         options: [
           'Continuar con los golpes en la espalda estando en el suelo',
           'Recostarlo con cuidado, iniciar RCP 30:2 e inspeccionar la boca antes de cada ventilación',
@@ -337,7 +347,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2025: Si pierde el conocimiento, recuesta a la víctima con cuidado. Inicia RCP 30:2. Antes de cada ventilación, abre la boca e inspecciona visualmente. Retira el objeto solo si lo ves claramente (NUNCA barrido ciego).',
       ),
       _EvalQuestion(
-        question: 'En un paciente obeso o embarazada, ¿qué reemplaza a los empujes abdominales?',
+        question:
+            'En un paciente obeso o embarazada, ¿qué reemplaza a los empujes abdominales?',
         options: [
           'Más golpes en la espalda',
           'Empujes torácicos (sobre el esternón) en lugar de abdominales',
@@ -363,7 +374,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Intermedio',
     questions: [
       _EvalQuestion(
-        question: '¿Cuánto reduce la supervivencia cada minuto sin desfibrilación en FV?',
+        question:
+            '¿Cuánto reduce la supervivencia cada minuto sin desfibrilación en FV?',
         options: [
           '1–2% por minuto',
           '5% por minuto',
@@ -375,7 +387,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: En fibrilación ventricular, cada minuto sin desfibrilación reduce la supervivencia entre 7–10%. El DEA más rápido = mayor probabilidad de sobrevivir.',
       ),
       _EvalQuestion(
-        question: '¿Cuándo se detienen las compresiones para el análisis del DEA?',
+        question:
+            '¿Cuándo se detienen las compresiones para el análisis del DEA?',
         options: [
           'Solo cuando el DEA lo indique',
           'Cada 2 minutos independientemente del DEA',
@@ -425,7 +438,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Básico',
     questions: [
       _EvalQuestion(
-        question: '¿Cuál es el primer paso ANTES de tocar a la víctima de electrocución?',
+        question:
+            '¿Cuál es el primer paso ANTES de tocar a la víctima de electrocución?',
         options: [
           'Iniciar RCP de inmediato',
           'Verificar que la fuente eléctrica esté completamente desconectada',
@@ -437,7 +451,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'Seguridad de escena primero. Si la fuente eléctrica no está desconectada, el rescatador puede electrocutarse también. Confirma que el corte es total antes de tocar a la víctima.',
       ),
       _EvalQuestion(
-        question: '¿Por qué se debe mantener el DEA listo en víctimas de electrocución incluso si inicialmente responden?',
+        question:
+            '¿Por qué se debe mantener el DEA listo en víctimas de electrocución incluso si inicialmente responden?',
         options: [
           'Solo por protocolo, no hay riesgo real',
           'Las quemaduras internas pueden causar dolor tardío',
@@ -449,7 +464,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Las corrientes eléctricas de alta tensión pueden provocar arritmias cardíacas (incluida la FV) con retraso, incluso en pacientes que inicialmente están conscientes. El DEA debe estar disponible durante toda la atención.',
       ),
       _EvalQuestion(
-        question: '¿Qué característica especial tienen las quemaduras por electrocución?',
+        question:
+            '¿Qué característica especial tienen las quemaduras por electrocución?',
         options: [
           'Solo hay quemaduras visibles en la superficie',
           'Suelen tener lesiones internas mucho más graves que las externas visibles',
@@ -461,7 +477,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'La corriente eléctrica viaja por el cuerpo siguiendo los tejidos de menor resistencia (nervios, vasos). El daño interno (muscular, cardiaco, renal) suele ser mucho mayor que las quemaduras de entrada/salida visibles.',
       ),
       _EvalQuestion(
-        question: 'La víctima recupera el pulso después de RCP. ¿Cuándo puedes cesar la vigilancia?',
+        question:
+            'La víctima recupera el pulso después de RCP. ¿Cuándo puedes cesar la vigilancia?',
         options: [
           'Inmediatamente al recuperar el pulso',
           'Tras 5 minutos de pulso estable',
@@ -487,7 +504,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Avanzado',
     questions: [
       _EvalQuestion(
-        question: 'La paciente tiene pulso. ¿Cuál es la intervención prioritaria?',
+        question:
+            'La paciente tiene pulso. ¿Cuál es la intervención prioritaria?',
         options: [
           'Iniciar compresiones torácicas inmediatamente',
           'Administrar naloxona y dar ventilaciones de soporte',
@@ -499,7 +517,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2023 Opioid Update: Si hay pulso, la prioridad es la naloxona + ventilaciones de soporte. Las compresiones solo se inician si desaparece el pulso. La naloxona revierte la depresión respiratoria por opioides.',
       ),
       _EvalQuestion(
-        question: '¿La naloxona debe retrasar o interrumpir la RCP si el paciente evoluciona a paro?',
+        question:
+            '¿La naloxona debe retrasar o interrumpir la RCP si el paciente evoluciona a paro?',
         options: [
           'Sí, administrar naloxona antes de comprimir',
           'No, RCP y DEA tienen PRIORIDAD ABSOLUTA sobre la naloxona en paro cardíaco',
@@ -511,7 +530,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2023: Si el paciente evoluciona a paro cardíaco completo, RCP y DEA tienen prioridad absoluta. La naloxona NO debe retrasar ni interrumpir las compresiones. Puede administrarse en paralelo si hay otro rescatador.',
       ),
       _EvalQuestion(
-        question: '¿Cada cuánto tiempo se puede repetir la dosis de naloxona intranasal?',
+        question:
+            '¿Cada cuánto tiempo se puede repetir la dosis de naloxona intranasal?',
         options: [
           'Cada 30 segundos',
           'Cada 2–3 minutos según respuesta',
@@ -523,7 +543,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'La naloxona intranasal (4 mg) puede repetirse cada 2–3 minutos si no hay respuesta. La vida media de muchos opioides supera la de la naloxona, por lo que pueden necesitarse múltiples dosis.',
       ),
       _EvalQuestion(
-        question: '¿Por qué es crítico monitorizar a la paciente incluso después de que responda a la naloxona?',
+        question:
+            '¿Por qué es crítico monitorizar a la paciente incluso después de que responda a la naloxona?',
         options: [
           'No es necesario si ya responde',
           'Porque la naloxona tiene una vida media más corta que muchos opioides; puede recurrir la depresión',
@@ -549,7 +570,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Intermedio',
     questions: [
       _EvalQuestion(
-        question: '¿Cada cuánto tiempo deben cambiarse los roles entre los dos rescatadores?',
+        question:
+            '¿Cada cuánto tiempo deben cambiarse los roles entre los dos rescatadores?',
         options: [
           'Cada 5 minutos',
           'Cada 2 minutos (o antes si el compresor se fatiga)',
@@ -561,7 +583,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Los rescatadores deben alternarse cada 2 minutos para mantener la calidad de las compresiones. La fatiga reduce la profundidad y la frecuencia en menos de 2 minutos de RCP sostenida.',
       ),
       _EvalQuestion(
-        question: '¿Cuándo debe ocurrir el cambio de rol durante la RCP con dos rescatadores?',
+        question:
+            '¿Cuándo debe ocurrir el cambio de rol durante la RCP con dos rescatadores?',
         options: [
           'En cualquier momento, pausando las compresiones',
           'Solo cuando llegue el DEA',
@@ -573,7 +596,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'El cambio debe hacerse de forma coordinada al finalizar las 30 compresiones, antes de dar las 2 ventilaciones. Esto minimiza la interrupción del flujo y mantiene el ritmo del ciclo.',
       ),
       _EvalQuestion(
-        question: 'Con dos rescatadores entrenados en pediatría y un niño en paro, ¿qué relación se usa?',
+        question:
+            'Con dos rescatadores entrenados en pediatría y un niño en paro, ¿qué relación se usa?',
         options: [
           '30:2 igual que en adultos',
           '15:2',
@@ -585,7 +609,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: Con dos rescatadores entrenados en pediatría, la relación es 15:2 para maximizar las ventilaciones (el paro pediátrico es predominantemente de causa respiratoria).',
       ),
       _EvalQuestion(
-        question: '¿Cuál es la máxima interrupción permitida en las compresiones durante RCP?',
+        question:
+            '¿Cuál es la máxima interrupción permitida en las compresiones durante RCP?',
         options: [
           'Menos de 5 segundos',
           'Menos de 10 segundos',
@@ -611,7 +636,8 @@ const List<_EvalScenario> kPracticalEvals = [
     difficulty: 'Avanzado',
     questions: [
       _EvalQuestion(
-        question: 'El paciente estaba consciente y colapsó frente a ti. ¿Cuál es tu primera acción?',
+        question:
+            'El paciente estaba consciente y colapsó frente a ti. ¿Cuál es tu primera acción?',
         options: [
           'Esperar 1 minuto para confirmar el paro',
           'Iniciar RCP de inmediato sin perder tiempo',
@@ -635,7 +661,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'El infarto agudo con evolución a paro frecuentemente presenta fibrilación ventricular (FV), un ritmo desfibrilable. Cada minuto sin descarga reduce la supervivencia ~10%. El DEA precoz es crucial.',
       ),
       _EvalQuestion(
-        question: 'El paciente tenía síntomas 30 minutos antes del paro. ¿Afecta esto el protocolo de RCP?',
+        question:
+            'El paciente tenía síntomas 30 minutos antes del paro. ¿Afecta esto el protocolo de RCP?',
         options: [
           'Sí, no se hace RCP si llevan más de 10 minutos',
           'No, se sigue el protocolo estándar de BLS independientemente del tiempo de inicio de síntomas',
@@ -647,7 +674,8 @@ const List<_EvalScenario> kPracticalEvals = [
             'AHA 2020: El protocolo BLS no cambia por el tiempo de inicio de síntomas. Se aplica RCP estándar de alta calidad + DEA. La decisión de continuar o cesar la reanimación avanzada es del equipo médico.',
       ),
       _EvalQuestion(
-        question: 'Tras 2 minutos de RCP el paciente recupera pulso. ¿Cuál es el siguiente paso?',
+        question:
+            'Tras 2 minutos de RCP el paciente recupera pulso. ¿Cuál es el siguiente paso?',
         options: [
           'Dar 30 compresiones más por si acaso',
           'Colocarlo en posición de recuperación y monitorizar mientras llega el equipo avanzado',
@@ -693,8 +721,8 @@ class PracticalEvaluationsScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon:
-                        Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: textP),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18, color: textP),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 4),
@@ -703,7 +731,7 @@ class PracticalEvaluationsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Evaluaciones Prácticas',
+                          'Casos Clínicos AHA',
                           style: TextStyle(
                             color: textP,
                             fontSize: 18,
@@ -711,7 +739,7 @@ class PracticalEvaluationsScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '10 casos clínicos · Decisiones de protocolo',
+                          '10 casos · Decisiones de protocolo AHA 2020/2025',
                           style: TextStyle(color: textS, fontSize: 11),
                         ),
                       ],
@@ -719,7 +747,8 @@ class PracticalEvaluationsScreen extends StatelessWidget {
                   ),
                   // Count badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: AppColors.brand.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -746,7 +775,8 @@ class PracticalEvaluationsScreen extends StatelessWidget {
                 color: AppColors.brand.withValues(alpha: isDark ? 0.12 : 0.05),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: AppColors.brand.withValues(alpha: isDark ? 0.3 : 0.15)),
+                    color:
+                        AppColors.brand.withValues(alpha: isDark ? 0.3 : 0.15)),
               ),
               child: Row(
                 children: [
@@ -948,7 +978,8 @@ class _EvalCard extends StatelessWidget {
                                     color: _diffColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                        color: _diffColor.withValues(alpha: 0.25)),
+                                        color:
+                                            _diffColor.withValues(alpha: 0.25)),
                                   ),
                                   child: Text(
                                     eval.difficulty,
@@ -1011,8 +1042,7 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
     setState(() {
       _selectedAnswer = idx;
       _answered = true;
-      final correct =
-          idx == widget.eval.questions[_currentQ].correctIndex;
+      final correct = idx == widget.eval.questions[_currentQ].correctIndex;
       if (correct) _correctCount++;
       _results.add(correct);
     });
@@ -1075,16 +1105,15 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                                 color: textP,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700)),
-                        Text(
-                            'Pregunta ${_currentQ + 1} de $total',
+                        Text('Pregunta ${_currentQ + 1} de $total',
                             style: TextStyle(color: textS, fontSize: 11)),
                       ],
                     ),
                   ),
                   // Score chip
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: widget.eval.color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -1107,10 +1136,8 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: progress,
-                  backgroundColor:
-                      widget.eval.color.withValues(alpha: 0.12),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(widget.eval.color),
+                  backgroundColor: widget.eval.color.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(widget.eval.color),
                   minHeight: 4,
                 ),
               ),
@@ -1121,7 +1148,8 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: widget.eval.color.withValues(alpha: isDark ? 0.1 : 0.06),
+                  color:
+                      widget.eval.color.withValues(alpha: isDark ? 0.1 : 0.06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                       color: widget.eval.color.withValues(alpha: 0.2)),
@@ -1129,8 +1157,7 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(widget.eval.icon,
-                        size: 16, color: widget.eval.color),
+                    Icon(widget.eval.icon, size: 16, color: widget.eval.color),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -1138,8 +1165,7 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                         style: TextStyle(
                           color: isDark
                               ? textS
-                              : widget.eval.color
-                                  .withValues(alpha: 0.9),
+                              : widget.eval.color.withValues(alpha: 0.9),
                           fontSize: 11,
                           height: 1.5,
                         ),
@@ -1178,7 +1204,8 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                       if (_answered) {
                         if (isCorrect) {
                           bg = const Color(0xFF059669).withValues(alpha: 0.1);
-                          border = const Color(0xFF059669).withValues(alpha: 0.5);
+                          border =
+                              const Color(0xFF059669).withValues(alpha: 0.5);
                           textColor = const Color(0xFF059669);
                           trailingIcon = Icons.check_circle_outline_rounded;
                         } else if (isSelected) {
@@ -1188,14 +1215,14 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                           trailingIcon = Icons.cancel_outlined;
                         } else {
                           bg = null;
-                          border = theme.colorScheme.outline
-                              .withValues(alpha: 0.15);
+                          border =
+                              theme.colorScheme.outline.withValues(alpha: 0.15);
                           textColor = textS.withValues(alpha: 0.5);
                         }
                       } else {
                         bg = null;
-                        border = theme.colorScheme.outline
-                            .withValues(alpha: 0.3);
+                        border =
+                            theme.colorScheme.outline.withValues(alpha: 0.3);
                       }
 
                       final letter = ['A', 'B', 'C', 'D'][i];
@@ -1299,9 +1326,7 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
                             Text(
                               q.explanation,
                               style: TextStyle(
-                                  color: textS,
-                                  fontSize: 12,
-                                  height: 1.55),
+                                  color: textS, fontSize: 12, height: 1.55),
                             ),
                           ],
                         ),
@@ -1373,9 +1398,8 @@ class _ResultScreen extends StatelessWidget {
             : AppColors.red;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF0B0F19)
-          : const Color(0xFFF8FAFC),
+      backgroundColor:
+          isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
       body: Column(
         children: [
           // Colored header strip
@@ -1420,170 +1444,174 @@ class _ResultScreen extends StatelessWidget {
           ),
           Expanded(
             child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
-              // Score circle
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scoreColor.withValues(alpha: 0.08),
-                  border: Border.all(
-                      color: scoreColor.withValues(alpha: 0.3), width: 2),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$pct%',
-                      style: TextStyle(
-                        color: scoreColor,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                      ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  // Score circle
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: scoreColor.withValues(alpha: 0.08),
+                      border: Border.all(
+                          color: scoreColor.withValues(alpha: 0.3), width: 2),
                     ),
-                    Text(
-                      '$correctCount/$total',
-                      style: TextStyle(
-                          color: scoreColor.withValues(alpha: 0.7),
-                          fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                passed ? '¡Evaluación superada!' : 'Necesitas repasar',
-                style: TextStyle(
-                    color: textP, fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                eval.title,
-                style: TextStyle(color: textS, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: scoreColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  passed
-                      ? pct >= 90
-                          ? 'Excelente dominio del protocolo'
-                          : 'Competencia suficiente'
-                      : 'Revisa los protocolos AHA',
-                  style: TextStyle(
-                      color: scoreColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 28),
-              // Question results breakdown
-              ...List.generate(results.length, (i) {
-                final correct = results[i];
-                final q = eval.questions[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? (correct
-                            ? const Color(0xFF059669).withValues(alpha: 0.08)
-                            : AppColors.red.withValues(alpha: 0.08))
-                        : (correct
-                            ? const Color(0xFFECFDF5)
-                            : const Color(0xFFFEF2F2)),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: correct
-                          ? const Color(0xFF059669).withValues(alpha: 0.3)
-                          : AppColors.red.withValues(alpha: 0.25),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$pct%',
+                          style: TextStyle(
+                            color: scoreColor,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          '$correctCount/$total',
+                          style: TextStyle(
+                              color: scoreColor.withValues(alpha: 0.7),
+                              fontSize: 12),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        correct
-                            ? Icons.check_circle_outline_rounded
-                            : Icons.cancel_outlined,
-                        color:
-                            correct ? const Color(0xFF059669) : AppColors.red,
-                        size: 18,
+                  const SizedBox(height: 20),
+                  Text(
+                    passed ? '¡Evaluación superada!' : 'Necesitas repasar',
+                    style: TextStyle(
+                        color: textP,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    eval.title,
+                    style: TextStyle(color: textS, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: scoreColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      passed
+                          ? pct >= 90
+                              ? 'Excelente dominio del protocolo'
+                              : 'Competencia suficiente'
+                          : 'Revisa los protocolos AHA',
+                      style: TextStyle(
+                          color: scoreColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  // Question results breakdown
+                  ...List.generate(results.length, (i) {
+                    final correct = results[i];
+                    final q = eval.questions[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? (correct
+                                ? const Color(0xFF059669)
+                                    .withValues(alpha: 0.08)
+                                : AppColors.red.withValues(alpha: 0.08))
+                            : (correct
+                                ? const Color(0xFFECFDF5)
+                                : const Color(0xFFFEF2F2)),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: correct
+                              ? const Color(0xFF059669).withValues(alpha: 0.3)
+                              : AppColors.red.withValues(alpha: 0.25),
+                        ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'P${i + 1}: ${q.question}',
-                          style: TextStyle(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            correct
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.cancel_outlined,
                             color: correct
                                 ? const Color(0xFF059669)
                                 : AppColors.red,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'P${i + 1}: ${q.question}',
+                              style: TextStyle(
+                                color: correct
+                                    ? const Color(0xFF059669)
+                                    : AppColors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 24),
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.list_alt_rounded, size: 16),
+                          label: const Text('Volver a la lista'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => _EvalDetailScreen(eval: eval),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.replay_rounded, size: 16),
+                          label: const Text('Repetir'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: eval.color,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
                     ],
                   ),
-                );
-              }),
-              const SizedBox(height: 24),
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.list_alt_rounded, size: 16),
-                      label: const Text('Volver a la lista'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => _EvalDetailScreen(eval: eval),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.replay_rounded, size: 16),
-                      label: const Text('Repetir'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: eval.color,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 }

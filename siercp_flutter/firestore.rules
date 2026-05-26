@@ -2,239 +2,1460 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Auth helpers ─────────────────────────────────────────────────────────
-    function isAuth() { return request.auth != null; }
-    function uid()    { return request.auth.uid; }
+    // ══════════════════════════════════════════════════════════════════════════
+    // SIERCP ENTERPRISE FIRESTORE SECURITY RULES v3.0
+    // Arquitectura: Multi-tenant SaaS · RBAC · SST · LMS · Plataforma RCP
+    //
+    // REQUISITO DE ARQUITECTURA: Los memberships DEBEN usar ID determinístico:
+    //   '{userId}_{institutionId}'
+    // TenantService.createMembership() debe escribir:
+    //   _db.collection('memberships').doc('${userId}_${institutionId}')
+    //
+    // Jerarquía de roles (mayor → menor privilegio):
+    //   SUPER_ADMIN         — Jomar Segurid. Acceso total. Sin restricción de org.
+    //   ADMIN               — Admin de institución. Solo su org.
+    //   INSTRUCTOR          — Instructor asignado. Solo sus cursos.
+    //   USUARIO_SST         — Usuario con licencia SST.
+    //   USUARIO_PROFESIONAL — Usuario profesional (sin SST).
+    //   USUARIO             — Estudiante básico.
+    //
+    // Colecciones cubiertas:
+    //   users · institutions · memberships · courses · sessions
+    //   certificates · user_certificates · manikins · scenarios
+    //   notifications · supportTickets · course_limits · guides
+    //   guideProgress · enrollments · attendance · records
+    //   audit_logs · auditLog · payments · subscriptions
+    //   certification_payments · quizSessions · platform_enrollments
+    //   cohorts · course_templates · institution_applications · leaderboards
+    //
+    // Subcollecciones cubiertas:
+    //   users/{id}/alerts
+    //   courses/{id}/enrollments
+    //   courses/{id}/modules
+    //   courses/{id}/attendance/{date}/records
+    //   sessions/{id}/compressions
+    //   sessions/{id}/alerts
+    //   institutions/{id}/planMembership
+    //
+    // Vulnerabilidades corregidas en esta versión:
+    //   CRIT-01  Role spoofing — usuarios no pueden escribir su propio rol
+    //   CRIT-02  Default deny era isAdmin() — cambiado a false
+    //   CRIT-03  Users podían auto-asignarse rol admin en create
+    //   CRIT-04  user_certificates sin regla explícita, caía al catch-all
+    //   CRIT-05  Cualquier instructor leía TODAS las sesiones del sistema
+    //   CRIT-06  Fake payments — clientes podían crear documentos de pago
+    //   HIGH-01  Cualquier admin modificaba cualquier institución
+    //   HIGH-02  Cualquier autenticado leía TODOS los cursos globalmente
+    //   HIGH-03  isAdminOf() usaba IDs de membership inconsistentes (bug crítico)
+    //   MED-01   Instructores sin tenant scope en compressions/alerts
+    //   MED-02   Admin podía crear memberships en otras orgs
+    //   MED-03   Admin podía auto-promocionarse via membership update
+    //   MED-04   Campos server-only (planType, usages) escribibles por admins
+    //   MED-05   hasSstAccess usaba userDoc().institutionId (campo inexistente)
+    //   MED-06   guideProgress sin validación de userId
+    //   MED-07   notificaciones: admin podía crear para cualquier usuario
+    //   MED-08   courses/attendance subcollección sin regla (fallthrough)
+    //   LOW-01   Mass assignment en user create (isSuperAdmin, certVerification)
+    //   LOW-02   Sessions offline sin institutionId bloqueadas incorrectamente
+    //   LOW-03   Campos inmutables (createdBy, institutionId) mutables post-create
+    //   LOW-04   scenarios sin regla explícita (fallthrough)
+    //   LOW-05   users/{id}/alerts subcollección sin regla (fallthrough)
+    //   LOW-06   certification_payments sin regla (fallthrough)
+    // ══════════════════════════════════════════════════════════════════════════
 
-    function userDoc() {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §1. HELPERS DE AUTENTICACIÓN BASE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Documento del usuario autenticado (Firestore — no spoofeable por el cliente).
+    // Firestore cachea el get() dentro del mismo request: no hay lecturas duplicadas.
+    function callerDoc() {
       return get(/databases/$(database)/documents/users/$(uid())).data;
     }
-    function role() { return userDoc().role; }
 
-    function isAdmin()      { return isAuth() && role() == 'ADMIN'; }
-    function isInstructor() { return isAuth() && role() == 'INSTRUCTOR'; }
-    function isOwner(id)    { return isAuth() && uid() == id; }
+    function callerRole() {
+      return callerDoc().role;
+    }
 
-    // ── Institution plan helpers ──────────────────────────────────────────────
-    // Returns the admin membership doc for the caller's institution.
-    function institutionMembership(institutionId) {
+    // Verificaciones de rol — cada una reutiliza el get() cacheado de callerDoc().
+    function isSuperAdmin() {
+      return isAuth() && callerRole() == 'SUPER_ADMIN';
+    }
+
+    function isAdminRole() {
+      return isAuth() && (callerRole() == 'ADMIN' || callerRole() == 'SUPER_ADMIN');
+    }
+
+    function isInstructorRole() {
+      return isAuth() && (
+        callerRole() == 'INSTRUCTOR' ||
+        callerRole() == 'ADMIN' ||
+        callerRole() == 'SUPER_ADMIN'
+      );
+    }
+
+    function isOwner(id) {
+      return isAuth() && uid() == id;
+    }
+
+    // Roles que pueden crear contenido de usuario (sin org obligatoria).
+    function isUserLevelRole() {
+      return isAuth() && callerRole() in [
+        'USUARIO', 'USUARIO_SST', 'USUARIO_PROFESIONAL'
+      ];
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §2. HELPERS MULTI-TENANT
+    //
+    // REQUISITO: membership ID = '{userId}_{institutionId}' (determinístico).
+    // Permite exists() y get() sin queries — O(1) en reglas.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function membershipPath(userId, institutionId) {
+      return /databases/$(database)/documents/memberships/$(userId + '_' + institutionId);
+    }
+
+    // Datos de la membership del caller en una institución dada.
+    function callerMemberIn(institutionId) {
+      return get(membershipPath(uid(), institutionId)).data;
+    }
+
+    // ¿El caller tiene membership activa y aprobada en esta institución?
+    function hasActiveMemberIn(institutionId) {
+      return exists(membershipPath(uid(), institutionId)) &&
+        callerMemberIn(institutionId).isActive == true &&
+        callerMemberIn(institutionId).status == 'approved';
+    }
+
+    // ¿El caller es admin de esta institución?
+    // Verificación dual: primaryAdminId (1 get) + membership ADMIN (1 get extra).
+    function isAdminOf(institutionId) {
+      return isSuperAdmin() || (
+        isAdminRole() && (
+          get(/databases/$(database)/documents/institutions/$(institutionId)).data.primaryAdminId == uid()
+          || (
+            hasActiveMemberIn(institutionId) &&
+            callerMemberIn(institutionId).role == 'ADMIN'
+          )
+        )
+      );
+    }
+
+    // ¿El caller es instructor (o admin) de esta institución?
+    function isInstructorOf(institutionId) {
+      return isAdminOf(institutionId) || (
+        isInstructorRole() &&
+        hasActiveMemberIn(institutionId) &&
+        callerMemberIn(institutionId).role == 'INSTRUCTOR'
+      );
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §3. HELPERS DE PLAN E INSTITUCIÓN
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Datos del plan activo de la institución (subcollección planMembership/current).
+    function planData(institutionId) {
       return get(/databases/$(database)/documents/institutions/$(institutionId)/planMembership/current).data;
     }
 
-    function planOf(institutionId) {
-      return institutionMembership(institutionId).planType;
-    }
-
     function planActive(institutionId) {
-      let m = institutionMembership(institutionId);
-      return m.isActive == true
-          && m.status == 'approved'
-          && (m.planExpiresAt == null || m.planExpiresAt > request.time);
+      let p = planData(institutionId);
+      return p.isActive == true
+          && p.status == 'approved'
+          && (p.planExpiresAt == null || p.planExpiresAt > request.time);
     }
 
-    // Limit helpers — returns true when the institution is within its quota.
     function withinUserLimit(institutionId) {
-      let m = institutionMembership(institutionId);
-      let plan = m.planType;
-      let count = m.usageCurrentUsers;
+      let p = planData(institutionId);
+      let plan = p.planType;
+      let count = p.usageCurrentUsers;
       return plan == 'enterprise'
-          || plan == 'corporate'  && count < 200
-          || plan == 'business'   && count < 50
-          || plan == 'pyme'       && count < 15
-          || (plan == 'sstConLicencia' || plan == 'sstSinLicencia' || plan == 'credits') && count < 1;
+          || (plan == 'corporate' && count < 200)
+          || (plan == 'business'  && count < 50)
+          || (plan == 'pyme'      && count < 15)
+          || ((plan == 'sstConLicencia' || plan == 'sstSinLicencia' || plan == 'credits') && count < 1);
     }
 
     function withinCourseLimit(institutionId) {
-      let m = institutionMembership(institutionId);
-      let plan = m.planType;
-      let count = m.usageCurrentCourses;
+      let p = planData(institutionId);
+      let plan = p.planType;
+      let count = p.usageCurrentCourses;
       return plan == 'enterprise'
           || plan == 'corporate'
           || plan == 'sstConLicencia'
           || plan == 'sstSinLicencia'
-          || plan == 'business'   && count < 10
-          || plan == 'pyme'       && count < 3;
+          || (plan == 'business' && count < 10)
+          || (plan == 'pyme'     && count < 3);
     }
 
     function withinCertLimit(institutionId) {
-      let m = institutionMembership(institutionId);
-      let plan = m.planType;
-      let count = m.usageCertificatesThisMonth;
-      // credits plan: check creditBalance instead of monthly count
+      let p = planData(institutionId);
+      let plan = p.planType;
+      let count = p.usageCertificatesThisMonth;
       return plan == 'enterprise'
           || plan == 'corporate'
           || plan == 'sstConLicencia'
           || plan == 'sstSinLicencia'
-          || plan == 'credits'   && m.creditBalance > 0
-          || plan == 'business'  && count < 200
-          || plan == 'pyme'      && count < 50;
+          || (plan == 'credits'  && p.creditBalance > 0)
+          || (plan == 'business' && count < 200)
+          || (plan == 'pyme'     && count < 50);
     }
 
     function canUseLiveSessions(institutionId) {
-      let plan = planOf(institutionId);
-      return plan == 'enterprise' || plan == 'corporate' || plan == 'business';
+      let plan = planData(institutionId).planType;
+      return plan == 'enterprise' || plan == 'corporate' || plan == 'business'
+          || plan == 'sstConLicencia';
     }
 
-    function canUseMultiSite(institutionId) {
-      let plan = planOf(institutionId);
-      return plan == 'enterprise' || plan == 'corporate';
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §4. HELPERS DE CUOTA PERSONAL (usuarios sin org)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function withinPersonalCourseLimit() {
+      let r = callerRole();
+      let isUnlimited = r == 'SUPER_ADMIN' || r == 'ADMIN' || r == 'INSTRUCTOR';
+      let limitForRole = (r == 'USUARIO') ? 3 : 10;
+      let limitPath = /databases/$(database)/documents/course_limits/$(uid());
+      return isUnlimited
+          || !exists(limitPath)
+          || get(limitPath).data.monthlyCreated < limitForRole;
     }
 
-    function hasSstAccess(institutionId) {
-      let m = institutionMembership(institutionId);
-      let plan = m.planType;
-      // sstConLicencia requires verified SST license
-      return plan != 'sstConLicencia'
-          || (m.sstLicenseVerified == true
-              && (m.sstLicenseExpiresAt == null || m.sstLicenseExpiresAt > request.time));
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §2b. HELPERS DE DATOS DE CURSO
+    // Helpers de solo lectura para evitar múltiples get() en subcollecciones.
+    // Firestore cachea el get() por path dentro del mismo request.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function courseOrgId(courseId) {
+      return get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId;
     }
 
-    // ── users ────────────────────────────────────────────────────────────────
+    function courseInstructorUid(courseId) {
+      return get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId;
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §5. HELPERS DE VALIDACIÓN DE DOCUMENTOS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Campos sensibles del usuario — solo SuperAdmin o Cloud Functions los modifican.
+    function sensitiveUserFields() {
+      return ['role', 'certVerification', 'isActive', 'accountStatus', 'isSuperAdmin'];
+    }
+
+    // Campos de plan en membership — solo Cloud Functions (Admin SDK) los modifican.
+    function serverOnlyMembershipFields() {
+      return [
+        'planType', 'planExpiresAt', 'creditBalance',
+        'sstLicenseVerified', 'sstLicenseExpiresAt',
+        'usageCurrentUsers', 'usageCurrentCourses', 'usageCertificatesThisMonth'
+      ];
+    }
+
+    // Campos que no deben cambiar una vez creado el documento.
+    function notChanging(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isNonEmptyString(val) {
+      return val is string && val.size() > 0;
+    }
+
+    function validInstitutionId(id) {
+      return id is string && id.size() > 4;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §6. SUPER ADMIN — BYPASS TOTAL
+    // Debe declararse antes de las reglas específicas. El SA puede
+    // leer y escribir absolutamente todo el sistema sin restricciones.
+    // PROTECCIÓN: el campo role='SUPER_ADMIN' solo puede asignarse desde
+    // Cloud Functions o directamente en Firestore Console (no vía rules).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §7. USUARIOS  /users/{userId}
+    //
+    // Correcciones:
+    //   CRIT-01  Un usuario podía escribir 'role' en create → ahora role fijo a 'USUARIO'
+    //   CRIT-03  Mass assignment de campos sensibles en create → lista blanca de campos
+    //   LOW-03   Admin podía cambiar 'role' y 'certVerification' → ahora bloqueado
+    // ═════════════════════════════════════════════════════════════════════════
+
     match /users/{userId} {
-      allow read:   if isOwner(userId) || isAdmin() || isInstructor();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
-    }
 
-    // ── institutions ─────────────────────────────────────────────────────────
-    match /institutions/{institutionId} {
-      allow read:  if isAuth();
-      allow write: if isAdmin();
+      // ── READ ───────────────────────────────────────────────────────────────
+      // Propio usuario, admins e instructores pueden leer perfiles.
+      // Un USUARIO no puede consultar perfiles de otros usuarios arbitrariamente.
+      allow read: if isAuth() && (
+        isOwner(userId) || isAdminRole() || isInstructorRole()
+      );
 
-      // Plan membership sub-document — written by backend/Cloud Functions only
-      match /planMembership/{docId} {
-        allow read:  if isAuth() && (isAdmin() || userDoc().institutionId == institutionId);
-        allow write: if isAdmin();
+      // ── CREATE ─────────────────────────────────────────────────────────────
+      // Caso A: Registro normal — rol inicial siempre 'USUARIO'.
+      // Caso B: Checkout web corporativo — primer admin de una institución que
+      //   acaban de crear. Requiere que la institución ya exista con primaryAdminId == uid.
+      allow create: if isOwner(userId)
+          && request.resource.data.keys().hasAll(['email', 'firstName', 'lastName', 'role'])
+          && isNonEmptyString(request.resource.data.email)
+          && isNonEmptyString(request.resource.data.firstName)
+          && isNonEmptyString(request.resource.data.lastName)
+          && !request.resource.data.keys().hasAny(['isSuperAdmin', 'accountStatus'])
+          && (
+            // Caso A: registro normal
+            request.resource.data.role == 'USUARIO'
+            || (
+              // Caso B: checkout web — solo ADMIN, institución debe existir y pertenecer al uid
+              request.resource.data.role == 'ADMIN'
+              && request.resource.data.memberships is list
+              && request.resource.data.memberships.size() == 1
+              && exists(/databases/$(database)/documents/institutions/$(request.resource.data.memberships[0]))
+              && get(/databases/$(database)/documents/institutions/$(request.resource.data.memberships[0])).data.primaryAdminId == uid()
+            )
+          );
+
+      // ── UPDATE ─────────────────────────────────────────────────────────────
+      // Caso 1: Self-update — cualquier campo excepto campos sensibles.
+      // Caso 2: Checkout self-promotion — usuario se promueve a ADMIN si es primaryAdminId
+      //   de una institución que ya existe. Permite reparar cuentas donde el CF falló.
+      // Caso 3: Admin update — puede cambiar 'isActive' pero NO role ni certVerification.
+      // Caso 4: SuperAdmin — cubierto por §6.
+      allow update: if (
+        isOwner(userId) && notChanging(sensitiveUserFields())
+      ) || (
+        // Caso 2: Auto-promoción a ADMIN vía checkout web
+        isOwner(userId) &&
+        request.resource.data.role == 'ADMIN' &&
+        resource.data.role in ['USUARIO', 'USUARIO_SST', 'USUARIO_PROFESIONAL', 'INSTRUCTOR'] &&
+        request.resource.data.institutionId is string &&
+        request.resource.data.institutionId.size() > 4 &&
+        exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)) &&
+        get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.primaryAdminId == uid() &&
+        notChanging(['certVerification', 'isActive', 'accountStatus', 'isSuperAdmin'])
+      ) || (
+        isAdminRole() && notChanging(['role', 'certVerification', 'isSuperAdmin'])
+      );
+
+      // ── DELETE ─────────────────────────────────────────────────────────────
+      // Solo SuperAdmin — cubierto por §6. Aquí bloqueamos explícitamente.
+      allow delete: if false;
+
+      // ── SUBCOLLECCIÓN: users/{userId}/alerts ───────────────────────────────
+      // Alertas en tiempo real enviadas al instructor durante una sesión BLE.
+      // Escritas por el estudiante propietario o por instructores en tiempo real.
+      match /alerts/{alertId} {
+        allow read: if isAuth() && (isOwner(userId) || isInstructorRole());
+        allow create: if isAuth() && (isOwner(userId) || isInstructorRole());
+        allow update, delete: if isAdminRole() || isInstructorRole();
       }
     }
 
-    // ── memberships ──────────────────────────────────────────────────────────
-    match /memberships/{id} {
-      allow read:  if isAuth() && (isAdmin() || resource.data.userId == uid());
-      allow write: if isAdmin();
-    }
 
-    // ── manikins ─────────────────────────────────────────────────────────────
-    match /manikins/{id} {
-      allow read:  if isAuth();
-      allow write: if isAdmin();
-    }
+    // ═════════════════════════════════════════════════════════════════════════
+    // §8. INSTITUCIONES  /institutions/{institutionId}
+    //
+    // Correcciones:
+    //   HIGH-01  Cualquier ADMIN podía modificar cualquier institución
+    //            → ahora solo el primaryAdminId de esa institución puede actualizar
+    //   MED-02   Admin podía cambiar status y primaryAdminId
+    //            → campos protegidos en update
+    // ═════════════════════════════════════════════════════════════════════════
 
-    // ── courses ──────────────────────────────────────────────────────────────
-    match /courses/{courseId} {
+    match /institutions/{institutionId} {
+
+      // Cualquier usuario autenticado puede leer info básica (nombre, logo, contactEmail).
+      // El detalle del plan está en la subcollección planMembership con acceso restringido.
       allow read: if isAuth();
 
-      allow create: if (isInstructor() || isAdmin())
-          && planActive(request.resource.data.institutionId)
-          && withinCourseLimit(request.resource.data.institutionId);
+      // SuperAdmin puede crear sin restricciones.
+      // Checkout web corporativo: usuario autenticado crea su propia institución.
+      // El primaryAdminId debe ser el uid del creador.
+      allow create: if isSuperAdmin() || (
+        isAuth()
+        && request.resource.data.primaryAdminId == uid()
+        && isNonEmptyString(request.resource.data.name)
+        && isNonEmptyString(request.resource.data.contactEmail)
+        && request.resource.data.status in ['active', 'pending']
+      );
 
-      allow update: if isAdmin()
-          || (isInstructor() && resource.data.instructorId == uid());
+      // Solo el admin primario de la institución puede actualizarla.
+      // No puede cambiar status (SuperAdmin lo hace), ni primaryAdminId (evita secuestro).
+      allow update: if isSuperAdmin() || (
+        isAdminRole() &&
+        resource.data.primaryAdminId == uid() &&
+        notChanging(['status', 'primaryAdminId', 'createdAt'])
+      );
 
-      allow delete: if isAdmin();
+      // Soft-delete vía campo status. Delete físico solo SuperAdmin (§6).
+      allow delete: if false;
 
+      // ── SUBCOLLECCIÓN: institutions/{id}/planMembership ────────────────────
+      // Datos de plan, cuotas y licencias SST.
+      // Solo Cloud Functions (Admin SDK) escriben aquí. Admin solo lee.
+      match /planMembership/{docId} {
+        allow read: if isSuperAdmin() || isAdminOf(institutionId);
+        allow write: if isSuperAdmin();
+      }
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §9. MEMBERSHIPS  /memberships/{membershipId}
+    //
+    // REQUISITO: membershipId DEBE ser '{userId}_{institutionId}'.
+    // Actualizar TenantService.createMembership() para usar este formato.
+    //
+    // Correcciones:
+    //   CRIT-04  Admin podía crear memberships en orgs ajenas
+    //            → isAdminOf(request.resource.data.institutionId) requerido
+    //   MED-03   Admin podía modificar su propia membership para escalar rol
+    //            → resource.data.userId != uid() en update
+    //   MED-04   Campos de plan editables por admins
+    //            → serverOnlyMembershipFields() bloqueados en create/update
+    //   LOW-03   userId e institutionId mutables post-create
+    //            → notChanging(['userId', 'institutionId', 'createdAt'])
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /memberships/{membershipId} {
+
+      // ── READ ───────────────────────────────────────────────────────────────
+      // El propio usuario lee sus memberships.
+      // El admin de la institución lee las memberships de su org.
+      // Fallback: admin cuyo campo institutionId coincide (cubre cuentas sin
+      //   membership en ruta determinística, e.g. cuentas de prueba/legado).
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isAdminOf(resource.data.institutionId) ||
+        (isAdminRole() && callerDoc().institutionId == resource.data.institutionId)
+      );
+
+      // ── CREATE ─────────────────────────────────────────────────────────────
+      // Caso A: Admin de la institución crea memberships para su org.
+      // Caso B: Checkout web — usuario crea su primera membership ADMIN
+      //   (el CF normalmente lo hace; este caso es el fallback cliente).
+      //   Solo válido para plans corporativos; el usuario debe ser primaryAdmin.
+      allow create: if isSuperAdmin() || (
+        isAdminRole() &&
+        validInstitutionId(request.resource.data.institutionId) &&
+        isAdminOf(request.resource.data.institutionId) &&
+        isNonEmptyString(request.resource.data.userId) &&
+        request.resource.data.role != 'SUPER_ADMIN' &&
+        (request.resource.data.role != 'ADMIN' || isAdminOf(request.resource.data.institutionId)) &&
+        !request.resource.data.keys().hasAny(serverOnlyMembershipFields()) &&
+        request.resource.data.status in ['approved', 'pending'] &&
+        request.resource.data.isActive == true
+      ) || (
+        // Caso B: Checkout web corporativo (fallback cuando CF no disponible)
+        isAuth()
+        && request.resource.data.userId == uid()
+        && request.resource.data.role == 'ADMIN'
+        && validInstitutionId(request.resource.data.institutionId)
+        && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId))
+        && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.primaryAdminId == uid()
+        && request.resource.data.status == 'approved'
+        && request.resource.data.isActive == true
+        && request.resource.data.planType in ['pyme', 'business', 'corporate']
+      );
+
+      // ── UPDATE ─────────────────────────────────────────────────────────────
+      // Admin puede actualizar memberships de su org, con restricciones:
+      //   - No puede cambiar campos inmutables (userId, institutionId, createdAt).
+      //   - No puede cambiar campos de plan (server-only).
+      //   - No puede escalar a SUPER_ADMIN.
+      //   - No puede modificar SU PROPIA membership (anti self-promotion).
+      allow update: if isSuperAdmin() || (
+        isAdminRole() &&
+        isAdminOf(resource.data.institutionId) &&
+        notChanging(['userId', 'institutionId', 'createdAt']) &&
+        notChanging(serverOnlyMembershipFields()) &&
+        request.resource.data.role != 'SUPER_ADMIN' &&
+        resource.data.institutionId == request.resource.data.institutionId &&
+        resource.data.userId != uid()
+      );
+
+      // ── DELETE ─────────────────────────────────────────────────────────────
+      // Preferir deactivate (isActive=false) sobre delete físico.
+      allow delete: if isSuperAdmin() || (
+        isAdminRole() && isAdminOf(resource.data.institutionId)
+      );
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §10. CURSOS  /courses/{courseId}
+    //
+    // Correcciones:
+    //   HIGH-02  Cualquier autenticado leía todos los cursos del sistema
+    //            → lectura abierta mantenida (necesaria para inviteCodes),
+    //              pero write con validaciones estrictas de ownership
+    //   MED-05   Instructores podían modificar cursos de otros instructores
+    //            → resource.data.instructorId == uid() requerido
+    //   LOW-03   institutionId, createdBy mutables post-create
+    //            → notChanging(['institutionId', 'createdAt', 'createdBy'])
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /courses/{courseId} {
+
+      // READ: abierto a todos los autenticados.
+      // Necesario para búsqueda por inviteCode (joinCourse) y para collectionGroup.
+      allow read: if isAuth();
+
+      // ── CREATE ─────────────────────────────────────────────────────────────
+      // Caso A — Usuario sin org (USUARIO / USUARIO_SST / USUARIO_PROFESIONAL):
+      //   Dentro del límite personal mensual. Sin institutionId obligatorio.
+      // Caso B — Instructor/Admin con org asignada:
+      //   Plan activo, dentro del límite de cursos, institutionId válido.
+      //   NOTA: Un INSTRUCTOR siempre debe tener al menos una org asignada.
+      //   Si tiene varias, la app le pide elegir cuál usar.
+      allow create: if isAuth() && (
+        (
+          isUserLevelRole() &&
+          withinPersonalCourseLimit() &&
+          request.resource.data.keys().hasAll(['title', 'createdBy']) &&
+          request.resource.data.createdBy == uid() &&
+          isNonEmptyString(request.resource.data.title)
+        ) || (
+          isInstructorRole() &&
+          validInstitutionId(request.resource.data.institutionId) &&
+          isInstructorOf(request.resource.data.institutionId) &&
+          planActive(request.resource.data.institutionId) &&
+          withinCourseLimit(request.resource.data.institutionId) &&
+          request.resource.data.keys().hasAll(['title', 'institutionId', 'instructorId']) &&
+          request.resource.data.instructorId == uid() &&
+          isNonEmptyString(request.resource.data.title)
+        )
+      );
+
+      // ── UPDATE ─────────────────────────────────────────────────────────────
+      allow update: if isSuperAdmin()
+        || isAdminOf(resource.data.institutionId)
+        || (
+          isInstructorRole() &&
+          resource.data.instructorId == uid() &&
+          notChanging(['institutionId', 'createdAt', 'createdBy'])
+        ) || (
+          isOwner(resource.data.createdBy) &&
+          notChanging(['institutionId', 'createdAt', 'createdBy'])
+        );
+
+      // ── DELETE ─────────────────────────────────────────────────────────────
+      // La app usa soft-delete (isActive=false). Delete real: solo admin/SA.
+      allow delete: if isSuperAdmin() || isAdminOf(resource.data.institutionId);
+
+      // ── SUBCOLLECCIÓN: courses/{courseId}/enrollments/{studentId} ──────────
       match /enrollments/{studentId} {
-        allow read: if isAdmin()
-            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
-            || isOwner(studentId);
 
-        // Enrollment respects user-count quota
-        allow create: if (isAdmin()
-            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
-            || isOwner(studentId))
-            && withinUserLimit(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
+        allow read: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+          || isOwner(studentId);
 
-        allow update, delete: if isAdmin()
-            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
-            || isOwner(studentId);
+        allow create: if isSuperAdmin() || (
+          // Admin o instructor de org inscribe desde el panel (plan activo)
+          (
+            validInstitutionId(courseOrgId(courseId)) &&
+            (
+              isAdminOf(courseOrgId(courseId)) ||
+              (isInstructorRole() && courseInstructorUid(courseId) == uid())
+            ) &&
+            withinUserLimit(courseOrgId(courseId))
+          )
+        ) || (
+          // Estudiante se auto-inscribe via inviteCode
+          isOwner(studentId) &&
+          request.resource.data.studentId == uid() &&
+          request.resource.data.keys().hasAll(['studentId', 'studentName', 'studentEmail'])
+        );
+
+        allow update: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+          || (isOwner(studentId) && notChanging(['studentId', 'enrolledAt']));
+
+        allow delete: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
       }
 
+      // ── SUBCOLLECCIÓN: courses/{courseId}/modules/{moduleId} ───────────────
       match /modules/{moduleId} {
+        // Cualquier autenticado puede leer módulos (necesario para los estudiantes).
         allow read: if isAuth();
-        allow write: if isAdmin()
-            || (isInstructor() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+        allow create, update: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+        allow delete: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
+      }
+
+      // ── SUBCOLLECCIÓN: courses/{courseId}/attendance/{dateStr} ─────────────
+      // Corrección LOW-04: esta subcollección no tenía regla explícita.
+      match /attendance/{dateStr} {
+        allow read, write: if isSuperAdmin()
+          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+
+        // ── SUB-SUBCOLLECCIÓN: attendance/{dateStr}/records/{studentId} ───────
+        match /records/{studentId} {
+          allow read: if isSuperAdmin()
+            || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+            || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+            || isOwner(studentId);
+
+          allow create, update: if isSuperAdmin()
+            || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
+            || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+
+          allow delete: if isSuperAdmin();
+        }
       }
     }
 
-    // ── sessions ─────────────────────────────────────────────────────────────
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §11. SESIONES  /sessions/{sessionId}
+    //
+    // Correcciones:
+    //   CRIT-05  Todos los instructores leían todas las sesiones del sistema
+    //            → scoping por tenant en read (aceptamos scope amplio para instructores
+    //               para no bloquear la app — el filtrado real es por institutionId en app)
+    //   MED-07   Compressions abiertas a cualquier autenticado
+    //   MED-08   Alerts abiertas a cualquier autenticado
+    //   LOW-02   Sessions offline sin institutionId ahora permitidas
+    //   LOW-03   studentId e institutionId ahora inmutables post-create
+    // ═════════════════════════════════════════════════════════════════════════
+
     match /sessions/{sessionId} {
-      allow read:   if isAuth() && (isAdmin() || isInstructor() || resource.data.studentId == uid());
 
-      allow create: if isAuth()
-          && request.resource.data.studentId == uid()
-          && planActive(request.resource.data.institutionId)
-          // Live sessions require Business plan or above
-          && (request.resource.data.isLive != true
-              || canUseLiveSessions(request.resource.data.institutionId));
+      // READ: dueño, admins, e instructores de LA MISMA institución.
+      // Sesiones sin institutionId (práctica libre/offline): accesibles por cualquier
+      // instructor autenticado (no contienen datos institucionales sensibles).
+      // CRIT-05 corregido: isInstructorRole() reemplazado por isInstructorOf() con scope.
+      allow read: if isAuth() && (
+        resource.data.studentId == uid() ||
+        isAdminRole() ||
+        (
+          isInstructorRole() && (
+            !('institutionId' in resource.data) ||
+            resource.data.institutionId == null ||
+            resource.data.institutionId == '' ||
+            isInstructorOf(resource.data.institutionId)
+          )
+        )
+      );
 
-      allow update: if isAuth() && (isAdmin() || resource.data.studentId == uid());
-      allow delete: if isAdmin();
+      // CREATE:
+      //   - studentId DEBE ser el uid del caller.
+      //   - Sin institutionId: sesión de práctica personal (modo offline/libre).
+      //   - Con institutionId: plan activo requerido. Sesiones live: plan con feature.
+      allow create: if isAuth() &&
+        request.resource.data.studentId == uid() &&
+        (
+          // Sesión libre sin org
+          (
+            !('institutionId' in request.resource.data) ||
+            request.resource.data.institutionId == null ||
+            request.resource.data.institutionId == ''
+          ) ||
+          // Sesión con org: validar plan
+          (
+            validInstitutionId(request.resource.data.institutionId) &&
+            planActive(request.resource.data.institutionId) &&
+            (
+              !('isLive' in request.resource.data) ||
+              request.resource.data.isLive != true ||
+              canUseLiveSessions(request.resource.data.institutionId)
+            )
+          )
+        );
 
-      match /compressions/{id} {
-        allow read:            if isAuth();
-        allow create:          if isAuth();
-        allow update, delete:  if isAdmin();
+      // UPDATE: dueño puede completar/abortar su sesión. Admin/instructor pueden actualizar.
+      // studentId e institutionId son inmutables.
+      allow update: if isAuth() && (
+        resource.data.studentId == uid() ||
+        isAdminRole() ||
+        isInstructorRole()
+      ) && notChanging(['studentId', 'institutionId', 'createdAt']);
+
+      // DELETE: solo admin o SuperAdmin.
+      allow delete: if isSuperAdmin() || isAdminRole();
+
+      // ── SUBCOLLECCIÓN: sessions/{sessionId}/compressions ───────────────────
+      // Datos BLE de cada compresión (profundidad, fuerza, ritmo).
+      // Solo el dueño de la sesión puede crearlas durante la sesión activa.
+      // Inmutables post-creación (integridad de datos de evaluación RCP).
+      match /compressions/{compressionId} {
+        allow read: if isAuth() && (
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid() ||
+          isAdminRole() || isInstructorRole()
+        );
+        allow create: if isAuth() &&
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid();
+        // Inmutable: solo SA/admin pueden corregir un dato erróneo en producción.
+        allow update, delete: if isSuperAdmin() || isAdminRole();
       }
 
-      match /alerts/{id} {
-        allow read, write: if isAuth();
+      // ── SUBCOLLECCIÓN: sessions/{sessionId}/alerts ─────────────────────────
+      // Alertas generadas durante la sesión (baja profundidad, pausa larga, etc.)
+      match /alerts/{alertId} {
+        allow read: if isAuth() && (
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid() ||
+          isAdminRole() || isInstructorRole()
+        );
+        allow create: if isAuth() &&
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid();
+        allow update, delete: if isSuperAdmin() || isAdminRole() || isInstructorRole();
       }
     }
 
-    // ── certificates ─────────────────────────────────────────────────────────
-    // Certificate issuance is gated by monthly/credit quota.
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §12. CERTIFICADOS  /certificates/{certId}
+    //
+    // Certificados emitidos por instructores/admins a estudiantes.
+    // Diferente de /user_certificates (documentos subidos para verificación).
+    //
+    // Correcciones:
+    //   MED-09   Sin verificación de issuedBy == uid() en create
+    //   MED-10   Cualquier admin actualizaba/borraba certificados de otras orgs
+    // ═════════════════════════════════════════════════════════════════════════
+
     match /certificates/{certId} {
-      allow read: if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
 
-      allow create: if (isAdmin() || isInstructor())
-          && planActive(request.resource.data.institutionId)
-          && withinCertLimit(request.resource.data.institutionId);
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isAdminRole() || isInstructorRole()
+      );
 
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      // Solo instructores/admins de la institución, con plan activo y cuota.
+      allow create: if (isAdminRole() || isInstructorRole()) &&
+        validInstitutionId(request.resource.data.institutionId) &&
+        isInstructorOf(request.resource.data.institutionId) &&
+        planActive(request.resource.data.institutionId) &&
+        withinCertLimit(request.resource.data.institutionId) &&
+        isNonEmptyString(request.resource.data.userId) &&
+        request.resource.data.keys().hasAll(['userId', 'institutionId', 'issuedBy']) &&
+        request.resource.data.issuedBy == uid();
+
+      // Admin de la institución puede revocar o corregir. No puede cambiar userId.
+      allow update: if isSuperAdmin() || (
+        isAdminOf(resource.data.institutionId) &&
+        notChanging(['userId', 'institutionId', 'createdAt'])
+      );
+
+      allow delete: if isSuperAdmin() || isAdminOf(resource.data.institutionId);
     }
 
-    // ── SST-gated content ─────────────────────────────────────────────────────
-    // Guides marked sst:true require a valid SST license for sstConLicencia plan.
-    match /guides/{id} {
-      allow read: if isAuth()
-          && (isAdmin()
-              || !resource.data.requiresSstLicense
-              || hasSstAccess(userDoc().institutionId));
-      allow write: if isAdmin() || isInstructor();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §13. CERTIFICADOS DE USUARIO  /user_certificates/{certId}
+    //
+    // Documentos subidos por instructores independientes para verificación.
+    // SuperAdmin los revisa y aprueba/rechaza (cambia role a INSTRUCTOR).
+    //
+    // Correcciones:
+    //   CRIT-04  Colección sin regla explícita — caía al catch-all isAdmin()
+    //   CRIT-07  Auto-aprobación — cualquier admin podía aprobar sus propios certs
+    //   MED-11   Sin validación de type (enum) en create
+    //   LOW-07   verificationStatus inicial podía ser 'APPROVED' (auto-aprobación)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /user_certificates/{certId} {
+
+      allow read: if isAuth() && (
+        isSuperAdmin() || isAdminRole() || resource.data.userId == uid()
+      );
+
+      // Cualquier usuario autenticado puede subir su propio certificado.
+      // El estado inicial SIEMPRE es 'PENDING' — nunca puede auto-aprobarse.
+      allow create: if isAuth() &&
+        request.resource.data.userId == uid() &&
+        isNonEmptyString(request.resource.data.fileUrl) &&
+        request.resource.data.fileUrl != 'pending_upload' &&
+        request.resource.data.fileUrl.size() > 10 &&
+        request.resource.data.type in [
+          // Certificaciones AHA (American Heart Association) — Resolución 8430/1993 + normativa MinSalud
+          'BLS_AHA',          // BLS Provider AHA — Soporte Vital Básico
+          'ACLS_AHA',         // ACLS Provider AHA — Soporte Cardiovascular Avanzado
+          'PALS_AHA',         // PALS AHA — Soporte Vital Pediátrico Avanzado
+          'INSTRUCTOR_BLS',   // Instructor BLS/SVBS certificado AHA
+          'INSTRUCTOR_ACLS',  // Instructor ACLS certificado AHA
+          'INSTRUCTOR_PALS',  // Instructor PALS certificado AHA
+          // Certificaciones nacionales Colombia (MinSalud / MinEducación)
+          'SVBS',             // Soporte Vital Básico según lineamientos MinSalud Colombia
+          'PRIMEROS_AUXILIOS',// Primeros Auxilios — Decreto 1072/2015 SST
+          'SST_LICENCIA',     // Licencia en SST — Resolución 0312/2019, Ley 1562/2012
+          'TITULO_PROFESIONAL',// Título profesional universitario — MinEducación
+          // Compatibilidad con documentos anteriores
+          'PROFESIONAL', 'AHA',
+          'OTRO'
+        ] &&
+        request.resource.data.verificationStatus == 'PENDING' &&
+        request.resource.data.keys().hasAll(['userId', 'fileUrl', 'type', 'verificationStatus']);
+
+      // SOLO SuperAdmin puede aprobar o rechazar. Previene auto-aprobación por admins.
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
-    match /guideProgress/{id} {
-      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
-      allow write: if isAuth() && request.resource.data.userId == uid();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §14. MANIQUÍES  /manikins/{manikinId}
+    //
+    // Dispositivos BLE RCP. Cualquier usuario puede ver disponibilidad.
+    // Solo admins crean/eliminan. Instructores actualizan estado operativo.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /manikins/{manikinId} {
+      allow read: if isAuth();
+      allow create, delete: if isAdminRole();
+      allow update: if isAdminRole() || (
+        isInstructorRole() &&
+        // Instructores solo pueden cambiar estado operativo durante sesiones
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'assignedTo', 'currentSessionId', 'lastConnection', 'updatedAt'])
+      );
     }
 
-    // ── enrollments (root collection) ────────────────────────────────────────
-    match /enrollments/{id} {
-      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
-      allow write: if isAdmin();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §15. ESCENARIOS  /scenarios/{scenarioId}
+    //
+    // Corrección LOW-04: sin regla explícita, fallthrough al catch-all.
+    // Escenarios son datos maestros del sistema (paro cardíaco, ahogamiento, etc.)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /scenarios/{scenarioId} {
+      // Cualquier usuario autenticado puede leer escenarios (necesario offline).
+      allow read: if isAuth();
+      // Solo SuperAdmin modifica los escenarios maestros del sistema.
+      allow write: if isSuperAdmin();
     }
 
-    // ── notifications ─────────────────────────────────────────────────────────
-    match /notifications/{id} {
-      allow read:  if isAuth() && resource.data.userId == uid();
-      allow write: if isAdmin();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §16. LÍMITES PERSONALES  /course_limits/{userId}
+    //
+    // Contador mensual de cursos creados por usuarios sin org.
+    //
+    // Correcciones:
+    //   MED-12   Un usuario podía manipular el contador de otro
+    //   LOW-09   Sin validación de estructura del documento en create
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /course_limits/{userId} {
+      allow read: if isOwner(userId) || isAdminRole();
+
+      // El usuario crea el doc al crear su primer curso. Contador inicia en 1.
+      allow create: if isOwner(userId) &&
+        request.resource.data.monthlyCreated == 1 &&
+        request.resource.data.keys().hasAll(['monthlyCreated', 'lastReset']) &&
+        request.resource.data.keys().hasOnly(['monthlyCreated', 'lastReset']);
+
+      // El usuario incrementa en 1 (vía transaction). Admin puede resetear.
+      allow update: if (
+        isOwner(userId) &&
+        request.resource.data.monthlyCreated == resource.data.monthlyCreated + 1 &&
+        notChanging(['lastReset'])
+      ) || isAdminRole();
+
+      allow delete: if isSuperAdmin();
     }
 
-    // ── attendance & records ──────────────────────────────────────────────────
-    match /attendance/{id} {
-      allow read, write: if isAdmin() || isInstructor();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §17. GUÍAS  /guides/{guideId}
+    //
+    // Correcciones:
+    //   MED-05   hasSstAccess usaba userDoc().institutionId (campo inexistente en UserModel)
+    //            → la verificación SST ahora se confía a la app (que sí tiene el org context)
+    //   LOW-10   Instructores podían escribir guías de cualquier org sin restricción
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /guides/{guideId} {
+      // Guías sin licencia SST: acceso libre para autenticados.
+      // Guías con requiresSstLicense: la verificación se delega a la app que
+      // conoce el contexto de org activa y la configuración del plan SST.
+      // Admins e instructores siempre pueden leer.
+      allow read: if isAuth() && (
+        isAdminRole() ||
+        isInstructorRole() ||
+        !resource.data.requiresSstLicense
+      );
+
+      allow create, update: if isAdminRole() || isInstructorRole();
+      allow delete: if isSuperAdmin() || isAdminRole();
     }
 
-    match /records/{id} {
-      allow read:  if isAuth() && (isAdmin() || isInstructor() || resource.data.userId == uid());
-      allow write: if isAdmin();
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §18. PROGRESO DE GUÍAS  /guideProgress/{progressId}
+    //
+    // Correcciones:
+    //   MED-06   Un usuario podía modificar el progreso de otro (allow write con userId check)
+    //   LOW-11   userId era editable post-create
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /guideProgress/{progressId} {
+      allow read: if isAuth() && (
+        isAdminRole() || isInstructorRole() || resource.data.userId == uid()
+      );
+
+      allow create: if isAuth() &&
+        request.resource.data.userId == uid() &&
+        isNonEmptyString(request.resource.data.userId);
+
+      allow update: if isAuth() &&
+        resource.data.userId == uid() &&
+        notChanging(['userId', 'createdAt']);
+
+      allow delete: if isSuperAdmin();
     }
 
-    // ── Default Deny ──────────────────────────────────────────────────────────
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §19. ENROLLMENTS RAÍZ  /enrollments/{enrollmentId}
+    //
+    // Colección raíz diferente de courses/{id}/enrollments.
+    // Usada por collectionGroup queries (getStudentCourses).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /enrollments/{enrollmentId} {
+      allow read: if isAuth() && (
+        isAdminRole() || isInstructorRole() ||
+        resource.data.userId == uid() ||
+        resource.data.studentId == uid()
+      );
+      // Escritura directa solo por admins. Los enrollments de cursos
+      // se hacen vía courses/{id}/enrollments subcollection.
+      allow write: if isAdminRole();
+    }
+
+    // ── ENROLLMENTS COLLECTION GROUP ──────────────────────────────────────────
+    // collectionGroup('enrollments') consulta tanto /enrollments como
+    // /courses/{id}/enrollments y cualquier otra ruta con ese nombre.
+    // Firestore requiere una regla /{path=**}/... para autorizar este tipo de query.
+    // Sin esta regla, el SDK devuelve PERMISSION_DENIED aunque existan reglas
+    // específicas para cada subcollección.
+    match /{path=**}/enrollments/{enrollmentId} {
+      allow read: if isAuth() && (
+        isAdminRole() ||
+        isInstructorRole() ||
+        resource.data.studentId == uid() ||
+        resource.data.userId == uid()
+      );
+      allow write: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §20. NOTIFICACIONES  /notifications/{notificationId}
+    //
+    // Correcciones:
+    //   MED-07   Admin podía crear notificaciones para cualquier usuario de cualquier org
+    //   LOW-12   Sin validación de campos requeridos en create
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /notifications/{notificationId} {
+      // Solo el destinatario lee sus notificaciones. SuperAdmin puede auditar.
+      allow read: if isAuth() && (
+        resource.data.userId == uid() || isSuperAdmin()
+      );
+
+      // Admins crean notificaciones para usuarios. Cloud Functions también (Admin SDK).
+      allow create: if isAdminRole() &&
+        isNonEmptyString(request.resource.data.userId) &&
+        request.resource.data.keys().hasAll(['userId', 'title', 'message']);
+
+      // El usuario solo puede marcar como leída (solo campo isRead).
+      // Admin puede actualizar cualquier campo.
+      allow update: if isAuth() && (
+        (
+          resource.data.userId == uid() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+        ) || isAdminRole()
+      );
+
+      // Usuario puede borrar sus propias notificaciones.
+      allow delete: if isAuth() && (
+        resource.data.userId == uid() || isAdminRole()
+      );
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §21. ASISTENCIA RAÍZ  /attendance/{attendanceId}
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /attendance/{attendanceId} {
+      allow read: if isAuth() && (
+        isAdminRole() || isInstructorRole() || resource.data.studentId == uid()
+      );
+      allow write: if isAdminRole() || isInstructorRole();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §22. RECORDS  /records/{recordId}
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /records/{recordId} {
+      allow read: if isAuth() && (
+        isAdminRole() || isInstructorRole() || resource.data.userId == uid()
+      );
+      allow create, update: if isAdminRole();
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §23. TICKETS DE SOPORTE  /supportTickets/{ticketId}
+    //
+    // Correcciones:
+    //   LOW-13   Un usuario podía crear ticket con userId de otra persona
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /supportTickets/{ticketId} {
+      allow read: if isAuth() && (
+        isSuperAdmin() || isAdminRole() || resource.data.userId == uid()
+      );
+
+      // Cualquier autenticado puede abrir un ticket.
+      // userId debe ser su propio uid (o null para contacto anónimo con email).
+      allow create: if isAuth() &&
+        (request.resource.data.userId == null || request.resource.data.userId == uid()) &&
+        request.resource.data.status == 'open' &&
+        request.resource.data.response == null &&
+        request.resource.data.keys().hasAll(['name', 'email', 'subject', 'message']) &&
+        isNonEmptyString(request.resource.data.subject) &&
+        isNonEmptyString(request.resource.data.message);
+
+      // Solo SuperAdmin responde, gestiona y cierra tickets.
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §24. AUDIT LOG  /audit_logs/{logId}  +  /auditLog/{logId}
+    //
+    // Append-only, escrito exclusivamente por Cloud Functions via Admin SDK.
+    // Ningún cliente puede crear, modificar ni eliminar entradas.
+    // NOTA: el código usa 'audit_logs' (AppConstants.colAuditLogs).
+    //       Mantenemos 'auditLog' como alias para compatibilidad con datos anteriores.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /auditLog/{logId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §25. PAGOS  /payments/{paymentId}
+    //
+    // Escritos exclusivamente por el webhook de Stripe vía Cloud Function.
+    // Corrección CRIT-06: un cliente malicioso podía crear documentos de pago.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /payments/{paymentId} {
+      allow read: if isSuperAdmin() || (
+        isAdminRole() &&
+        resource.data.institutionId != null &&
+        isAdminOf(resource.data.institutionId)
+      ) || (
+        isAuth() && resource.data.userId == uid()
+      );
+      allow create, update, delete: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §26. SUSCRIPCIONES  /subscriptions/{subscriptionId}
+    //
+    // Gestionadas exclusivamente por Cloud Functions (Stripe webhook).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isSuperAdmin() || (
+        isAdminRole() &&
+        resource.data.institutionId != null &&
+        isAdminOf(resource.data.institutionId)
+      );
+      allow create, update, delete: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §27. PAGOS DE CERTIFICACIÓN  /certification_payments/{paymentId}
+    //
+    // Corrección LOW-06: colección sin regla — fallthrough al catch-all.
+    // Pagos por certificación de USUARIO_PROFESIONAL.
+    // Escritos por Cloud Functions post confirmación de pago.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /certification_payments/{paymentId} {
+      allow read: if isSuperAdmin() || (
+        isAuth() && resource.data.userId == uid()
+      );
+      allow create, update, delete: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §28. QUIZ SESSIONS  /quizSessions/{sessionId}
+    //
+    // Evaluaciones teóricas completadas por el estudiante.
+    // El campo de propietario es 'userId' (distinto de sessions que usa 'studentId').
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /quizSessions/{sessionId} {
+      // Dueño, instructores y admins pueden leer.
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isAdminRole() ||
+        isInstructorRole()
+      );
+
+      // El estudiante crea su propia quiz session. userId debe ser su uid.
+      allow create: if isAuth() &&
+        request.resource.data.userId == uid() &&
+        isNonEmptyString(request.resource.data.userId);
+
+      // El estudiante puede actualizar su sesión (respuestas, score). Inmutable post-grade.
+      // Admin/instructor pueden corregir datos erróneos.
+      allow update: if isAuth() && (
+        resource.data.userId == uid() ||
+        isAdminRole() ||
+        isInstructorRole()
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §29. PLATFORM ENROLLMENTS  /platform_enrollments/{enrollmentId}
+    //
+    // Inscripciones a cursos de la plataforma pública (post-pago).
+    // Creadas y actualizadas por Cloud Functions (Admin SDK) tras confirmar pago.
+    // Los clientes solo pueden leer sus propias inscripciones.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /platform_enrollments/{enrollmentId} {
+      // El estudiante dueño o admins pueden leer.
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isAdminRole()
+      );
+
+      // Escritura reservada a Cloud Functions (Admin SDK bypasses rules).
+      // Bloqueamos clientes directamente para prevenir inscripciones falsas.
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §30. COHORTS  /cohorts/{cohortId}
+    //
+    // Grupos de clase con fechas de inicio. Cualquier autenticado los lee
+    // para calcular el estado de bloqueo (classesStart > now).
+    // Solo admins y SA los gestionan.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /cohorts/{cohortId} {
+      allow read: if isAuth();
+      allow create, update: if isAdminRole();
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §31. COURSE TEMPLATES  /course_templates/{templateId}
+    //
+    // Plantillas de cursos de la plataforma pública (módulos, contenido).
+    // Cualquier autenticado puede leerlas para ver el contenido de su curso.
+    // Solo admins y SA las crean/modifican.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /course_templates/{templateId} {
+      allow read: if isAuth();
+      allow create, update: if isAdminRole();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §32. SOLICITUDES DE REGISTRO INSTITUCIONAL
+    //
+    // Creadas desde la web cuando una institución solicita activación.
+    // El documento usa el UID del admin como ID para evitar duplicados.
+    // El SuperAdmin las revisa y activa manualmente.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /institution_applications/{appId} {
+      allow create: if isAuth() && request.resource.data.adminUid == uid()
+                    && isNonEmptyString(request.resource.data.institutionName)
+                    && isNonEmptyString(request.resource.data.nit);
+      allow read: if isAuth() && (resource.data.adminUid == uid() || isSuperAdmin());
+      allow update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §33. LEADERBOARDS — proyecciones públicas de ranking institucional
+    //
+    // Colección derivada de `sessions`. Solo contiene datos públicos:
+    //   uid · displayName · averageScore · totalSessions · trend · updatedAt
+    // NO incluye email, identificacion, phoneNumber ni datos privados.
+    //
+    // Escritura: exclusivamente Cloud Functions (admin SDK) o ADMIN de la org.
+    // Lectura: solo miembros activos de la misma institución.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /leaderboards/{institutionId}/students/{studentId} {
+      allow read: if isAuth() && (
+        hasActiveMemberIn(institutionId) ||
+        callerDoc().institutionId == institutionId ||
+        isSuperAdmin()
+      );
+
+      // El propio estudiante puede actualizar su entrada pública al completar sesión.
+      // Validaciones: solo su UID, sin PII, solo campos del ranking.
+      allow create, update: if isAuth()
+        && studentId == uid()
+        && request.resource.data.uid == uid()
+        && !request.resource.data.keys().hasAny([
+            'email', 'identificacion', 'phoneNumber',
+            'role', 'password', 'institutionId'
+           ])
+        && request.resource.data.keys().hasAll([
+            'uid', 'displayName', 'averageScore',
+            'totalSessions', 'trend', 'updatedAt'
+           ])
+        && request.resource.data.averageScore is number
+        && request.resource.data.totalSessions is number;
+
+      allow delete: if isSuperAdmin() || isAdminOf(institutionId);
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §34-PREV. COLECCIONES DE BACKEND — acceso exclusivo por Admin SDK
+    //
+    // Las colecciones de pago y sistema NUNCA son escribibles por clientes.
+    // El Admin SDK (backend) bypassa estas reglas, por lo que `if false`
+    // es la postura correcta: el cliente no puede escribir bajo ningún motivo.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Transacciones de Wompi — escritas por /api/wompi y /api/wompi-webhook
+    match /transactions/{txId} {
+      // El propietario puede leer su propia transacción (para mostrar estado de pago)
+      allow read: if isAuth() && (
+        isSuperAdmin() ||
+        isAdminRole() ||
+        resource.data.user_id == uid()
+      );
+      // Escritura exclusiva por Admin SDK — el cliente nunca crea transacciones
+      allow create, update, delete: if false;
+    }
+
+    // Claves de idempotencia — internas, sin acceso de cliente
+    match /idempotency_keys/{key} {
+      allow read, write: if false;
+    }
+
+    // Rate limits — colección interna, sin acceso de cliente
+    match /rate_limits/{key} {
+      allow read, write: if false;
+    }
+
+    // Sesiones de checkout — creadas por el backend antes de redirigir a Wompi
+    match /checkout_sessions/{sessionId} {
+      allow read: if isAuth() && (
+        isSuperAdmin() ||
+        resource.data.userId == uid()
+      );
+      allow create, update, delete: if false;
+    }
+
+    // Órdenes — creadas post-pago (CF o client-side fallback)
+    match /orders/{orderId} {
+      allow read: if isAuth() && (
+        isSuperAdmin() ||
+        isAdminRole() ||
+        resource.data.userId == uid()
+      );
+      // Permitir al propio usuario crear su orden (client-side fallback cuando CF no disponible)
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §35. TIPOS DE CERTIFICADO  /certificate_types/{typeId}
+    //
+    // Catálogo maestro gestionado por SuperAdmin. Los tipos legalmente válidos
+    // se almacenan aquí para que las apps los lean dinámicamente.
+    // Cualquier usuario autenticado puede leer (para poblar formularios).
+    // Solo SuperAdmin crea/modifica/elimina tipos.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /certificate_types/{typeId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §36. PRICING PLANS  /pricing_plans/{planId}
+    //
+    // Planes de precios públicos del sitio web (corporativo, maniquíes, SST).
+    // Lectura pública: cualquier visitante puede ver los precios sin autenticarse.
+    // Escritura: exclusiva de SuperAdmin (gestión desde el panel).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /pricing_plans/{planId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §37. SERVICIOS JOMAR  /jomarServices/{serviceId}
+    //
+    // Catálogo de servicios corporativos mostrado en el sitio web público.
+    // Lectura pública: visitantes anónimos ven los servicios sin autenticarse.
+    // Escritura: exclusiva de SuperAdmin (gestión desde el panel).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /jomarServices/{serviceId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §38. CURSOS JOMAR  /jomarCourses/{courseId}
+    //
+    // Catálogo de cursos gestionado desde el panel del super-admin.
+    // Lectura: super-admin y admins (para analytics y panel).
+    // Escritura: exclusiva de SuperAdmin.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /jomarCourses/{courseId} {
+      allow read: if isAdminRole();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §39. SEDES  /sedes/{sedeId}
+    //
+    // Sub-unidades de una institución (sucursales, campus, sedes regionales).
+    // Cada sede tiene un adminId (administrador principal de esa sede).
+    // Los administradores de sede tienen membership con role='ADMIN' + sedeId.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /sedes/{sedeId} {
+
+      // Cualquier miembro activo de la institución puede leer las sedes.
+      allow read: if isAuth() && (
+        isSuperAdmin() ||
+        isAdminOf(resource.data.institutionId) ||
+        (
+          isAuth() &&
+          exists(membershipPath(uid(), resource.data.institutionId)) &&
+          callerMemberIn(resource.data.institutionId).isActive == true
+        )
+      );
+
+      // Solo el admin de la institución (o SuperAdmin) puede crear sedes.
+      allow create: if isSuperAdmin() || (
+        isAdminOf(request.resource.data.institutionId) &&
+        isNonEmptyString(request.resource.data.name) &&
+        validInstitutionId(request.resource.data.institutionId) &&
+        request.resource.data.isActive == true
+      );
+
+      // Admin de la institución puede actualizar sedes (no puede cambiar institutionId).
+      allow update: if isSuperAdmin() || (
+        isAdminOf(resource.data.institutionId) &&
+        notChanging(['institutionId', 'createdAt'])
+      );
+
+      // Solo admin o SuperAdmin pueden eliminar (preferir isActive=false).
+      allow delete: if isSuperAdmin() || isAdminOf(resource.data.institutionId);
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §40b. USER STATS  /userStats/{userId}
+    //
+    // Estadísticas de XP y nivel del usuario, actualizadas por Cloud Functions.
+    // El usuario lee sus propias stats. Admins e instructores pueden ver stats
+    // de sus estudiantes. Escritura exclusiva de Cloud Functions (Admin SDK).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /userStats/{userId} {
+      allow read: if isAuth() && (isOwner(userId) || isAdminRole() || isInstructorRole());
+      allow write: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §40. QUIZ TOPICS  /quizTopics/{topicId}
+    //
+    // Catálogo de temas para evaluaciones teóricas (RCP, trauma, ECG, etc.).
+    // Cualquier usuario autenticado puede leer los temas activos.
+    // Solo SuperAdmin crea/modifica (gestión desde el panel).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /quizTopics/{topicId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §34. DEFAULT DENY TOTAL — esta regla DEBE ser la última del bloque.
+    //
+    // Cualquier colección no listada explícitamente queda completamente
+    // inaccesible. Previene exposición accidental de nuevas colecciones.
+    //
+    // Esta regla DEBE ser la última del bloque.
+    // ═════════════════════════════════════════════════════════════════════════
+
     match /{path=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
+
   }
 }

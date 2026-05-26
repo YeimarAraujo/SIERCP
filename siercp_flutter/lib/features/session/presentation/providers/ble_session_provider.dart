@@ -8,6 +8,9 @@ import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/core/services/audio_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
+import 'package:siercp/core/services/leaderboard_service.dart';
+import 'package:siercp/core/services/firestore_service.dart';
 
 enum SessionMode { training, evaluation }
 
@@ -17,6 +20,7 @@ final rcpEngineProvider = Provider((ref) => RcpEngine.instance);
 
 class BleSessionNotifier extends Notifier<ActiveSessionState> {
   Timer? _timer;
+  Timer? _firestoreTimer;
   StreamSubscription<RcpTelemetry>? _telemetrySub;
   int _lastCount = 0;
 
@@ -39,16 +43,17 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     final bleService = ref.read(bleServiceProvider);
     final engine = ref.read(rcpEngineProvider);
+    final institutionId = ref.read(orgContextProvider).activeOrgId ?? '';
 
     engine.reset();
-    _lastCount =
-        0; // RESET CRÍTICO para que el audio funcione en sesiones subsiguientes
+    _lastCount = 0;
 
     final session = await sessionService.startSession(
       studentId: user.id,
       studentName: user.fullName,
       scenarioId: scenarioId,
       courseId: courseId,
+      institutionId: institutionId,
     );
 
     final audioService = ref.read(audioServiceProvider);
@@ -67,9 +72,33 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
           state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
     });
 
+    // Push métricas en vivo a Firestore cada 2s para el dashboard del instructor
+    _firestoreTimer?.cancel();
+    _firestoreTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _pushLiveMetrics();
+    });
+
     _telemetrySub?.cancel();
     _telemetrySub = bleService.telemetryStream.listen((data) {
       _processBleTelemetry(data, audioService);
+    });
+  }
+
+  void _pushLiveMetrics() {
+    final sessionId = state.session?.id;
+    final liveData = state.liveData;
+    if (sessionId == null ||
+        sessionId.startsWith('offline_') ||
+        sessionId.startsWith('error_') ||
+        liveData.compressionCount == 0) {
+      return;
+    }
+
+    ref
+        .read(firestoreServiceProvider)
+        .updateSessionLiveMetrics(sessionId, liveData.toLiveMap())
+        .catchError((e) {
+      debugPrint('[LiveMetrics] Error al sincronizar: $e');
     });
   }
 
@@ -158,6 +187,27 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     state = state.copyWith(liveData: liveData, depthHistory: history);
   }
 
+  void _updateLeaderboard(double sessionScore) {
+    final user = ref.read(currentUserProvider);
+    final institutionId = ref.read(orgContextProvider).activeOrgId;
+    if (user == null || institutionId == null) return;
+
+    final prevTotal = user.stats?.totalSessions ?? 0;
+    final prevAvg   = user.stats?.averageScore  ?? 0.0;
+    final newTotal  = prevTotal + 1;
+    final newAvg    = ((prevAvg * prevTotal) + sessionScore) / newTotal;
+
+    ref.read(leaderboardServiceProvider).updateEntry(
+      uid:           user.id,
+      institutionId: institutionId,
+      displayName:   user.fullName,
+      averageScore:  newAvg,
+      totalSessions: newTotal,
+    ).catchError((e) {
+      debugPrint('[Leaderboard] Error al actualizar: $e');
+    });
+  }
+
   double _calculateTempScore(RcpEngine engine) {
     if (engine.compresionesTotales == 0) return 0;
     double score = 0;
@@ -169,6 +219,8 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
   Future<({SessionModel session, bool synced})> endSession() async {
     _timer?.cancel();
+    _firestoreTimer?.cancel();
+    _firestoreTimer = null;
     _telemetrySub?.cancel();
 
     final currentSession = state.session;
@@ -238,6 +290,9 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       await sessionService.updateCourseProgressAfterSession(
           currentSession.studentId, metrics);
       state = state.copyWith(session: finished, isConnected: false);
+
+      // Actualizar leaderboard institucional (fire-and-forget, no bloquea UI)
+      _updateLeaderboard(metrics.score);
 
       debugPrint("Sesión guardada profesionalmente: ${finished.id}");
       return (session: finished, synced: true);

@@ -365,17 +365,22 @@ class _RealtimeSessionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final liveMetrics = session.liveMetrics;
     final manikinId = session.manikinId;
+    final hasLiveData = (liveMetrics?.compressionCount ?? 0) > 0;
+
     if (manikinId == null || manikinId.isEmpty) {
       return _DeviceMonitorCard(
         studentName: session.studentName,
         scenarioTitle: session.scenarioTitle,
         deviceId: null,
-        depthMm: 0,
-        ratePerMin: 0,
-        connected: false,
+        depthMm: liveMetrics?.depthMm ?? 0,
+        ratePerMin: liveMetrics?.ratePerMin ?? 0,
+        qualityPct: liveMetrics?.correctPct ?? 0,
+        connected: hasLiveData,
         isDark: isDark,
         index: index,
+        liveMetrics: liveMetrics,
       );
     }
 
@@ -385,17 +390,18 @@ class _RealtimeSessionCard extends ConsumerWidget {
       stream: deviceStream,
       builder: (context, snapshot) {
         final device = snapshot.data;
-        final isConnected = device != null && device.isActive;
+        final deviceConnected = device != null && device.isActive;
         return _DeviceMonitorCard(
           studentName: session.studentName,
           scenarioTitle: session.scenarioTitle,
           deviceId: manikinId,
-          depthMm: device?.profundidadMm ?? 0,
-          ratePerMin: device?.frecuenciaCpm ?? 0,
-          qualityPct: device?.calidadPct ?? 0,
-          connected: isConnected,
+          depthMm: device?.profundidadMm ?? liveMetrics?.depthMm ?? 0,
+          ratePerMin: device?.frecuenciaCpm ?? liveMetrics?.ratePerMin ?? 0,
+          qualityPct: liveMetrics?.correctPct ?? device?.calidadPct ?? 0,
+          connected: deviceConnected || hasLiveData,
           isDark: isDark,
           index: index,
+          liveMetrics: liveMetrics,
         );
       },
     );
@@ -413,6 +419,7 @@ class _DeviceMonitorCard extends StatelessWidget {
   final bool connected;
   final bool isDark;
   final int index;
+  final LiveSessionData? liveMetrics;
 
   const _DeviceMonitorCard({
     required this.studentName,
@@ -424,6 +431,7 @@ class _DeviceMonitorCard extends StatelessWidget {
     required this.connected,
     required this.isDark,
     required this.index,
+    this.liveMetrics,
   });
 
   Color get _qualityColor {
@@ -575,8 +583,14 @@ class _DeviceMonitorCard extends StatelessWidget {
             child: connected
                 ? Column(
                     children: [
-                      // Quality score bar
-                      if (qualityPct > 0) ...[
+                      // ── Live metrics row (score / compressions / quality) ──
+                      if (liveMetrics != null &&
+                          liveMetrics!.compressionCount > 0) ...[
+                        _LiveMetricsRow(
+                            liveMetrics: liveMetrics!, textT: textT),
+                        const SizedBox(height: 14),
+                      ] else if (qualityPct > 0) ...[
+                        // Fallback: barra de calidad del device stream
                         Row(
                           children: [
                             Text('CALIDAD',
@@ -609,7 +623,7 @@ class _DeviceMonitorCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 14),
                       ],
-                      // Gauges row
+                      // ── Gauges row ─────────────────────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -650,7 +664,7 @@ class _DeviceMonitorCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      // Device ID chip
+                      // ── Device ID chip ─────────────────────────────────────
                       if (deviceId != null) ...[
                         const SizedBox(height: 10),
                         Row(
@@ -679,7 +693,7 @@ class _DeviceMonitorCard extends StatelessWidget {
                             size: 18, color: textT.withValues(alpha: 0.3)),
                         const SizedBox(width: 10),
                         Text(
-                          'Esperando conexión del maniquí...',
+                          'Esperando datos del estudiante...',
                           style: TextStyle(
                               color: textT.withValues(alpha: 0.5),
                               fontSize: 12),
@@ -690,6 +704,107 @@ class _DeviceMonitorCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Live metrics row (score / compressions / quality) ───────────────────────
+class _LiveMetricsRow extends StatelessWidget {
+  final LiveSessionData liveMetrics;
+  final Color textT;
+
+  const _LiveMetricsRow({required this.liveMetrics, required this.textT});
+
+  Color _scoreColor(double score) {
+    if (score >= 85) return AppColors.green;
+    if (score >= 70) return AppColors.amber;
+    return AppColors.red;
+  }
+
+  Color _qualColor(double pct) {
+    if (pct >= 70) return AppColors.green;
+    if (pct >= 50) return AppColors.amber;
+    return AppColors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scoreColor = _scoreColor(liveMetrics.sessionScore);
+    final qualColor = _qualColor(liveMetrics.correctPct);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scoreColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scoreColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _MetricCell(
+            value: '${liveMetrics.sessionScore.round()}',
+            unit: 'PTS',
+            color: scoreColor,
+            textT: textT,
+          ),
+          Container(width: 0.5, height: 28, color: textT.withValues(alpha: 0.15)),
+          _MetricCell(
+            value: '${liveMetrics.compressionCount}',
+            unit: 'COMPRES.',
+            color: textT,
+            textT: textT,
+          ),
+          Container(width: 0.5, height: 28, color: textT.withValues(alpha: 0.15)),
+          _MetricCell(
+            value: '${liveMetrics.correctPct.round()}%',
+            unit: 'CALIDAD',
+            color: qualColor,
+            textT: textT,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricCell extends StatelessWidget {
+  final String value;
+  final String unit;
+  final Color color;
+  final Color textT;
+
+  const _MetricCell({
+    required this.value,
+    required this.unit,
+    required this.color,
+    required this.textT,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          unit,
+          style: TextStyle(
+            color: textT.withValues(alpha: 0.6),
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
     );
   }
 }

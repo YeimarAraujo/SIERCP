@@ -11,19 +11,33 @@ class AppConstants {
   //   USUARIO_PROFESIONAL → Usuario con título profesional (sin licencia SST).
   //                  Hasta 10 cursos; paga por certificar estudiantes.
   //   USUARIO     → Antes ESTUDIANTE. Hasta 3 cursos. Funciones básicas.
-  static const String roleSuperAdmin       = 'SUPER_ADMIN';
-  static const String roleAdmin            = 'ADMIN';
-  static const String roleInstructor       = 'INSTRUCTOR';
-  static const String roleUsuarioSST       = 'USUARIO_SST';
+  static const String roleSuperAdmin        = 'SUPER_ADMIN';
+  static const String roleAdmin             = 'ADMIN';
+  static const String roleInstructor        = 'INSTRUCTOR';
+  static const String roleUsuarioSST        = 'USUARIO_SST';
   static const String roleUsuarioProfesional = 'USUARIO_PROFESIONAL';
-  static const String roleUsuario          = 'USUARIO';
+  static const String roleUsuario           = 'USUARIO';
 
   /// @deprecated Usa [roleUsuario]. Conservado para migración.
-  static const String roleStudent          = roleUsuario;
+  static const String roleStudent = roleUsuario;
+
+  /// Roles asignables por un ADMIN dentro de su org (excluye SUPER_ADMIN).
+  /// SuperAdmin usa esta lista para cambios de rol también (excepto SUPER_ADMIN).
+  static const List<String> assignableRoles = [
+    roleAdmin,
+    roleInstructor,
+    roleUsuarioSST,
+    roleUsuarioProfesional,
+    roleUsuario,
+  ];
+
+  /// Roles de administración (pueden gestionar usuarios dentro de su org).
+  static const List<String> adminRoles = [roleSuperAdmin, roleAdmin];
 
   // Límites de cursos creados por rol (Infinity = sin límite en app; limitado por plan)
   static const int courseLimitUsuario    = 3;
   static const int courseLimitUsuarioPro = 10;
+  static const int courseLimitUsuarioSST = 10;
 
   // ── Colecciones Firestore ──────────────────────────────────────────────────
   static const String colUsers                  = 'users';
@@ -31,9 +45,21 @@ class AppConstants {
   static const String colCourses                = 'courses';
   static const String colManikins               = 'manikins';
   static const String colScenarios              = 'scenarios';
+  static const String colGuides                 = 'guides';
+  static const String colInstitutions           = 'institutions';
+  static const String colMemberships            = 'memberships';
   static const String colUserCertificates       = 'user_certificates';
   static const String colCertificationPayments  = 'certification_payments';
   static const String colAuditLogs              = 'audit_logs';
+  static const String colNotifications          = 'notifications';
+  static const String colSupportTickets         = 'supportTickets';
+  static const String colCourseLimits          = 'course_limits';
+
+  // ── Subcol Firestore ───────────────────────────────────────────────────────
+  static const String subColEnrollments  = 'enrollments';
+  static const String subColAttendance   = 'attendance';
+  static const String subColCompressions = 'compressions';
+  static const String subColAlerts       = 'alerts';
 
   // ── Guías AHA 2025 (Adulto) ───────────────────────────────────────────────
   static const double ahaMinDepthMm      = 50.0;

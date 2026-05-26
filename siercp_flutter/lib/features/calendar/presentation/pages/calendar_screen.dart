@@ -72,7 +72,7 @@ final _calendarEventsProvider =
     // Practical sessions
     db
         .collection('sessions')
-        .where('userId', isEqualTo: uid)
+        .where('studentId', isEqualTo: uid)
         .orderBy('startedAt', descending: true)
         .limit(100)
         .get(),
@@ -365,17 +365,21 @@ class _MonthGrid extends StatelessWidget {
       ));
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: GridView.count(
-        crossAxisCount: 7,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 0,
-        childAspectRatio: 1.0,
-        children: cells,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = constraints.maxWidth / 7;
+        final cellHeight = cellWidth.clamp(0.0, 46.0);
+        final ratio = cellWidth / cellHeight;
+        return GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 3,
+          crossAxisSpacing: 0,
+          childAspectRatio: ratio,
+          children: cells,
+        );
+      },
     );
   }
 }

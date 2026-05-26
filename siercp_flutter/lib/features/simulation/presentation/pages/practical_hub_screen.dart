@@ -95,16 +95,6 @@ class PracticalHubScreen extends ConsumerWidget {
                       enabled: true,
                       onTap: () => context.push('/scenarios'),
                     ),
-                    const SizedBox(height: 16),
-                    _PracticeCard(
-                      icon: Icons.assignment_turned_in_outlined,
-                      title: 'Evaluaciones Prácticas',
-                      description:
-                          '10 casos clínicos interactivos: RCP, DEA, OVACE, sobredosis y más. Sin dispositivo requerido.',
-                      color: AppColors.brand,
-                      enabled: true,
-                      onTap: () => context.push('/simulation/practical/evaluations'),
-                    ),
                   ],
                 ),
               ),

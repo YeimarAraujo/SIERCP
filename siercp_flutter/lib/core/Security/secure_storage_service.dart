@@ -14,11 +14,12 @@ final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
 
 // ── Keys ─────────────────────────────────────────────────────────────────────
 class SecureKeys {
-  static const authToken = 'auth_token';
+  static const authToken    = 'auth_token';
   static const refreshToken = 'refresh_token';
-  static const userPin = 'user_pin';
+  static const userPin      = 'user_pin';
   static const biometricKey = 'biometric_key';
-  static const lastUserId = 'last_user_id';
+  static const lastUserId   = 'last_user_id';
+  static const lastOrgId    = 'last_org_id';   // org activa persistida entre sesiones
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

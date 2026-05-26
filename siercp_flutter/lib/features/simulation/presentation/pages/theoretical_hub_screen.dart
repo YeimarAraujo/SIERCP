@@ -30,8 +30,7 @@ class TheoreticalHubScreen extends ConsumerWidget {
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18,
-                        color: theme.textTheme.bodyLarge?.color),
+                        size: 18, color: theme.textTheme.bodyLarge?.color),
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -101,8 +100,8 @@ class _EmptyTopics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textS =
-        Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textS = Theme.of(context).textTheme.bodyMedium?.color ??
+        AppColors.textSecondary;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -180,8 +179,7 @@ class _TopicCard extends StatelessWidget {
           ? () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(
                   loc.quizPlanRequired(topic.requiresPlan ?? ''),
-                  style: TextStyle(
-                      color: theme.colorScheme.onInverseSurface),
+                  style: TextStyle(color: theme.colorScheme.onInverseSurface),
                 ),
                 backgroundColor: theme.colorScheme.inverseSurface,
               ))
@@ -206,8 +204,7 @@ class _TopicCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: locked
-                    ? Icon(Icons.lock_outline_rounded,
-                        color: textT, size: 22)
+                    ? Icon(Icons.lock_outline_rounded, color: textT, size: 22)
                     : Icon(_categoryIcon, color: color, size: 24),
               ),
               const SizedBox(width: 14),

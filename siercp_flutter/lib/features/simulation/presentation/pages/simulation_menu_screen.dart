@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/theme/theme.dart';
-import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
-import 'package:siercp/features/simulation/data/simulation_service.dart';
+import 'package:siercp/core/widgets/xp_strip.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
 class SimulationMenuScreen extends ConsumerWidget {
@@ -15,15 +14,6 @@ class SimulationMenuScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final user = ref.watch(currentUserProvider);
-    final statsAsync = user != null
-        ? ref.watch(userStatsProvider(user.id))
-        : const AsyncData<Map<String, dynamic>>({});
-
-    final stats = statsAsync.valueOrNull ?? {};
-    final xp = (stats['xp'] as num?)?.toInt() ?? 0;
-    final level = (stats['level'] as num?)?.toInt() ?? 1;
-    final quizCount = (stats['totalQuizSessions'] as num?)?.toInt() ?? 0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -55,21 +45,35 @@ class SimulationMenuScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // XP / level strip
-            _XpStrip(xp: xp, level: level, quizCount: quizCount),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: XpStrip(),
+            ),
 
             const SizedBox(height: 20),
 
             Expanded(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
+                    // _MenuCard(
+                    //   icon: Icons.quiz_outlined,
+                    //   title: 'Quiz AHA',
+                    //   description:
+                    //       'Evaluaciones teóricas por temas: RCP, DEA, OVACE, ECG y más.',
+                    //   color: AppColors.brand,
+                    //   onTap: () => context.push('/simulation/theoretical'),
+                    // ),
+                    // const SizedBox(height: 16),
                     _MenuCard(
-                      icon: Icons.psychology_outlined,
-                      title: loc.theoreticalEval,
-                      description: loc.theoreticalEvalDesc,
-                      color: AppColors.brand,
-                      onTap: () => context.push('/simulation/theoretical'),
+                      icon: Icons.cases_outlined,
+                      title: 'Evaluacion teóricas',
+                      description:
+                          'Evaluaciones teóricas por temas: RCP, DEA, OVACE, ECG y más.',
+                      color: AppColors.accent,
+                      onTap: () =>
+                          context.push('/simulation/practical/evaluations'),
                     ),
                     const SizedBox(height: 16),
                     _MenuCard(
@@ -79,6 +83,7 @@ class SimulationMenuScreen extends ConsumerWidget {
                       color: AppColors.red,
                       onTap: () => context.push('/simulation/practical'),
                     ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -86,149 +91,6 @@ class SimulationMenuScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _XpStrip extends StatelessWidget {
-  final int xp;
-  final int level;
-  final int quizCount;
-
-  const _XpStrip({
-    required this.xp,
-    required this.level,
-    required this.quizCount,
-  });
-
-  static const _thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
-
-  double get _levelProgress {
-    if (level >= _thresholds.length) return 1.0;
-    final current = _thresholds[level - 1];
-    final next = _thresholds[level];
-    if (next == current) return 1.0;
-    return ((xp - current) / (next - current)).clamp(0.0, 1.0);
-  }
-
-  int get _xpToNextLevel {
-    if (level >= _thresholds.length) return 0;
-    return _thresholds[level] - xp;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final cardBg = theme.colorScheme.surface;
-    final border = theme.colorScheme.outline;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          border: Border.all(color: border, width: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: isDark ? null : AppShadows.card(false),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.brand.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$level',
-                      style: const TextStyle(
-                        color: AppColors.brand,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Nivel $level',
-                              style: TextStyle(
-                                  color: textP,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
-                          Text('$xp XP',
-                              style: const TextStyle(
-                                  color: AppColors.brand,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _levelProgress,
-                          minHeight: 4,
-                          backgroundColor:
-                              AppColors.brand.withValues(alpha: 0.12),
-                          valueColor: const AlwaysStoppedAnimation(AppColors.brand),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _StatChip(
-                    icon: Icons.quiz_outlined,
-                    label: '$quizCount evaluaciones'),
-                const SizedBox(width: 12),
-                if (_xpToNextLevel > 0)
-                  _StatChip(
-                      icon: Icons.trending_up_rounded,
-                      label: '$_xpToNextLevel XP para nivel ${level + 1}'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _StatChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final textT = Theme.of(context).textTheme.bodySmall?.color ??
-        AppColors.textTertiary;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: textT),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: textT, fontSize: 10)),
-      ],
     );
   }
 }

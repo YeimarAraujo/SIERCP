@@ -29,7 +29,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDuNfQy-lhnKo_0-VjwxAMaXEiwGOEog6E',
+    apiKey: 'AIzaSyCF0Jv68Lq12yRnwEDGuxHaESViD6p_NzI',
     appId: '1:153485090858:web:1ef9810ca0e4a2d3aba353',
     messagingSenderId: '153485090858',
     projectId: 'siercp',
@@ -39,7 +39,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCa-HJ5aUNGmRaJs80fhyYjHykJbR0X5l8',
+    apiKey: 'AIzaSyDlAVO9Q-IMO_HjnkwGGjmub-zEOPgfTAI',
     appId: '1:153485090858:android:f3a38d0d69a43e9eaba353',
     messagingSenderId: '153485090858',
     projectId: 'siercp',
@@ -47,7 +47,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCko1zxXGCrMd4gtVLn_XpvA4Rgwn1GpVQ',
+    apiKey: 'AIzaSyAp9H6i-Jy4HSZrLAJ6-UD4NddzqCudJWE',
     appId: '1:153485090858:ios:5b6ad2b610661441aba353',
     messagingSenderId: '153485090858',
     projectId: 'siercp',
@@ -65,7 +65,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDuNfQy-lhnKo_0-VjwxAMaXEiwGOEog6E',
+    apiKey: 'AIzaSyCF0Jv68Lq12yRnwEDGuxHaESViD6p_NzI',
     appId: '1:153485090858:web:27ebf825ac55f41aaba353',
     messagingSenderId: '153485090858',
     projectId: 'siercp',

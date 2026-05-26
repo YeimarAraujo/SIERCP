@@ -82,6 +82,7 @@ class UserModel {
 
   final String? avatarUrl;
   final String? identificacion;
+  final String? phoneNumber;
   final bool isActive;
   final DateTime? lastActive;
   final bool isOnline;
@@ -94,6 +95,9 @@ class UserModel {
   /// Certificate verification tier.
   final CertVerificationStatus certVerification;
 
+  /// Account lifecycle status. 'PENDING' = waiting for SuperAdmin approval.
+  final String? accountStatus;
+
   const UserModel({
     required this.id,
     required this.email,
@@ -102,6 +106,7 @@ class UserModel {
     required this.role,
     this.avatarUrl,
     this.identificacion,
+    this.phoneNumber,
     this.isActive = true,
     this.lastActive,
     this.isOnline = false,
@@ -109,6 +114,7 @@ class UserModel {
     this.memberships,
     this.coursesCreated = 0,
     this.certVerification = CertVerificationStatus.none,
+    this.accountStatus,
   });
 
   UserModel copyWith({
@@ -119,6 +125,7 @@ class UserModel {
     String? role,
     String? avatarUrl,
     String? identificacion,
+    String? phoneNumber,
     bool? isActive,
     DateTime? lastActive,
     bool? isOnline,
@@ -126,6 +133,7 @@ class UserModel {
     List<String>? memberships,
     int? coursesCreated,
     CertVerificationStatus? certVerification,
+    String? accountStatus,
   }) =>
       UserModel(
         id: id ?? this.id,
@@ -135,6 +143,7 @@ class UserModel {
         role: role ?? this.role,
         avatarUrl: avatarUrl ?? this.avatarUrl,
         identificacion: identificacion ?? this.identificacion,
+        phoneNumber: phoneNumber ?? this.phoneNumber,
         isActive: isActive ?? this.isActive,
         lastActive: lastActive ?? this.lastActive,
         isOnline: isOnline ?? this.isOnline,
@@ -142,6 +151,7 @@ class UserModel {
         memberships: memberships ?? this.memberships,
         coursesCreated: coursesCreated ?? this.coursesCreated,
         certVerification: certVerification ?? this.certVerification,
+        accountStatus: accountStatus ?? this.accountStatus,
       );
 
   // ── Display helpers ──────────────────────────────────────────────────────
@@ -211,6 +221,7 @@ class UserModel {
       role: d['role'] ?? AppConstants.roleUsuario,
       avatarUrl: d['avatarUrl'],
       identificacion: d['identificacion'],
+      phoneNumber: d['phoneNumber'],
       isActive: d['isActive'] ?? true,
       lastActive: (d['lastActive'] as Timestamp?)?.toDate(),
       isOnline: d['isOnline'] ?? false,
@@ -220,6 +231,7 @@ class UserModel {
       coursesCreated: (d['coursesCreated'] as num?)?.toInt() ?? 0,
       certVerification:
           CertVerificationStatusExt.fromString(d['certVerification']),
+      accountStatus: d['status'] as String?,
     );
   }
 
@@ -231,7 +243,9 @@ class UserModel {
         'role': role,
         'avatarUrl': avatarUrl,
         'identificacion': identificacion,
+        'phoneNumber': phoneNumber,
         'isActive': isActive,
+        if (accountStatus != null) 'status': accountStatus,
         'lastActive':
             lastActive != null ? Timestamp.fromDate(lastActive!) : null,
         'isOnline': isOnline,

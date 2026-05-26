@@ -11,56 +11,156 @@ import 'package:uuid/uuid.dart';
 
 // ── Certificate type metadata ─────────────────────────────────────────────────
 
-class _CertMeta {
+class CertMeta {
   final String value;
   final String label;
   final String issuer;
   final String description;
   final IconData icon;
-  const _CertMeta({
+  const CertMeta({
     required this.value,
     required this.label,
     required this.issuer,
     required this.description,
     required this.icon,
   });
+
+  /// Construye desde un documento Firestore de la colección certificate_types.
+  factory CertMeta.fromFirestore(Map<String, dynamic> data, IconData fallbackIcon) {
+    return CertMeta(
+      value:       data['value']       as String? ?? '',
+      label:       data['label']       as String? ?? '',
+      issuer:      data['issuer']      as String? ?? '',
+      description: data['description'] as String? ?? '',
+      icon:        fallbackIcon,
+    );
+  }
 }
 
-const _certTypes = [
-  _CertMeta(
-    value: 'SST_LICENCIA',
-    label: 'Licencia SST',
-    issuer: 'Ministerio de Salud y Protección Social',
-    description: 'Licencia SST del Ministerio de Salud. '
-        'Habilita solicitud de Instructor CON licencia SST y acceso a guías SST. '
-        'Activa el nivel USUARIO_SST.',
-    icon: Icons.health_and_safety_rounded,
-  ),
-  _CertMeta(
-    value: 'PROFESIONAL',
-    label: 'Título Profesional',
-    issuer: 'Ministerio de Educación Nacional',
-    description: 'Diploma o acta de grado universitario. '
-        'Habilita solicitud de Instructor SIN licencia SST. '
-        'Activa el nivel USUARIO_PROFESIONAL (hasta 10 cursos).',
-    icon: Icons.school_rounded,
-  ),
-  _CertMeta(
-    value: 'AHA',
-    label: 'Certificación AHA',
-    issuer: 'American Heart Association',
-    description: 'Certificado BLS, ACLS o PALS vigente de la AHA. '
-        'Complementa la solicitud de instructor.',
+/// Tipos canónicos colombianos de certificado.
+/// Fuentes: Resolución 0312/2019 (SST), Ley 1562/2012, normativas AHA/MinSalud.
+/// Esta lista es el FALLBACK cuando la colección Firestore está vacía.
+/// El SA puede añadir o desactivar tipos desde la consola Firestore
+/// o desde el panel SuperAdmin → certificate_types.
+const _kCertTypesFallback = [
+  // ── Certificaciones AHA ──────────────────────────────────────────────────
+  CertMeta(
+    value:       'BLS_AHA',
+    label:       'BLS Provider AHA',
+    issuer:      'American Heart Association',
+    description: 'Soporte Vital Básico (BLS) vigente — AHA. '
+        'Certificación más solicitada en empresas y hospitales Colombia.',
     icon: Icons.favorite_rounded,
   ),
-  _CertMeta(
-    value: 'OTRO',
-    label: 'Otro certificado',
-    issuer: 'Otra entidad',
-    description: 'Cualquier otro certificado de entidad reconocida que respalde tu perfil profesional.',
+  CertMeta(
+    value:       'ACLS_AHA',
+    label:       'ACLS Provider AHA',
+    issuer:      'American Heart Association',
+    description: 'Soporte Cardiovascular Avanzado (ACLS). '
+        'Requerido en unidades de cuidado intensivo y urgencias.',
+    icon: Icons.monitor_heart_rounded,
+  ),
+  CertMeta(
+    value:       'PALS_AHA',
+    label:       'PALS AHA',
+    issuer:      'American Heart Association',
+    description: 'Soporte Vital Pediátrico Avanzado (PALS). '
+        'Requerido en pediatría y urgencias pediátricas.',
+    icon: Icons.child_care_rounded,
+  ),
+  CertMeta(
+    value:       'INSTRUCTOR_BLS',
+    label:       'Instructor BLS / SVBS',
+    issuer:      'American Heart Association / MinSalud',
+    description: 'Certificación como instructor de BLS o SVBS. '
+        'Habilita para dictar cursos avalados por AHA o MinSalud.',
+    icon: Icons.school_rounded,
+  ),
+  CertMeta(
+    value:       'INSTRUCTOR_ACLS',
+    label:       'Instructor ACLS',
+    issuer:      'American Heart Association',
+    description: 'Certificación como instructor de ACLS. '
+        'Requerido para centros de entrenamiento AHA.',
+    icon: Icons.workspace_premium_rounded,
+  ),
+  CertMeta(
+    value:       'INSTRUCTOR_PALS',
+    label:       'Instructor PALS',
+    issuer:      'American Heart Association',
+    description: 'Certificación como instructor de PALS.',
+    icon: Icons.workspace_premium_rounded,
+  ),
+  // ── Certificaciones nacionales Colombia ──────────────────────────────────
+  CertMeta(
+    value:       'SVBS',
+    label:       'SVBS — Soporte Vital Básico',
+    issuer:      'Ministerio de Salud y Protección Social',
+    description: 'Soporte Vital Básico según lineamientos MinSalud Colombia. '
+        'Decreto 1072/2015 y Resolución 8430/1993.',
+    icon: Icons.local_hospital_rounded,
+  ),
+  CertMeta(
+    value:       'PRIMEROS_AUXILIOS',
+    label:       'Primeros Auxilios',
+    issuer:      'Ministerio de Salud / Cruz Roja / Defensa Civil',
+    description: 'Certificado de Primeros Auxilios básicos. '
+        'Obligatorio según Decreto 1072/2015 para brigadas SST.',
+    icon: Icons.medical_services_rounded,
+  ),
+  CertMeta(
+    value:       'SST_LICENCIA',
+    label:       'Licencia SST',
+    issuer:      'Ministerio de Salud y Protección Social',
+    description: 'Licencia en Seguridad y Salud en el Trabajo. '
+        'Resolución 0312/2019, Ley 1562/2012. '
+        'Activa plan SST Expert y rol USUARIO_SST.',
+    icon: Icons.health_and_safety_rounded,
+  ),
+  CertMeta(
+    value:       'TITULO_PROFESIONAL',
+    label:       'Título Profesional',
+    issuer:      'Ministerio de Educación Nacional',
+    description: 'Diploma o acta de grado universitario en área de salud. '
+        'Habilita instructor sin licencia SST. Activa USUARIO_PROFESIONAL.',
+    icon: Icons.school_outlined,
+  ),
+  // ── Otros ────────────────────────────────────────────────────────────────
+  CertMeta(
+    value:       'OTRO',
+    label:       'Otro certificado',
+    issuer:      'Otra entidad reconocida',
+    description: 'Cualquier otro certificado de entidad reconocida '
+        'que respalde el perfil profesional del solicitante.',
     icon: Icons.badge_rounded,
   ),
 ];
+
+// ── Provider: carga tipos desde Firestore; usa fallback si la colección está vacía ──
+
+final certificateTypesProvider = FutureProvider<List<CertMeta>>((ref) async {
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('certificate_types')
+        .orderBy('order', descending: false)
+        .get()
+        .timeout(const Duration(seconds: 5));
+
+    if (snap.docs.isEmpty) return _kCertTypesFallback;
+
+    return snap.docs.map((doc) {
+      final data = doc.data();
+      // Mapear el iconCode guardado en Firestore a IconData
+      final iconCode = data['iconCode'] as int?;
+      final icon     = iconCode != null
+          ? IconData(iconCode, fontFamily: 'MaterialIcons')
+          : Icons.badge_rounded;
+      return CertMeta.fromFirestore(data, icon);
+    }).toList();
+  } catch (_) {
+    return _kCertTypesFallback;
+  }
+});
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -114,7 +214,7 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
     super.initState();
     _loadCertificates();
     // Pre-fill issuer from selected type
-    _issuerCtrl.text = _certTypes.firstWhere((t) => t.value == _selectedType).issuer;
+    _issuerCtrl.text = _kCertTypesFallback.firstWhere((t) => t.value == _selectedType).issuer;
   }
 
   @override
@@ -328,7 +428,7 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
                     // Type selector
                     Text('Tipo de certificado', style: TextStyle(color: subColor, fontSize: 12, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
-                    ...(_certTypes.map((t) => Padding(
+                    ...(_kCertTypesFallback.map((t) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: GestureDetector(
                         onTap: () => setState(() {
@@ -554,9 +654,9 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
             else
               ...(_certs.map((cert) {
                 final status = cert['verificationStatus'] as String? ?? 'NONE';
-                final typeMeta = _certTypes.firstWhere(
+                final typeMeta = _kCertTypesFallback.firstWhere(
                   (t) => t.value == cert['type'],
-                  orElse: () => _certTypes.last,
+                  orElse: () => _kCertTypesFallback.last,
                 );
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -27,23 +28,41 @@ class CoursesScreen extends ConsumerStatefulWidget {
 class _CoursesScreenState extends ConsumerState<CoursesScreen> {
   // ─── Create course bottom sheet ─────────────────────────────────────────────
   void _showCreateDialog() {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final certCtrl = TextEditingController();
+    final nameCtrl   = TextEditingController();
+    final descCtrl   = TextEditingController();
+    final certCtrl   = TextEditingController();
+    final cedulaCtrl = TextEditingController();
+
+    // Membresías del instructor (INSTRUCTOR o ADMIN) para el picker de org.
+    final orgCtx   = ref.read(orgContextProvider);
+    final allMembs = orgCtx.allMemberships
+        .where((m) => m.role == 'INSTRUCTOR' || m.role == 'ADMIN')
+        .toList();
+    // Pre-seleccionar la org activa si existe, o la primera disponible.
+    final preselect = orgCtx.activeOrgId ?? (allMembs.isNotEmpty ? allMembs.first.institutionId : null);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final loc = AppLocalizations.of(ctx)!;
-        final theme = Theme.of(ctx);
-        final isDark = theme.brightness == Brightness.dark;
+        final loc        = AppLocalizations.of(ctx)!;
+        final theme      = Theme.of(ctx);
+        final isDark     = theme.brightness == Brightness.dark;
         final currentUser = ref.read(currentUserProvider);
         final coursesCreated = currentUser?.coursesCreated ?? 0;
-        final isUsuario = currentUser?.isUsuario ?? false;
-        bool loading = false;
+        final isUsuario  = currentUser?.isUsuario ?? false;
+
+        bool   loading       = false;
+        bool   searchingUser = false;
         String? errorMsg;
+        String? selectedOrgId = preselect;
+
+        // Lista de alumnos pendientes de inscripción: {id, name, cedula}
+        final List<Map<String, String>> pendingStudents = [];
+        // Preview del alumno encontrado
+        Map<String, String>? foundStudent;
+        String? searchError;
 
         return StatefulBuilder(
           builder: (ctx, setSt) {
@@ -52,36 +71,34 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 color: theme.colorScheme.surface,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle bar
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  // Header gradient
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF1800AD), Color(0xFF6d4aff)],
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Row(
-                      children: [
+                    // Header gradient
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF1800AD), Color(0xFF6d4aff)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(children: [
                         Container(
                           width: 44,
                           height: 44,
@@ -94,54 +111,73 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(loc.createCourseTitle,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  )),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Configura el nuevo curso de entrenamiento',
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(loc.createCourseTitle,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 2),
+                            Text('Configura el nuevo curso de entrenamiento',
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
+                                    color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
+                          ]),
                         ),
                         if (isUsuario)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             ),
-                            child: Text(
-                              '$coursesCreated/3',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                            child: Text('$coursesCreated/3',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
                           ),
-                      ],
+                      ]),
                     ),
-                  ),
-                  // Form fields
-                  Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Column(
-                      children: [
+                    // ── Picker de org (solo si tiene 2+ orgs con rol instructor/admin) ──
+                    if (allMembs.length > 1) ...[
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            const Icon(Icons.business_rounded, size: 14, color: AppColors.brand),
+                            const SizedBox(width: 6),
+                            Text('Organización del curso',
+                                style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            // ignore: deprecated_member_use
+                            value: selectedOrgId,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.apartment_rounded, size: 18),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.4))),
+                              filled: true,
+                              fillColor: isDark
+                                  ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                                  : const Color(0xFFF8FAFC),
+                            ),
+                            items: allMembs.map((m) => DropdownMenuItem(
+                              value: m.institutionId,
+                              child: Text(m.institutionId, overflow: TextOverflow.ellipsis),
+                            )).toList(),
+                            onChanged: (v) => setSt(() => selectedOrgId = v),
+                          ),
+                        ]),
+                      ),
+                    ],
+                    // ── Campos del curso ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Column(children: [
                         _SheetInput(
                           controller: nameCtrl,
                           label: loc.courseNameLabel,
@@ -169,50 +205,211 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                           isDark: isDark,
                           capitalization: TextCapitalization.words,
                         ),
-                        if (errorMsg != null) ...[
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.red.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: AppColors.red.withValues(alpha: 0.2)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.error_outline,
-                                    color: AppColors.red.withValues(alpha: 0.8),
-                                    size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(errorMsg!,
-                                      style: TextStyle(
-                                          color: AppColors.red
-                                              .withValues(alpha: 0.9),
-                                          fontSize: 12)),
-                                ),
-                              ],
+                      ]),
+                    ),
+                    // ── Sección: Inscribir alumnos por cédula ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Divider(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                        const SizedBox(height: 4),
+                        Row(children: [
+                          const Icon(Icons.group_add_rounded, size: 16, color: AppColors.brand),
+                          const SizedBox(width: 8),
+                          Text('Alumnos (opcional)',
+                              style: TextStyle(
+                                  color: theme.textTheme.bodyLarge?.color,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 8),
+                          Text('Se inscriben al crear el curso',
+                              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 10)),
+                        ]),
+                        const SizedBox(height: 10),
+                        // Buscador por cédula
+                        Row(children: [
+                          Expanded(
+                            child: TextField(
+                              controller: cedulaCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Número de identificación',
+                                hintText: 'Cédula del alumno',
+                                prefixIcon: const Icon(Icons.badge_outlined, size: 18),
+                                isDense: true,
+                                filled: true,
+                                fillColor: isDark
+                                    ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                                    : const Color(0xFFF8FAFC),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.4))),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.25))),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: AppColors.brand, width: 1.5)),
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 46,
+                            child: ElevatedButton(
+                              onPressed: searchingUser
+                                  ? null
+                                  : () async {
+                                      final cedula = cedulaCtrl.text.trim();
+                                      if (cedula.isEmpty) return;
+                                      if (pendingStudents.any((s) => s['cedula'] == cedula)) {
+                                        setSt(() => searchError = 'Ya fue agregado');
+                                        return;
+                                      }
+                                      setSt(() {
+                                        searchingUser = true;
+                                        searchError   = null;
+                                        foundStudent  = null;
+                                      });
+                                      try {
+                                        final u = await ref
+                                            .read(adminServiceProvider)
+                                            .findUserByCedula(cedula);
+                                        if (u == null) {
+                                          setSt(() {
+                                            searchError   = 'No se encontró usuario con esa cédula';
+                                            searchingUser = false;
+                                          });
+                                        } else {
+                                          setSt(() {
+                                            foundStudent  = {
+                                              'id':     u.id,
+                                              'name':   u.fullName,
+                                              'cedula': cedula,
+                                            };
+                                            searchingUser = false;
+                                          });
+                                        }
+                                      } catch (_) {
+                                        setSt(() {
+                                          searchError   = 'Error al buscar el usuario';
+                                          searchingUser = false;
+                                        });
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.brand,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: searchingUser
+                                  ? const SizedBox(width: 18, height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.search_rounded, size: 20),
+                            ),
+                          ),
+                        ]),
+                        // Preview del alumno encontrado
+                        if (foundStudent != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.green.withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.green.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.person_rounded, color: AppColors.green, size: 18),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(foundStudent!['name']!,
+                                      style: const TextStyle(
+                                          color: AppColors.green, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  Text('Cédula: ${foundStudent!['cedula']!}',
+                                      style: TextStyle(
+                                          color: theme.textTheme.bodySmall?.color, fontSize: 11)),
+                                ]),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  setSt(() {
+                                    pendingStudents.add(foundStudent!);
+                                    foundStudent = null;
+                                    cedulaCtrl.clear();
+                                  });
+                                },
+                                style: TextButton.styleFrom(foregroundColor: AppColors.green),
+                                child: const Text('Agregar', style: TextStyle(fontSize: 12)),
+                              ),
+                            ]),
+                          ),
                         ],
-                      ],
+                        if (searchError != null) ...[
+                          const SizedBox(height: 6),
+                          Text(searchError!,
+                              style: const TextStyle(color: AppColors.red, fontSize: 11)),
+                        ],
+                        // Lista de alumnos pendientes
+                        if (pendingStudents.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ...pendingStudents.map((s) => Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.brand.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.brand.withValues(alpha: 0.15)),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.brand),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(s['name']!,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                              ),
+                              Text(s['cedula']!,
+                                  style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 10)),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => setSt(() => pendingStudents.remove(s)),
+                                child: const Icon(Icons.close_rounded, size: 14, color: AppColors.red),
+                              ),
+                            ]),
+                          )),
+                        ],
+                      ]),
                     ),
-                  ),
-                  // Actions
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                    child: Row(
-                      children: [
+                    // ── Mensaje de error ──
+                    if (errorMsg != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.red.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.error_outline, color: AppColors.red.withValues(alpha: 0.8), size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(errorMsg!,
+                                  style: TextStyle(color: AppColors.red.withValues(alpha: 0.9), fontSize: 12)),
+                            ),
+                          ]),
+                        ),
+                      ),
+                    // ── Botones ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                      child: Row(children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(ctx),
                             style: OutlinedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text(loc.cancelBtn),
                           ),
@@ -226,82 +423,84 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                 : () async {
                                     final name = nameCtrl.text.trim();
                                     if (name.isEmpty) {
-                                      setSt(() => errorMsg =
-                                          'El nombre del curso es requerido');
+                                      setSt(() => errorMsg = 'El nombre del curso es requerido');
                                       return;
                                     }
-                                    setSt(() {
-                                      loading = true;
-                                      errorMsg = null;
-                                    });
+                                    // Los instructores/admins DEBEN tener una org seleccionada.
+                                    if ((currentUser?.isInstructor == true || currentUser?.isAdmin == true) &&
+                                        selectedOrgId == null) {
+                                      setSt(() => errorMsg = 'Selecciona la organización del curso');
+                                      return;
+                                    }
+                                    setSt(() { loading = true; errorMsg = null; });
+                                    // Capturar navigator y messenger antes del await
+                                    final nav       = Navigator.of(ctx);
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    final enrolled  = List<Map<String, String>>.from(pendingStudents);
                                     try {
-                                      final user =
-                                          ref.read(currentUserProvider);
-                                      await ref
+                                      final courseId = await ref
                                           .read(sessionServiceProvider)
                                           .createCourse(
-                                            name: name,
-                                            description: descCtrl.text.trim(),
-                                            instructorId: user?.id ?? '',
-                                            instructorName:
-                                                user?.fullName ?? '',
+                                            name:          name,
+                                            description:   descCtrl.text.trim(),
+                                            instructorId:  currentUser?.id ?? '',
+                                            instructorName: currentUser?.fullName ?? '',
+                                            institutionId: selectedOrgId,
                                           );
+                                      // Inscribir alumnos pendientes
+                                      for (final s in enrolled) {
+                                        try {
+                                          await ref
+                                              .read(adminServiceProvider)
+                                              .enrollStudentByCedulaDirect(
+                                                courseId:     courseId,
+                                                cedula:       s['cedula']!,
+                                                instructorId: currentUser?.id ?? '',
+                                              );
+                                        } catch (_) {
+                                          // No cancelar la creación si falla una inscripción individual
+                                        }
+                                      }
                                       if (mounted) {
-                                        Navigator.pop(ctx);
+                                        nav.pop();
                                         ref.invalidate(coursesProvider);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
+                                        final msg = enrolled.isEmpty
+                                            ? loc.courseCreatedSuccess
+                                            : '${loc.courseCreatedSuccess} · ${enrolled.length} alumno(s) inscritos';
+                                        messenger.showSnackBar(SnackBar(
                                           content: Row(children: [
-                                            const Icon(
-                                                Icons.check_circle_outline,
-                                                color: Colors.white,
-                                                size: 16),
+                                            const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
                                             const SizedBox(width: 8),
-                                            Text(loc.courseCreatedSuccess),
+                                            Expanded(child: Text(msg)),
                                           ]),
                                           backgroundColor: AppColors.green,
                                         ));
                                       }
                                     } catch (e) {
-                                      setSt(() {
-                                        loading = false;
-                                        errorMsg = e.toString();
-                                      });
+                                      setSt(() { loading = false; errorMsg = e.toString(); });
                                     }
                                   },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brand,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white),
-                                  )
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.add_circle_outline_rounded,
-                                          size: 16),
-                                      const SizedBox(width: 8),
-                                      Text(loc.createBtn,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
-                                    ],
-                                  ),
+                                ? const SizedBox(width: 18, height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    const Icon(Icons.add_circle_outline_rounded, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(loc.createBtn,
+                                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  ]),
                           ),
                         ),
-                      ],
+                      ]),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -367,6 +566,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                     ? null
                     : () async {
                         setSt(() => loading = true);
+                        final nav       = Navigator.of(ctx);
+                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           final user = ref.read(currentUserProvider);
                           await ref
@@ -377,9 +578,9 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                 instructorId: user?.id ?? '',
                               );
                           if (mounted) {
-                            Navigator.pop(ctx);
+                            nav.pop();
                             ref.invalidate(coursesProvider);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Row(children: [
                                   const Icon(Icons.check_circle_outline,
@@ -641,6 +842,10 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     if (code.isEmpty) return;
     setSt(() => setLoading(true));
 
+    final loc       = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final nav       = Navigator.of(ctx);
+
     try {
       final user = ref.read(currentUserProvider);
       await ref.read(sessionServiceProvider).joinCourse(
@@ -651,10 +856,9 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             identificacion: user?.identificacion,
           );
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        Navigator.pop(ctx);
+        nav.pop();
         ref.invalidate(coursesProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Row(children: [
               const Icon(Icons.check_circle_outline,
@@ -670,8 +874,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
       debugPrint('❌ ERROR joinCourse: $e');
       setSt(() => setLoading(false));
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('${loc.joinErrorInvalidCode} ($e)'),
             backgroundColor: AppColors.red.withValues(alpha: 0.9),
