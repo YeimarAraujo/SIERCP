@@ -17,6 +17,34 @@ const db = admin.firestore();
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Actualiza o crea la entrada del leaderboard para un estudiante.
+// Debe llamarse SOLO cuando el usuario tiene una institución real
+// (institutionId !== uid).
+async function updateLeaderboardEntry(
+  uid: string,
+  institutionId: string,
+  displayName: string,
+  avgScore: number,
+  totalSessions: number
+): Promise<void> {
+  const trend: "up" | "down" | "minus" =
+    avgScore >= 85 ? "up" : avgScore >= 70 ? "minus" : "down";
+
+  await db
+    .doc(`leaderboards/${institutionId}/students/${uid}`)
+    .set(
+      {
+        uid,
+        displayName,
+        averageScore: avgScore,
+        totalSessions,
+        trend,
+        updatedAt: admin.firestore.Timestamp.now(),
+      },
+      { merge: true }
+    );
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -36,16 +64,6 @@ const XP_REWARDS: Record<string, number> = {
   first_daily_quiz: 25,
 };
 
-const BADGES: Record<string, { name: string; icon: string; condition: string }> = {
-  first_quiz:      { name: "Primer Quiz",       icon: "🧠", condition: "primer quiz completado" },
-  quiz_perfect:    { name: "Quiz Perfecto",      icon: "⭐", condition: "100% en un quiz" },
-  quiz_master:     { name: "Quiz Master",        icon: "🏆", condition: "5 quizzes con 90%+" },
-  first_rcp:       { name: "Primer Rescate",     icon: "🫀", condition: "primera sesión RCP completada" },
-  certified:       { name: "Certificado",        icon: "🏅", condition: "primer certificado emitido" },
-  streak_7:        { name: "7 días seguidos",    icon: "🔥", condition: "7 días de práctica consecutivos" },
-  all_topics:      { name: "Explorador",         icon: "🌐", condition: "quiz completado en 5 temas diferentes" },
-  perfect_session: { name: "Técnica Perfecta",   icon: "💎", condition: "sesión RCP con score 100" },
-};
 
 const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
 
@@ -284,17 +302,35 @@ export const submitQuizAnswers = onCall(async (request) => {
     createdAt: nowRef,
   });
 
-  // Actualizar stats del usuario
-  const allBadges = [...currentBadges, ...newBadges];
-  batch.update(db.collection("users").doc(uid), {
-    "stats.quizzesCompleted": admin.firestore.FieldValue.increment(1),
-    "stats.quizAverageScore": score, // simplificado; en producción calcular running avg
-    "stats.xp": newXp,
-    "stats.level": calculateLevel(newXp),
-    "stats.badges": allBadges,
-  });
+  // Actualizar stats del usuario con promedio incremental correcto.
+  // Usamos transacción para el promedio y batch para el resto (quizSession, preguntas).
+  // La transacción lee el contador actual antes de escribir, evitando race conditions
+  // cuando dos quizzes del mismo usuario se envían simultáneamente.
+  await batch.commit(); // Primero: guardar quizSession y stats de preguntas
 
-  await batch.commit();
+  await db.runTransaction(async (tx) => {
+    const userRef = db.collection("users").doc(uid);
+    const snap = await tx.get(userRef);
+    const currentStats = snap.data()?.stats ?? {};
+    const prevCompleted = (currentStats.quizzesCompleted ?? 0) as number;
+    const prevAvg = (currentStats.quizAverageScore ?? 0) as number;
+    const allBadges = [
+      ...((currentStats.badges ?? []) as string[]),
+      ...newBadges.filter((b: string) => !((currentStats.badges ?? []) as string[]).includes(b)),
+    ];
+    // Promedio incremental sin releer todos los registros
+    const newAvg = prevCompleted === 0
+      ? score
+      : Math.round((prevAvg * prevCompleted + score) / (prevCompleted + 1));
+
+    tx.update(userRef, {
+      "stats.quizzesCompleted": admin.firestore.FieldValue.increment(1),
+      "stats.quizAverageScore": newAvg,
+      "stats.xp": admin.firestore.FieldValue.increment(xpEarned),
+      "stats.level": calculateLevel(newXp),
+      "stats.badges": allBadges,
+    });
+  });
 
   return {
     sessionId: sessionRef.id,
@@ -362,7 +398,7 @@ export const onInstitutionCreated = onDocumentCreated(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CF 4 — onSessionCompleted
-// Trigger: actualiza UserStats cuando se completa una sesión RCP
+// Trigger: actualiza UserStats y leaderboard cuando se completa una sesión RCP
 // ─────────────────────────────────────────────────────────────────────────────
 export const onSessionCompleted = onDocumentUpdated(
   "sessions/{sessionId}",
@@ -373,39 +409,76 @@ export const onSessionCompleted = onDocumentUpdated(
     if (!after || before?.status === after.status) return;
     if (after.status !== "completed") return;
 
-    const uid = after.studentId;
+    const uid = after.studentId as string | undefined;
     if (!uid) return;
 
-    const score = after.metrics?.score ?? 0;
-    const approved = after.metrics?.approved ?? false;
-    const durationMinutes = (after.duration ?? 0) / 60;
+    // qualityScore es el puntaje principal; score es alias de compatibilidad
+    const score = (after.metrics?.qualityScore ?? after.metrics?.score ?? 0) as number;
+    const approved = (after.metrics?.approved ?? false) as boolean;
+    const durationMinutes = ((after.duration ?? 0) as number) / 60;
 
     const userRef = db.collection("users").doc(uid);
     const userDoc = await userRef.get();
-    const stats = userDoc.data()?.stats ?? {};
+    const userData = userDoc.data() ?? {};
+    const stats = userData.stats ?? {};
 
-    const currentXp = stats.xp ?? 0;
+    // ── Running average de puntaje AHA ──────────────────────────────────────
+    const prevTotal = (stats.totalSessions ?? 0) as number;
+    const prevAvg = (stats.averageScore ?? 0) as number;
+    const newTotal = prevTotal + 1;
+    // Media ponderada incremental: sin releer todas las sesiones
+    const newAvgScore = Math.round(((prevAvg * prevTotal) + score) / newTotal);
+
+    // ── XP y badges ─────────────────────────────────────────────────────────
     let xpGained = XP_REWARDS.session_completed;
     if (approved) xpGained += XP_REWARDS.session_approved;
     if (score === 100) xpGained += 20;
 
-    const newXp = currentXp + xpGained;
-    const newBadges: string[] = [...(stats.badges ?? [])];
-
-    // Badge: primer RCP
+    const newBadges: string[] = [...((stats.badges ?? []) as string[])];
     if (!newBadges.includes("first_rcp")) newBadges.push("first_rcp");
     if (score === 100 && !newBadges.includes("perfect_session")) {
       newBadges.push("perfect_session");
     }
 
-    await userRef.update({
-      "stats.totalSessions": admin.firestore.FieldValue.increment(1),
-      "stats.totalHours": admin.firestore.FieldValue.increment(durationMinutes / 60),
-      "stats.bestScore": Math.max(stats.bestScore ?? 0, score),
-      "stats.xp": newXp,
-      "stats.level": calculateLevel(newXp),
-      "stats.badges": newBadges,
+    // ── Actualizar documento de usuario con transacción atómica ─────────────
+    // Evita race condition cuando dos sesiones completan simultáneamente:
+    // la transacción re-lee el estado actual antes de calcular el nuevo promedio.
+    await db.runTransaction(async (tx) => {
+      const freshSnap = await tx.get(userRef);
+      const freshStats = freshSnap.data()?.stats ?? {};
+      const freshTotal = (freshStats.totalSessions ?? 0) as number;
+      const freshAvg   = (freshStats.averageScore ?? 0) as number;
+      const freshXp    = (freshStats.xp ?? 0) as number;
+      const actualTotal    = freshTotal + 1;
+      const actualAvgScore = Math.round((freshAvg * freshTotal + score) / actualTotal);
+      const actualXp       = freshXp + xpGained;
+      const freshBadges    = (freshStats.badges ?? []) as string[];
+      const mergedBadges   = [
+        ...freshBadges,
+        ...newBadges.filter((b) => !freshBadges.includes(b)),
+      ];
+
+      tx.update(userRef, {
+        "stats.totalSessions": admin.firestore.FieldValue.increment(1),
+        "stats.averageScore":  actualAvgScore,
+        "stats.totalHours":    admin.firestore.FieldValue.increment(durationMinutes / 60),
+        "stats.bestScore":     Math.max((freshStats.bestScore ?? 0) as number, score),
+        "stats.xp":            actualXp,
+        "stats.level":         calculateLevel(actualXp),
+        "stats.badges":        mergedBadges,
+      });
     });
+
+    // ── Actualizar leaderboard ───────────────────────────────────────────────
+    // Solo si el usuario pertenece a una institución real (no su propio uid)
+    const institutionId = userData.institutionId as string | undefined;
+    if (institutionId && institutionId !== uid) {
+      const displayName = [userData.firstName as string, userData.lastName as string]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Usuario";
+      await updateLeaderboardEntry(uid, institutionId, displayName, newAvgScore, newTotal);
+    }
   }
 );
 
@@ -502,85 +575,149 @@ export const resetMonthlyUsage = onSchedule("0 3 1 * *", async () => {
 export const notifyPlanExpiry = onSchedule("0 9 * * *", async () => {
   const threeDaysFromNow = new Date();
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-
   const fourDaysFromNow = new Date();
   fourDaysFromNow.setDate(fourDaysFromNow.getDate() + 4);
 
-  // Planes próximos a vencer
-  const planSnap = await db
-    .collectionGroup("planMembership")
-    .where("isActive", "==", true)
-    .where("planExpiresAt", ">=", admin.firestore.Timestamp.fromDate(threeDaysFromNow))
-    .where("planExpiresAt", "<", admin.firestore.Timestamp.fromDate(fourDaysFromNow))
-    .get();
-
-  const batch = db.batch();
+  const tsThree = admin.firestore.Timestamp.fromDate(threeDaysFromNow);
+  const tsFour  = admin.firestore.Timestamp.fromDate(fourDaysFromNow);
   const now = admin.firestore.Timestamp.now();
 
-  for (const planDoc of planSnap.docs) {
-    // Obtener institutionId del path: institutions/{id}/planMembership/current
-    const institutionId = planDoc.ref.parent.parent?.id;
-    if (!institutionId) continue;
+  const BATCH_SIZE = 400; // Firestore batch limit = 500; dejamos margen
+  let totalPlans = 0;
+  let totalSst   = 0;
 
-    // Crear evento de calendario de vencimiento
-    const calendarRef = db.collection("calendar").doc();
-    batch.set(calendarRef, {
-      title: "⚠️ Vencimiento de plan SIERCP",
-      description: "Tu suscripción vence en 3 días. Renueva para evitar interrupciones.",
-      type: "vencimiento_plan",
-      startAt: planDoc.data().planExpiresAt,
-      endAt: null,
-      allDay: true,
-      institutionId,
-      targetRole: "ADMIN",
-      targetUserIds: [],
-      linkedEntityType: null,
-      linkedEntityId: null,
-      isRecurring: false,
-      recurrenceRule: null,
-      color: "#D97706",
-      icon: "warning",
-      isCompleted: false,
-      createdBy: "system",
-      createdAt: now,
-    });
+  // ── Planes próximos a vencer (paginado) ──────────────────────────────────
+  let lastPlanDoc: admin.firestore.QueryDocumentSnapshot | null = null;
+  while (true) {
+    let planQuery = db
+      .collectionGroup("planMembership")
+      .where("isActive", "==", true)
+      .where("planExpiresAt", ">=", tsThree)
+      .where("planExpiresAt", "<",  tsFour)
+      .orderBy("planExpiresAt")
+      .limit(BATCH_SIZE);
+    if (lastPlanDoc) planQuery = planQuery.startAfter(lastPlanDoc);
+
+    const planSnap = await planQuery.get();
+    if (planSnap.empty) break;
+
+    const batch = db.batch();
+    for (const planDoc of planSnap.docs) {
+      const institutionId = planDoc.ref.parent.parent?.id;
+      if (!institutionId) continue;
+      batch.set(db.collection("calendar").doc(), {
+        title: "Vencimiento de plan SIERCP",
+        description: "Tu suscripción vence en 3 días. Renueva para evitar interrupciones.",
+        type: "vencimiento_plan",
+        startAt: planDoc.data().planExpiresAt,
+        endAt: null,
+        allDay: true,
+        institutionId,
+        targetRole: "ADMIN",
+        targetUserIds: [],
+        linkedEntityType: null,
+        linkedEntityId: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        color: "#D97706",
+        icon: "warning",
+        isCompleted: false,
+        createdBy: "system",
+        createdAt: now,
+      });
+    }
+    await batch.commit();
+    totalPlans += planSnap.size;
+    lastPlanDoc = planSnap.docs[planSnap.docs.length - 1];
+    if (planSnap.size < BATCH_SIZE) break;
   }
 
-  // Licencias SST próximas a vencer
-  const sstSnap = await db
-    .collection("users")
-    .where("sstLicenseVerified", "==", true)
-    .where("sstLicenseExpiresAt", ">=", admin.firestore.Timestamp.fromDate(threeDaysFromNow))
-    .where("sstLicenseExpiresAt", "<", admin.firestore.Timestamp.fromDate(fourDaysFromNow))
-    .get();
+  // ── Licencias SST próximas a vencer (paginado) ───────────────────────────
+  let lastSstDoc: admin.firestore.QueryDocumentSnapshot | null = null;
+  while (true) {
+    let sstQuery = db
+      .collection("users")
+      .where("sstLicenseVerified", "==", true)
+      .where("sstLicenseExpiresAt", ">=", tsThree)
+      .where("sstLicenseExpiresAt", "<",  tsFour)
+      .orderBy("sstLicenseExpiresAt")
+      .limit(BATCH_SIZE);
+    if (lastSstDoc) sstQuery = sstQuery.startAfter(lastSstDoc);
 
-  for (const userDoc of sstSnap.docs) {
-    const userData = userDoc.data();
-    const notifRef = db.collection("notifications").doc();
-    batch.set(notifRef, {
-      userId: userDoc.id,
-      title: "Licencia SST próxima a vencer",
-      body: "Tu licencia SST vence en 3 días. Renueva para mantener el acceso.",
-      type: "warning",
-      isRead: false,
-      createdAt: now,
-    });
+    const sstSnap = await sstQuery.get();
+    if (sstSnap.empty) break;
+
+    const batch = db.batch();
+    for (const userDoc of sstSnap.docs) {
+      batch.set(db.collection("notifications").doc(), {
+        userId: userDoc.id,
+        title: "Licencia SST próxima a vencer",
+        body: "Tu licencia SST vence en 3 días. Renueva para mantener el acceso.",
+        type: "warning",
+        isRead: false,
+        createdAt: now,
+      });
+    }
+    await batch.commit();
+    totalSst  += sstSnap.size;
+    lastSstDoc = sstSnap.docs[sstSnap.docs.length - 1];
+    if (sstSnap.size < BATCH_SIZE) break;
   }
 
-  await batch.commit();
-  console.log(`Alertas enviadas: ${planSnap.size} planes, ${sstSnap.size} licencias SST.`);
+  console.log(`Alertas enviadas: ${totalPlans} planes, ${totalSst} licencias SST.`);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CF 9 — verifyCertificate (HTTP público)
 // GET /verifyCertificate?code=UUID — verifica un certificado sin auth
+//
+// SEGURIDAD:
+//  - Rate limiting: 10 req/min por IP (en memoria, por instancia)
+//  - CORS: restringido al dominio del app (no wildcard)
+//  - Datos devueltos: mínimos — sin userName completo, sin identificación,
+//    sin institutionId, sin score exacto
 // ─────────────────────────────────────────────────────────────────────────────
-export const verifyCertificate = onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
-  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
 
-  const code = req.query.code as string;
-  if (!code) { res.status(400).json({ error: "Código requerido." }); return; }
+// Rate limiter en memoria (por instancia Cloud Function, ventana de 60s)
+const _verifyRateMap = new Map<string, { count: number; resetAt: number }>();
+function _checkVerifyRate(ip: string, maxPerMin = 10): boolean {
+  const now = Date.now();
+  const entry = _verifyRateMap.get(ip);
+  if (!entry || entry.resetAt < now) {
+    _verifyRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= maxPerMin) return false;
+  entry.count++;
+  return true;
+}
+
+export const verifyCertificate = onRequest(async (req, res) => {
+  const allowedOrigin = process.env.APP_URL ?? "https://siercp.com";
+  res.set("Access-Control-Allow-Origin", allowedOrigin);
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
+  if (req.method !== "GET") { res.status(405).json({ error: "Método no permitido." }); return; }
+
+  // Rate limiting por IP
+  const ip =
+    (req.headers["x-real-ip"] as string) ??
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
+    req.socket.remoteAddress ??
+    "unknown";
+
+  if (!_checkVerifyRate(ip)) {
+    res.status(429).json({ error: "Demasiadas solicitudes. Intenta en un momento." });
+    return;
+  }
+
+  const code = (req.query.code as string ?? "").trim();
+  if (!code || code.length < 8 || code.length > 128 || !/^[a-zA-Z0-9_\-]+$/.test(code)) {
+    res.status(400).json({ error: "Código inválido." });
+    return;
+  }
 
   const snap = await db
     .collection("certificates")
@@ -588,19 +725,118 @@ export const verifyCertificate = onRequest(async (req, res) => {
     .limit(1)
     .get();
 
-  if (snap.empty) { res.status(404).json({ valid: false, error: "Certificado no encontrado." }); return; }
+  if (snap.empty) {
+    res.status(404).json({ valid: false, error: "Certificado no encontrado." });
+    return;
+  }
 
   const cert = snap.docs[0].data();
+
+  // Solo retornar datos mínimos — sin PII completa
   res.json({
-    valid: cert.isValid ?? true,
-    userName: cert.userName,
-    institutionName: cert.institutionName,
-    title: cert.title,
-    issuedAt: cert.issuedAt?.toDate().toISOString(),
+    valid: cert.isValid === true,
+    title: cert.title ?? null,
+    type: cert.type ?? null,
+    issuedAt: cert.issuedAt?.toDate().toISOString() ?? null,
     expiresAt: cert.expiresAt?.toDate().toISOString() ?? null,
-    score: cert.score,
-    type: cert.type,
+    // Mostrar solo inicial + apellido para privacidad
+    holderName: cert.userName
+      ? (cert.userName as string).replace(/^(\w)\w+/, "$1.").trim()
+      : null,
+    institutionName: cert.institutionName ?? null,
+    // Score como rango, no exacto
+    scoreRange: typeof cert.score === "number"
+      ? cert.score >= 90 ? "Excelente" : cert.score >= 70 ? "Aprobado" : "No aprobado"
+      : null,
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CF 11 — migrateLeaderboards (Callable)
+// Migración inicial: lee todas las sesiones completadas y puebla
+// leaderboards/{institutionId}/students/{uid} para cada usuario con institución.
+// Solo ejecutar una vez, por SUPER_ADMIN, después del primer deploy.
+// ─────────────────────────────────────────────────────────────────────────────
+export const migrateLeaderboards = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Se requiere autenticación.");
+  }
+
+  const callerSnap = await db.collection("users").doc(request.auth.uid).get();
+  if (callerSnap.data()?.role !== "SUPER_ADMIN") {
+    throw new HttpsError("permission-denied", "Solo SUPER_ADMIN puede ejecutar la migración.");
+  }
+
+  const usersSnap = await db.collection("users").get();
+  const now = admin.firestore.Timestamp.now();
+  let processed = 0;
+  let skipped = 0;
+
+  for (const userDoc of usersSnap.docs) {
+    const userData = userDoc.data();
+    const uid = userDoc.id;
+    const institutionId = userData.institutionId as string | undefined;
+
+    // Omitir usuarios sin institución real (institutionId === uid es el fallback)
+    if (!institutionId || institutionId === uid) {
+      skipped++;
+      continue;
+    }
+
+    // Leer todas las sesiones completadas de este usuario
+    const sessionsSnap = await db
+      .collection("sessions")
+      .where("studentId", "==", uid)
+      .where("status", "==", "completed")
+      .get();
+
+    const scores = sessionsSnap.docs
+      .map((d) => {
+        const m = d.data().metrics as Record<string, number> | undefined;
+        return (m?.qualityScore ?? m?.score ?? 0) as number;
+      })
+      .filter((s) => s > 0);
+
+    const avgScore =
+      scores.length > 0
+        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+        : 0;
+    const totalSessions = sessionsSnap.size;
+    const displayName =
+      [userData.firstName as string, userData.lastName as string]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Usuario";
+
+    const batch = db.batch();
+
+    // Crear/actualizar entrada de leaderboard
+    batch.set(
+      db.doc(`leaderboards/${institutionId}/students/${uid}`),
+      {
+        uid,
+        displayName,
+        averageScore: avgScore,
+        totalSessions,
+        trend: avgScore >= 85 ? "up" : avgScore >= 70 ? "minus" : "down",
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+
+    // Sincronizar stats del usuario (corrige averageScore si nunca fue calculado)
+    batch.update(db.collection("users").doc(uid), {
+      "stats.averageScore": avgScore,
+      "stats.totalSessions": totalSessions,
+      updatedAt: now,
+    });
+
+    await batch.commit();
+    processed++;
+  }
+
+  console.log(`migrateLeaderboards: procesados=${processed}, omitidos=${skipped}`);
+  return { processed, skipped, total: usersSnap.size };
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -619,20 +855,665 @@ export const setUserRole = onCall(async (request) => {
   const { targetUid, role, institutionId } = request.data as {
     targetUid: string;
     role: string;
-    institutionId: string;
+    institutionId?: string;
   };
 
-  const validRoles = ["SUPER_ADMIN", "ADMIN", "INSTRUCTOR", "ESTUDIANTE"];
+  const validRoles = ["SUPER_ADMIN", "ADMIN", "INSTRUCTOR", "USUARIO_SST", "USUARIO_PROFESIONAL", "USUARIO"];
   if (!validRoles.includes(role)) {
-    throw new HttpsError("invalid-argument", "Rol inválido.");
+    throw new HttpsError("invalid-argument", `Rol inválido: ${role}.`);
   }
 
-  await admin.auth().setCustomUserClaims(targetUid, { role, institutionId });
+  // Validar que el usuario destino existe
+  const targetSnap = await db.collection("users").doc(targetUid).get();
+  if (!targetSnap.exists) {
+    throw new HttpsError("not-found", "Usuario destino no encontrado.");
+  }
+
+  // Validar que institutionId existe si fue proporcionado
+  if (institutionId) {
+    const instSnap = await db.collection("institutions").doc(institutionId).get();
+    if (!instSnap.exists) {
+      throw new HttpsError("not-found", `Institución "${institutionId}" no encontrada.`);
+    }
+  }
+
+  await admin.auth().setCustomUserClaims(targetUid, { role, ...(institutionId ? { institutionId } : {}) });
   await db.collection("users").doc(targetUid).update({
     role,
-    institutionId,
+    ...(institutionId !== undefined ? { institutionId } : {}),
     updatedAt: admin.firestore.Timestamp.now(),
   });
 
   return { success: true };
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CF — createCorporatePlanOrderWeb
+// Called from SIERCP-WEB corporate checkout (public, no auth required).
+// Security: annual price is resolved server-side from the price table below.
+// The client sends planSlug + non-financial data only; it NEVER sends amounts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Hardcoded monthly base prices (COP). Never sent by the client.
+const CORPORATE_MONTHLY_COP: Record<string, number> = {
+  pyme:       380_000,
+  business:   790_000,
+  corporate: 1_580_000,
+  // enterprise has no online checkout — contact sales
+};
+
+// Fallback discounts used only if Firestore pricing_plans document is unavailable.
+const CORPORATE_DEFAULT_DISCOUNTS: Record<string, number> = {
+  pyme:       10,
+  business:   15,
+  corporate:  25,
+};
+
+const CORPORATE_IVA_RATE = 0.19;
+
+export const createCorporatePlanOrderWeb = onCall(
+  { cors: true },
+  async (request) => {
+    const {
+      planSlug,
+      company,
+      payMethod,
+      cardLast4 = null,
+      bank = null,
+    } = (request.data ?? {}) as {
+      planSlug?: string;
+      company?: Record<string, unknown>;
+      payMethod?: string;
+      cardLast4?: string | null;
+      bank?: string | null;
+    };
+
+    if (!planSlug || !(planSlug in CORPORATE_MONTHLY_COP)) {
+      throw new HttpsError("invalid-argument", "Plan corporativo inválido.");
+    }
+    if (!payMethod || !["card", "pse", "transfer"].includes(payMethod)) {
+      throw new HttpsError("invalid-argument", "Método de pago inválido.");
+    }
+
+    // Read discount from Firestore pricing_plans (editable by SuperAdmin).
+    // Falls back to hardcoded defaults if document is missing or unreadable.
+    let annualDiscountPercent: number = CORPORATE_DEFAULT_DISCOUNTS[planSlug] ?? 0;
+    try {
+      const pricingSnap = await db.doc(`pricing_plans/corporativo-${planSlug}`).get();
+      if (pricingSnap.exists) {
+        const raw = pricingSnap.data()?.annualDiscountPercent;
+        if (typeof raw === "number" && raw >= 0 && raw <= 100) {
+          annualDiscountPercent = raw;
+        }
+      }
+    } catch {
+      // Firestore read failed — use fallback discount, do not block the order
+    }
+
+    // Authoritative annual price calculation — client never controls any amount
+    const monthlyBaseCOP = CORPORATE_MONTHLY_COP[planSlug];
+    const annualFullCOP = monthlyBaseCOP * 12;
+    const discountAmount = Math.round(annualFullCOP * (annualDiscountPercent / 100));
+    const annualSubtotalCOP = annualFullCOP - discountAmount;
+    const ivaCOP = Math.round(annualSubtotalCOP * CORPORATE_IVA_RATE);
+    const totalCOP = annualSubtotalCOP + ivaCOP;
+
+    const orderRef = await db.collection("orders").add({
+      type: "plan-corporativo",
+      planSlug,
+      billingPeriod: "annual",
+      monthlyBaseCOP,
+      annualFullCOP,
+      annualDiscountPercent,
+      discountAmount,
+      annualSubtotalCOP,
+      ivaCOP,
+      totalCOP,
+      company: company ?? null,
+      payMethod,
+      cardLast4,
+      bank,
+      status: "pending_payment",
+      createdAt: admin.firestore.Timestamp.now(),
+    });
+
+    return {
+      orderId: orderRef.id,
+      monthlyBaseCOP,
+      annualFullCOP,
+      annualDiscountPercent,
+      discountAmount,
+      annualSubtotalCOP,
+      ivaCOP,
+      totalCOP,
+    };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CF — provisionCorporateAccount
+// Called from SIERCP-WEB after payment, once the user is authenticated.
+// Creates: Firestore user doc, institution, admin membership, updates order.
+// Requires: authenticated caller (request.auth).
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CompanyData {
+  razonSocial?: string;
+  nit?: string;
+  responsable?: string;
+  cargo?: string;
+  email?: string;
+  telefono?: string;
+  departamento?: string;
+  ciudad?: string;
+  direccion?: string;
+}
+
+export const provisionCorporateAccount = onCall(
+  { cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Autenticación requerida.");
+    }
+
+    const uid = request.auth.uid;
+    const { orderId, planSlug, company } = (request.data ?? {}) as {
+      orderId?: string;
+      planSlug?: string;
+      company?: CompanyData;
+    };
+
+    if (!planSlug || !(planSlug in CORPORATE_MONTHLY_COP)) {
+      throw new HttpsError("invalid-argument", "planSlug inválido.");
+    }
+    if (!company?.razonSocial || !company?.nit || !company?.email) {
+      throw new HttpsError("invalid-argument", "Datos de empresa incompletos.");
+    }
+
+    const now = admin.firestore.Timestamp.now();
+    const expiresDate = new Date();
+    expiresDate.setFullYear(expiresDate.getFullYear() + 1);
+    const planExpiresAt = admin.firestore.Timestamp.fromDate(expiresDate);
+    const nit = company.nit.replace(/[.\s-]/g, "");
+
+    // Parse full name into first/last
+    const nameParts = (company.responsable ?? "").trim().split(/\s+/);
+    const firstName = nameParts[0] ?? "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Create institution document
+    const institutionRef = db.collection("institutions").doc();
+    const institutionId = institutionRef.id;
+    await institutionRef.set({
+      name: company.razonSocial,
+      nit,
+      type: "company",
+      status: "active",
+      contactEmail: company.email.toLowerCase(),
+      phoneNumber: company.telefono ?? null,
+      address: company.direccion ?? null,
+      city: company.ciudad ?? null,
+      department: company.departamento ?? null,
+      country: "Colombia",
+      primaryAdminId: uid,
+      memberCount: 1,
+      activeCoursesCount: 0,
+      totalSessionsCount: 0,
+      planType: planSlug,
+      planActivatedAt: now,
+      planExpiresAt,
+      createdAt: now,
+      updatedAt: now,
+      config: {},
+    });
+
+    // Create or update user document
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      await userRef.set({
+        uid,
+        email: company.email.toLowerCase(),
+        firstName,
+        lastName,
+        role: "ADMIN",
+        isActive: true,
+        certVerification: "NONE",
+        coursesCreated: 0,
+        memberships: [institutionId],
+        createdAt: now,
+        updatedAt: now,
+        stats: {
+          totalSessions: 0,
+          sessionsToday: 0,
+          averageScore: 0,
+          bestScore: 0,
+          streakDays: 0,
+          totalHours: 0,
+          averageDepthMm: 0,
+          averageRatePerMin: 0,
+        },
+      });
+    } else {
+      const existingRole = userSnap.data()?.role as string | undefined;
+      const shouldUpgrade = !["SUPER_ADMIN", "ADMIN"].includes(existingRole ?? "");
+      await userRef.update({
+        ...(shouldUpgrade ? { role: "ADMIN" } : {}),
+        memberships: admin.firestore.FieldValue.arrayUnion(institutionId),
+        updatedAt: now,
+      });
+    }
+
+    // Create admin membership
+    const membershipId = `${uid}_${institutionId}`;
+    await db.collection("memberships").doc(membershipId).set({
+      userId: uid,
+      institutionId,
+      role: "ADMIN",
+      status: "approved",
+      isActive: true,
+      planType: planSlug,
+      planExpiresAt,
+      creditBalance: 0,
+      sstLicenseVerified: false,
+      usageCurrentUsers: 0,
+      usageCurrentCourses: 0,
+      usageCertificatesThisMonth: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Update order with provisioning info
+    if (orderId) {
+      try {
+        await db.collection("orders").doc(orderId).update({
+          userId: uid,
+          institutionId,
+          status: "provisioned",
+          provisionedAt: now,
+        });
+      } catch {
+        // Non-fatal: order may not exist in dev/demo
+      }
+    }
+
+    // Set custom claims so Flutter app has role immediately
+    await admin.auth().setCustomUserClaims(uid, {
+      role: "ADMIN",
+      institutionId,
+    });
+
+    return { institutionId, uid };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WOMPI — PLAN SUBSCRIPTION PAYMENT LINK
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Server-side price table (COP cents). The client NEVER sends the amount.
+const PLAN_PRICES_COP_CENTS: Record<string, number> = {
+  pyme:            35_000_000,   // $350 000 COP/mes
+  business:        70_000_000,   // $700 000 COP/mes
+  corporate:      150_000_000,   // $1 500 000 COP/mes
+  enterprise:     300_000_000,   // $3 000 000 COP/mes
+  sstSinLicencia:  20_000_000,   // $200 000 COP/mes
+  sstConLicencia:  45_000_000,   // $450 000 COP/mes
+};
+
+const VALID_PLAN_TYPES = Object.keys(PLAN_PRICES_COP_CENTS);
+
+/**
+ * createWompiPlanTransaction
+ *
+ * Called by the Flutter app (Admin) to initiate a monthly plan subscription.
+ *
+ * Security guarantees:
+ *  - Caller must be authenticated.
+ *  - Caller must be ADMIN of the target institution (or SUPER_ADMIN).
+ *  - Amount is resolved server-side from PLAN_PRICES_COP_CENTS; the client
+ *    sends NO amount.
+ *  - The Wompi payment link is created server-side with the correct amount.
+ *  - Transaction metadata is stored in Firestore before returning the URL.
+ *
+ * Returns: { redirectUrl, transactionId, amountCents }
+ * Flutter opens `redirectUrl` via url_launcher; streams `transactions/{transactionId}`
+ * to detect APPROVED status.
+ */
+export const createWompiPlanTransaction = onCall(
+  { cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+
+    const { planType, institutionId } = (request.data ?? {}) as {
+      planType?: string;
+      institutionId?: string;
+    };
+
+    // Input validation
+    if (!planType || !VALID_PLAN_TYPES.includes(planType)) {
+      throw new HttpsError("invalid-argument", "Tipo de plan inválido.");
+    }
+    if (
+      !institutionId ||
+      typeof institutionId !== "string" ||
+      institutionId.trim().length === 0 ||
+      institutionId.length > 128
+    ) {
+      throw new HttpsError("invalid-argument", "institutionId inválido.");
+    }
+
+    const callerUid = request.auth.uid;
+
+    // Permission check: SUPER_ADMIN bypasses membership check
+    const userDoc = await db.collection("users").doc(callerUid).get();
+    if (!userDoc.exists) {
+      throw new HttpsError("unauthenticated", "Usuario no encontrado.");
+    }
+    const userRole = userDoc.data()?.role as string | undefined;
+
+    if (userRole !== "SUPER_ADMIN") {
+      const memberSnap = await db
+        .collection("memberships")
+        .where("userId", "==", callerUid)
+        .where("institutionId", "==", institutionId)
+        .where("role", "==", "ADMIN")
+        .limit(1)
+        .get();
+
+      if (memberSnap.empty) {
+        throw new HttpsError(
+          "permission-denied",
+          "Solo el ADMIN de esta institución puede gestionar suscripciones."
+        );
+      }
+    }
+
+    // Server-side price (client never controls this)
+    const amountCents = PLAN_PRICES_COP_CENTS[planType];
+
+    const wompiEnv = process.env.WOMPI_ENV;
+    const wompiApiBase =
+      wompiEnv === "production"
+        ? "https://production.wompi.co/v1"
+        : "https://sandbox.wompi.co/v1";
+    const wompiKey = process.env.WOMPI_PRIVATE_KEY;
+
+    if (!wompiKey) {
+      console.error("[createWompiPlanTransaction] WOMPI_PRIVATE_KEY not set");
+      throw new HttpsError("internal", "Pasarela de pago no configurada.");
+    }
+
+    const appUrl = process.env.APP_URL ?? "https://siercp.com";
+
+    // Call Wompi to create a hosted payment link
+    let wompiPaymentLinkId: string;
+    let wompiRedirectUrl: string;
+
+    try {
+      const wompiRes = await fetch(`${wompiApiBase}/payment_links`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${wompiKey}`,
+        },
+        body: JSON.stringify({
+          name: `Plan ${planType} — SIERCP`,
+          description: `Suscripción mensual al plan ${planType} para tu institución en SIERCP`,
+          single_use: true,
+          collect_shipping: false,
+          currency: "COP",
+          amount_in_cents: amountCents,
+          redirect_url: `${appUrl}/pago/plan/confirmacion?institution=${encodeURIComponent(institutionId)}&plan=${encodeURIComponent(planType)}`,
+        }),
+      });
+
+      if (!wompiRes.ok) {
+        const errText = await wompiRes.text();
+        console.error(
+          "[createWompiPlanTransaction] Wompi API error:",
+          wompiRes.status,
+          errText
+        );
+        throw new HttpsError(
+          "internal",
+          "Error al crear enlace de pago. Intenta más tarde."
+        );
+      }
+
+      // Wompi returns data.id (payment link ID) and data.url (checkout URL)
+      const wompiData = (await wompiRes.json()) as {
+        data: { id: string; url?: string; payment_link?: { id: string; url: string } };
+      };
+
+      wompiPaymentLinkId = wompiData.data.id;
+      // Accept both response shapes: data.url or data.payment_link.url
+      wompiRedirectUrl =
+        wompiData.data.url ??
+        wompiData.data.payment_link?.url ??
+        `https://checkout.wompi.co/l/${wompiPaymentLinkId}`;
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("[createWompiPlanTransaction] fetch error:", err);
+      throw new HttpsError("internal", "No se pudo conectar con la pasarela de pago.");
+    }
+
+    // Store transaction metadata in Firestore keyed by Wompi payment link ID.
+    // The webhook receives tx.reference = paymentLinkId and looks up this doc.
+    await db.collection("transactions").doc(wompiPaymentLinkId).set({
+      id: wompiPaymentLinkId,
+      type: "plan_subscription",
+      planType,
+      institutionId,
+      user_id: callerUid,
+      amount_in_cents: amountCents,
+      currency: "COP",
+      status: "PENDING",
+      enrolled: false,
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    return {
+      redirectUrl: wompiRedirectUrl,
+      transactionId: wompiPaymentLinkId,
+      amountCents,
+    };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WOMPI — COURSE PAYMENT LINK (mobile)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * createWompiCourseTransaction
+ *
+ * Called by the Flutter app (Student) to purchase a course enrollment.
+ * The price is resolved server-side from Firestore (cohort → template → slug).
+ *
+ * Returns: { redirectUrl, transactionId, amountCents, courseTitle }
+ */
+export const createWompiCourseTransaction = onCall(
+  { cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+
+    const { cursoSlug, cohortId, templateId, institutionId } = (
+      request.data ?? {}
+    ) as {
+      cursoSlug?: string;
+      cohortId?: string;
+      templateId?: string;
+      institutionId?: string;
+    };
+
+    if (
+      !cursoSlug ||
+      typeof cursoSlug !== "string" ||
+      cursoSlug.trim().length === 0 ||
+      cursoSlug.length > 100
+    ) {
+      throw new HttpsError("invalid-argument", "cursoSlug inválido.");
+    }
+
+    const callerUid = request.auth.uid;
+
+    // Verify the caller exists in Firestore
+    const userDoc = await db.collection("users").doc(callerUid).get();
+    if (!userDoc.exists) {
+      throw new HttpsError("unauthenticated", "Usuario no encontrado.");
+    }
+
+    // Server-side price resolution: cohort → template → slug
+    let priceCents = 0;
+    let courseTitle = cursoSlug;
+    let resolvedCohortId = cohortId ?? "";
+    let resolvedTemplateId = templateId ?? "";
+
+    if (resolvedCohortId) {
+      const cohortDoc = await db.collection("cohorts").doc(resolvedCohortId).get();
+      if (cohortDoc.exists) {
+        const d = cohortDoc.data()!;
+        priceCents = (d.priceCOP ?? 0) * 100;
+        courseTitle = d.courseTitle ?? courseTitle;
+        if (!resolvedTemplateId) resolvedTemplateId = d.templateId ?? "";
+      }
+    }
+
+    if (!priceCents && resolvedTemplateId) {
+      const tmplDoc = await db.collection("course_templates").doc(resolvedTemplateId).get();
+      if (tmplDoc.exists) {
+        const d = tmplDoc.data()!;
+        priceCents = (d.priceCOP ?? 0) * 100;
+        courseTitle = d.title ?? courseTitle;
+      }
+    }
+
+    if (!priceCents) {
+      const tmplSnap = await db
+        .collection("course_templates")
+        .where("slug", "==", cursoSlug)
+        .limit(1)
+        .get();
+      if (!tmplSnap.empty) {
+        const d = tmplSnap.docs[0].data();
+        priceCents = (d.priceCOP ?? 0) * 100;
+        courseTitle = d.title ?? courseTitle;
+        resolvedTemplateId = tmplSnap.docs[0].id;
+      }
+    }
+
+    if (!priceCents) {
+      throw new HttpsError(
+        "not-found",
+        "Curso no encontrado o sin precio asignado. Contacta al soporte."
+      );
+    }
+
+    // Idempotency: reject if already APPROVED for this course
+    const existingApproved = await db
+      .collection("transactions")
+      .where("user_id", "==", callerUid)
+      .where("curso_slug", "==", cursoSlug)
+      .where("status", "==", "APPROVED")
+      .limit(1)
+      .get();
+
+    if (!existingApproved.empty) {
+      throw new HttpsError("already-exists", "Ya tienes una inscripción aprobada para este curso.");
+    }
+
+    const wompiEnv = process.env.WOMPI_ENV;
+    const wompiApiBase =
+      wompiEnv === "production"
+        ? "https://production.wompi.co/v1"
+        : "https://sandbox.wompi.co/v1";
+    const wompiKey = process.env.WOMPI_PRIVATE_KEY;
+
+    if (!wompiKey) {
+      throw new HttpsError("internal", "Pasarela de pago no configurada.");
+    }
+
+    const appUrl = process.env.APP_URL ?? "https://siercp.com";
+
+    let wompiPaymentLinkId: string;
+    let wompiRedirectUrl: string;
+
+    try {
+      const wompiRes = await fetch(`${wompiApiBase}/payment_links`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${wompiKey}`,
+        },
+        body: JSON.stringify({
+          name: courseTitle,
+          description: `Inscripción al curso ${courseTitle} en SIERCP`,
+          single_use: true,
+          collect_shipping: false,
+          currency: "COP",
+          amount_in_cents: priceCents,
+          redirect_url: `${appUrl}/checkout/resultado?curso=${encodeURIComponent(cursoSlug)}&cohort=${encodeURIComponent(resolvedCohortId)}`,
+        }),
+      });
+
+      if (!wompiRes.ok) {
+        const errText = await wompiRes.text();
+        console.error(
+          "[createWompiCourseTransaction] Wompi API error:",
+          wompiRes.status,
+          errText
+        );
+        throw new HttpsError("internal", "Error al crear enlace de pago.");
+      }
+
+      const wompiData = (await wompiRes.json()) as {
+        data: { id: string; url?: string; payment_link?: { id: string; url: string } };
+      };
+
+      wompiPaymentLinkId = wompiData.data.id;
+      wompiRedirectUrl =
+        wompiData.data.url ??
+        wompiData.data.payment_link?.url ??
+        `https://checkout.wompi.co/l/${wompiPaymentLinkId}`;
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("[createWompiCourseTransaction] fetch error:", err);
+      throw new HttpsError("internal", "No se pudo conectar con la pasarela de pago.");
+    }
+
+    const userData = userDoc.data() ?? {};
+
+    // Store transaction metadata at transactions/{paymentLinkId}
+    // The webhook receives tx.reference = paymentLinkId and updates this doc.
+    await db.collection("transactions").doc(wompiPaymentLinkId).set({
+      id: wompiPaymentLinkId,
+      type: "course_enrollment",
+      user_id: callerUid,
+      customer_email: userData.email ?? "",
+      curso_slug: cursoSlug,
+      cohort_id: resolvedCohortId,
+      template_id: resolvedTemplateId,
+      institution_id: institutionId ?? null,
+      course_title: courseTitle,
+      amount_in_cents: priceCents,
+      currency: "COP",
+      status: "PENDING",
+      enrolled: false,
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    return {
+      redirectUrl: wompiRedirectUrl,
+      transactionId: wompiPaymentLinkId,
+      amountCents: priceCents,
+      courseTitle,
+    };
+  }
+);
