@@ -1,3 +1,8 @@
+# Firebase service account credentials (NEVER commit)
+scripts/service-account.json
+scripts/node_modules/
+scripts/package-lock.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

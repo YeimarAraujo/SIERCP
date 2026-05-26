@@ -25,7 +25,20 @@
       "Bash(Remove-Item \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\shared\\\\components\\\\layout\" -Recurse -Force)",
       "Bash(cd /c/Programacion/SIERCP/siercp_flutter && find lib/features -name \"*.dart\" | head -80)",
       "Read(//c/c/Programacion/SIERCP/siercp_flutter/lib/**)",
-      "Bash(Get-ChildItem -Path . -Directory)"
+      "Bash(Get-ChildItem -Path . -Directory)",
+      "Bash(dart analyze *)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Programacion\\\\jomar_segurid\" -Recurse -Force | Where-Object { $_.PSIsContainer -eq $false } | Select-Object -ExpandProperty FullName | Sort-Object)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Programacion\\\\SIERCP\\\\siercp-web\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "PowerShell($f = \"c:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\\\\core\\\\services\\\\firestore_service.dart\"; $lines = \\(Get-Content $f\\).Count; Write-Output \"Total: $lines\"; Get-Content $f | Select-Object -Last 15)",
+      "Bash(Remove-Item \"c:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\lib\\\\features\\\\super_admin\\\\presentation\\\\pages\\\\org_management_screen.dart\" -Force)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Programacion\\\\SIERCP\\\\siercp_flutter\\\\functions\\\\src\\\\certificates\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"Directory ready\")",
+      "Bash(npm install *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Programacion\\jomar_segurid"
     ]
   }
 }
