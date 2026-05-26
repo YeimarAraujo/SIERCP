@@ -332,5 +332,90 @@
       "requiredCount": { "type": "int" },
       "totalDone": { "type": "int" }
     }
-  }
+  },
+
+  "navSimulation": "Simulation",
+  "simulationTitle": "Simulation",
+  "simulationSubtitle": "Theoretical and practical evaluations",
+  "theoreticalEval": "Theoretical Evaluation",
+  "theoreticalEvalDesc": "Answer dynamic questions based on AHA and MinSalud guidelines",
+  "practicalEval": "Practical Evaluation",
+  "practicalEvalDesc": "Practice with the ESP32 manikin connected",
+  "quizTopicsTitle": "Select a topic",
+  "quizTopicsSubtitle": "Evaluations based on AHA and MinSalud guidelines",
+  "quizStart": "Start evaluation",
+  "quizQuestionLabel": "Question {current} of {total}",
+  "@quizQuestionLabel": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "quizTimeLeft": "Time remaining",
+  "quizSubmit": "Finish evaluation",
+  "quizResultTitle": "Result",
+  "quizPassed": "Passed!",
+  "quizFailed": "Not passed",
+  "quizScore": "{score}%",
+  "@quizScore": {
+    "placeholders": {
+      "score": { "type": "String" }
+    }
+  },
+  "quizXpEarned": "+{xp} XP earned",
+  "@quizXpEarned": {
+    "placeholders": {
+      "xp": { "type": "int" }
+    }
+  },
+  "quizCorrectOf": "{correct} of {total} correct",
+  "@quizCorrectOf": {
+    "placeholders": {
+      "correct": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "quizRetry": "Try again",
+  "quizReviewAnswers": "Review answers",
+  "quizLevelUp": "Level up! You reached level {level}!",
+  "@quizLevelUp": {
+    "placeholders": {
+      "level": { "type": "int" }
+    }
+  },
+  "quizNewBadge": "Badge earned",
+  "quizPlanRequired": "Requires {plan} plan",
+  "@quizPlanRequired": {
+    "placeholders": {
+      "plan": { "type": "String" }
+    }
+  },
+  "quizLoading": "Loading questions...",
+  "quizSubmitting": "Submitting answers...",
+  "quizErrorLoad": "Failed to load questions. Please try again.",
+  "quizErrorSubmit": "Failed to submit answers. Please try again.",
+  "quizAnswerAll": "Answer all questions before submitting",
+  "quizTimeUp": "Time's up!",
+  "quizMinScore": "Minimum passing score: 70%",
+  "practicalTitle": "Practical Evaluation",
+  "practicalSubtitle": "Choose the type of practice",
+  "practicalRcp": "CPR with Manikin",
+  "practicalRcpDesc": "Practice compressions and ventilations with real-time feedback",
+  "practicalScenarios": "Clinical Scenarios",
+  "practicalScenariosDesc": "Simulate emergency cases with the full protocol",
+  "practicalDeviceRequired": "ESP32 manikin connection required",
+  "practicalConnectFirst": "Connect manikin",
+
+  "calendarTitle": "My Calendar",
+  "calendarSubtitle": "Session, evaluation and certificate history",
+  "calendarInstitutionTitle": "Institution Calendar",
+  "calendarNoEvents": "No activity on this day",
+  "calendarEventQuiz": "Evaluation",
+  "calendarEventSession": "Session",
+  "calendarEventCertificate": "Certificate",
+  "calendarLoading": "Loading events...",
+  "calendarError": "Failed to load calendar",
+  "calendarRetry": "Retry",
+  "calendarBannerTitle": "My Calendar",
+  "calendarBannerSubtitle": "Activity and progress history"
 }

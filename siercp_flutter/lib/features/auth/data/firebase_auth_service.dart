@@ -32,8 +32,22 @@ class FirebaseAuthService {
       await _auth.signOut();
       throw Exception('Perfil de usuario no encontrado en la base de datos.');
     }
+    // M4: super admin access is web-panel only — never via the mobile app.
+    if (user.isSuperAdmin) {
+      await _auth.signOut();
+      throw Exception(
+        'Esta cuenta no tiene acceso desde la aplicación móvil. '
+        'Usa el panel de administración web.',
+      );
+    }
     if (!user.isActive) {
       await _auth.signOut();
+      if (user.accountStatus == 'PENDING') {
+        throw Exception(
+          'Tu solicitud está pendiente de aprobación. '
+          'Recibirás una notificación cuando el equipo de SIERCP active tu institución.',
+        );
+      }
       throw Exception('Tu cuenta está desactivada. Contacta al administrador.');
     }
     return user;
@@ -46,6 +60,7 @@ class FirebaseAuthService {
     required String lastName,
     required String role,
     String? identificacion,
+    String? phoneNumber,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -60,6 +75,7 @@ class FirebaseAuthService {
       lastName: lastName.trim(),
       role: role,
       identificacion: identificacion?.trim(),
+      phoneNumber: phoneNumber?.trim(),
       isActive: true,
     );
     await _firestore.createUser(user);

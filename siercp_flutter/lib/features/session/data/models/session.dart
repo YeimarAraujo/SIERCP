@@ -18,6 +18,7 @@ class SessionModel {
   final DateTime? endedAt;
   final SessionMetrics? metrics;
   final String? courseId;
+  final LiveSessionData? liveMetrics;
 
   const SessionModel({
     required this.id,
@@ -32,6 +33,7 @@ class SessionModel {
     this.endedAt,
     this.metrics,
     this.courseId,
+    this.liveMetrics,
   });
 
   Duration get duration {
@@ -61,6 +63,9 @@ class SessionModel {
       endedAt:        (d['endedAt'] as Timestamp?)?.toDate(),
       metrics:        d['metrics'] != null ? SessionMetrics.fromMap(d['metrics']) : null,
       courseId:        d['courseId'],
+      liveMetrics:    d['liveMetrics'] != null
+          ? LiveSessionData.fromMap(d['liveMetrics'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -259,6 +264,19 @@ class LiveSessionData {
     alertMessage:            m['alertMessage'],
     alertType:               m['alertType'],
   );
+
+  Map<String, dynamic> toLiveMap() => {
+    'depthMm': depthMm,
+    'ratePerMin': ratePerMin,
+    'forceKg': forceKg,
+    'compressionCount': compressionCount,
+    'correctCompressionCount': correctCompressionCount,
+    'correctPct': correctPct,
+    'sessionScore': sessionScore,
+    'decompressedFully': decompressedFully,
+    'recoilPct': recoilPct,
+    'pauseCount': pauseCount,
+  };
 
   LiveSessionData copyWith({
     double? depthMm, int? ratePerMin, double? forceKg,

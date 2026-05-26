@@ -335,5 +335,90 @@
       "requiredCount": { "type": "int" },
       "totalDone": { "type": "int" }
     }
-  }
+  },
+
+  "navSimulation": "Simulación",
+  "simulationTitle": "Simulación",
+  "simulationSubtitle": "Evaluaciones teóricas y prácticas",
+  "theoreticalEval": "Evaluación Teórica",
+  "theoreticalEvalDesc": "Responde preguntas dinámicas basadas en AHA y MinSalud",
+  "practicalEval": "Evaluación Práctica",
+  "practicalEvalDesc": "Práctica con el maniquí ESP32 conectado",
+  "quizTopicsTitle": "Selecciona un tema",
+  "quizTopicsSubtitle": "Evaluaciones basadas en lineamientos AHA y MinSalud",
+  "quizStart": "Comenzar evaluación",
+  "quizQuestionLabel": "Pregunta {current} de {total}",
+  "@quizQuestionLabel": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "quizTimeLeft": "Tiempo restante",
+  "quizSubmit": "Finalizar evaluación",
+  "quizResultTitle": "Resultado",
+  "quizPassed": "¡Aprobado!",
+  "quizFailed": "No aprobado",
+  "quizScore": "{score}%",
+  "@quizScore": {
+    "placeholders": {
+      "score": { "type": "String" }
+    }
+  },
+  "quizXpEarned": "+{xp} XP ganados",
+  "@quizXpEarned": {
+    "placeholders": {
+      "xp": { "type": "int" }
+    }
+  },
+  "quizCorrectOf": "{correct} de {total} correctas",
+  "@quizCorrectOf": {
+    "placeholders": {
+      "correct": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "quizRetry": "Intentar de nuevo",
+  "quizReviewAnswers": "Ver respuestas",
+  "quizLevelUp": "¡Subiste al nivel {level}!",
+  "@quizLevelUp": {
+    "placeholders": {
+      "level": { "type": "int" }
+    }
+  },
+  "quizNewBadge": "Insignia obtenida",
+  "quizPlanRequired": "Requiere plan {plan}",
+  "@quizPlanRequired": {
+    "placeholders": {
+      "plan": { "type": "String" }
+    }
+  },
+  "quizLoading": "Cargando preguntas...",
+  "quizSubmitting": "Enviando respuestas...",
+  "quizErrorLoad": "Error al cargar las preguntas. Intenta de nuevo.",
+  "quizErrorSubmit": "Error al enviar respuestas. Intenta de nuevo.",
+  "quizAnswerAll": "Responde todas las preguntas antes de enviar",
+  "quizTimeUp": "¡Tiempo agotado!",
+  "quizMinScore": "Mínimo aprobatorio: 70%",
+  "practicalTitle": "Evaluación Práctica",
+  "practicalSubtitle": "Elige el tipo de práctica a realizar",
+  "practicalRcp": "RCP con Maniquí",
+  "practicalRcpDesc": "Practica compresiones y ventilaciones con retroalimentación en tiempo real",
+  "practicalScenarios": "Escenarios Clínicos",
+  "practicalScenariosDesc": "Simula casos de emergencia con el protocolo completo",
+  "practicalDeviceRequired": "Se requiere maniquí ESP32 conectado",
+  "practicalConnectFirst": "Conectar maniquí",
+
+  "calendarTitle": "Mi Calendario",
+  "calendarSubtitle": "Historial de sesiones, evaluaciones y certificados",
+  "calendarInstitutionTitle": "Calendario Institucional",
+  "calendarNoEvents": "Sin actividad este día",
+  "calendarEventQuiz": "Evaluación",
+  "calendarEventSession": "Sesión",
+  "calendarEventCertificate": "Certificado",
+  "calendarLoading": "Cargando eventos...",
+  "calendarError": "Error al cargar el calendario",
+  "calendarRetry": "Reintentar",
+  "calendarBannerTitle": "Mi Calendario",
+  "calendarBannerSubtitle": "Historial de actividad y progreso"
 }

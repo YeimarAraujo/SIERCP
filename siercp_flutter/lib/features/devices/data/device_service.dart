@@ -162,9 +162,7 @@ class DeviceService {
   final DatabaseReference _telemetria =
       FirebaseDatabase.instance.ref('telemetria');
 
-  // ── Stream de todos los dispositivos disponibles ──────────────────────────
   Stream<List<DeviceInfo>> streamAvailableDevices() {
-    // keepSynced mantiene conexión persistente → datos llegan en ~50ms
     _telemetria.keepSynced(true);
     return _telemetria.onValue.map((event) {
       if (event.snapshot.value == null) return [];
@@ -227,7 +225,10 @@ class DeviceService {
   // ── Verificar si un dispositivo especifico esta activo ────────────────────
   Future<bool> isDeviceActive(String macAddress) async {
     try {
-      final snap = await _telemetria.child(macAddress).get().timeout(const Duration(seconds: 3));
+      final snap = await _telemetria
+          .child(macAddress)
+          .get()
+          .timeout(const Duration(seconds: 3));
       if (!snap.exists || snap.value == null) return false;
       final data = Map<dynamic, dynamic>.from(snap.value as Map);
       final ts = (data['timestamp'] as num?)?.toInt() ?? 0;

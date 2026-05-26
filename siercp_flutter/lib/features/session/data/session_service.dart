@@ -21,6 +21,7 @@ class SessionService {
     String patientType = 'adult',
     String? courseId,
     String? manikinId,
+    String? institutionId,
   }) async {
     try {
       // 1. Obtener escenarios con timeout (ya tiene fallback interno)
@@ -35,6 +36,9 @@ class SessionService {
       // pero no queremos bloquear la UI 30 segundos.
       String sessionId;
       try {
+        // Pasar institutionId null cuando no hay org: Firestore rules permite
+        // sesiones sin org (práctica libre). Una cadena vacía '' rompería
+        // tenant isolation al dejar la sesión en un namespace inválido.
         sessionId = await _db
             .createSession(
               studentId: studentId,
@@ -44,6 +48,7 @@ class SessionService {
               patientType: patientType,
               courseId: courseId,
               manikinId: manikinId,
+              institutionId: (institutionId?.isNotEmpty == true) ? institutionId : null,
             )
             .timeout(const Duration(seconds: 2));
       } catch (e) {
@@ -118,9 +123,12 @@ class SessionService {
     return _db.getScenarios();
   }
 
-  Future<List<CourseModel>> getCoursesForUser(String userId, String role) {
+  Future<List<CourseModel>> getCoursesForUser(String userId, String role, {String? institutionId}) {
     if (role == 'ADMIN') {
-      return _db.getAllCourses();
+      if (institutionId != null && institutionId.isNotEmpty) {
+        return _db.getCoursesByInstitution(institutionId);
+      }
+      return Future.value([]);
     }
     if (role == 'INSTRUCTOR') {
       return _db.getInstructorCourses(userId);
@@ -137,8 +145,8 @@ class SessionService {
     String? description,
     required String instructorId,
     required String instructorName,
+    String? institutionId,
   }) async {
-    // Generar código de invitación único de 6 caracteres
     final code = _generateCode();
     return _db.createCourse(
       title: name,
@@ -147,6 +155,7 @@ class SessionService {
       instructorName: instructorName,
       inviteCode: code,
       certification: 'BLS AHA 2020',
+      institutionId: institutionId,
     );
   }
 

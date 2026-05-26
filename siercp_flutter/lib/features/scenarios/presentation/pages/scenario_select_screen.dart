@@ -76,24 +76,39 @@ class ScenarioSelectScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              padding: const EdgeInsets.fromLTRB(8, 12, 20, 0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(loc.selectScenarioTitle,
-                          style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(loc.selectScenarioSubtitle,
-                          style: TextStyle(color: textS, fontSize: 12)),
-                    ],
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18, color: textP),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(loc.selectScenarioTitle,
+                            style: TextStyle(
+                                color: textP,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700)),
+                        Text(loc.selectScenarioSubtitle,
+                            style: TextStyle(color: textS, fontSize: 11)),
+                      ],
+                    ),
                   ),
                   // Botón seleccionar maniquí
                   OutlinedButton.icon(
                     icon: const Icon(Icons.sensors_rounded, size: 14),
-                    label: Text(loc.manikinBtn, style: const TextStyle(fontSize: 11)),
+                    label: Text(loc.manikinBtn,
+                        style: const TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),

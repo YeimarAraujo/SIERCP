@@ -13,6 +13,7 @@ import 'package:siercp/features/guides/presentation/providers/guide_provider.dar
 import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/features/session/presentation/providers/ble_session_provider.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
 
 final courseActiveSessionsProvider = StreamProvider.family<List<SessionModel>, String>((ref, courseId) {
   return ref.watch(firestoreServiceProvider).watchCourseActiveSessions(courseId);
@@ -557,7 +558,12 @@ final scenariosProvider = FutureProvider<List<ScenarioModel>>((ref) async {
 final coursesProvider = FutureProvider<List<CourseModel>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
-  return ref.read(sessionServiceProvider).getCoursesForUser(user.id, user.role);
+  final orgCtx = ref.watch(orgContextProvider);
+  return ref.read(sessionServiceProvider).getCoursesForUser(
+    user.id,
+    user.role,
+    institutionId: orgCtx.activeOrgId,
+  );
 });
 
 // ─── Alerts (Stream en tiempo real) ──────────────────────────────────────────

@@ -311,9 +311,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   Widget _buildModernHeader(dynamic session, dynamic live, String elapsedStr, Color scoreColor) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(12, 16, 20, 16),
       child: Row(
         children: [
+          // Back/abort button
+          IconButton(
+            icon: const Icon(Icons.stop_circle_outlined, size: 24),
+            color: AppColors.red.withValues(alpha: 0.8),
+            tooltip: 'Finalizar sesión',
+            onPressed: _endSession,
+          ),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,36 +329,37 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 12,
-                      height: 12,
+                      width: 8,
+                      height: 8,
                       decoration: const BoxDecoration(
                         color: Color(0xFF00D4FF),
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Color(0xFF00D4FF), blurRadius: 8)
+                          BoxShadow(color: Color(0xFF00D4FF), blurRadius: 6)
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Text(
                       'MONITOR DE SESIÓN',
                       style: TextStyle(
                         color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 2,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   session?.scenarioTitle?.toUpperCase() ?? 'RCP ENTRENAMIENTO',
                   style: TextStyle(
                     color: theme.textTheme.bodyLarge?.color,
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

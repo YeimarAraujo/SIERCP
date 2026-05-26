@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/users/data/models/user.dart';
 import 'package:siercp/features/users/data/admin_service.dart';
@@ -325,6 +327,9 @@ class _UserDetailBody extends ConsumerWidget {
             ),
             const SizedBox(height: 28),
 
+            // Certificates review
+            _CertReviewSection(userId: user.id),
+
             // Actions
             Text('Acciones', style: TextStyle(color: textS, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.1)),
             const SizedBox(height: 10),
@@ -368,6 +373,315 @@ class _UserDetailBody extends ConsumerWidget {
   }
 }
 
+// ─── Certificate review section ──────────────────────────────────────────────
+class _CertReviewSection extends ConsumerStatefulWidget {
+  final String userId;
+  const _CertReviewSection({required this.userId});
+
+  @override
+  ConsumerState<_CertReviewSection> createState() => _CertReviewSectionState();
+}
+
+class _CertReviewSectionState extends ConsumerState<_CertReviewSection> {
+  final _db = FirebaseFirestore.instance;
+
+  Future<void> _approve(String certId) async {
+    await _db.collection(AppConstants.colUserCertificates).doc(certId).update({
+      'verificationStatus': 'APPROVED',
+      'rejectionReason': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _db.collection(AppConstants.colUsers).doc(widget.userId).update({
+      'certVerification': 'APPROVED',
+    });
+    ref.invalidate(allUsersProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Certificado aprobado'),
+        backgroundColor: Color(0xFF22c55e),
+      ));
+    }
+  }
+
+  Future<void> _reject(String certId) async {
+    final ctrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechazar certificado'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Motivo del rechazo (visible para el usuario):',
+                style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Ej. El documento no es legible…',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Rechazar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _db
+          .collection(AppConstants.colUserCertificates)
+          .doc(certId)
+          .update({
+        'verificationStatus': 'REJECTED',
+        'rejectionReason': ctrl.text.trim().isEmpty ? null : ctrl.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      ref.invalidate(allUsersProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Certificado rechazado'),
+          backgroundColor: AppColors.red,
+        ));
+      }
+    }
+    ctrl.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final surface = theme.colorScheme.surface;
+    final border = theme.colorScheme.outline;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _db
+          .collection(AppConstants.colUserCertificates)
+          .where('userId', isEqualTo: widget.userId)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snap) {
+        final docs = snap.data?.docs ?? [];
+        if (snap.connectionState == ConnectionState.waiting && docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+                child: CircularProgressIndicator(color: AppColors.brand)),
+          );
+        }
+        if (docs.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Certificados enviados',
+                style: TextStyle(
+                    color: textS,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1)),
+            const SizedBox(height: 10),
+            ...docs.map((doc) {
+              final d = doc.data() as Map<String, dynamic>;
+              final status = d['verificationStatus'] as String? ?? 'NONE';
+              final type = d['type'] as String? ?? 'OTRO';
+              final certNum = d['certificateNumber'] as String? ?? '—';
+              final issuer = d['issuer'] as String? ?? '—';
+              final reason = d['rejectionReason'] as String?;
+              final isPending = status == 'PENDING';
+
+              final statusColor = switch (status) {
+                'APPROVED' => const Color(0xFF22c55e),
+                'REJECTED' => AppColors.red,
+                'PENDING' => AppColors.amber,
+                _ => textS,
+              };
+              final statusLabel = switch (status) {
+                'APPROVED' => 'Aprobado',
+                'REJECTED' => 'Rechazado',
+                'PENDING' => 'Pendiente',
+                _ => 'Sin verificar',
+              };
+              final typeLabel = switch (type) {
+                'SST_LICENCIA' => 'Licencia SST',
+                'PROFESIONAL' => 'Título Profesional',
+                'AHA' => 'Cert. AHA',
+                _ => 'Otro',
+              };
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(
+                    color: isPending
+                        ? AppColors.amber.withValues(alpha: 0.4)
+                        : border.withValues(alpha: 0.5),
+                    width: isPending ? 1.5 : 0.5,
+                  ),
+                  boxShadow: isDark ? null : AppShadows.card(false),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(typeLabel,
+                            style: TextStyle(
+                                color: textP,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13)),
+                        const Spacer(),
+                        if (isPending) ...[
+                          _ActionBtn(
+                            icon: Icons.check_rounded,
+                            color: const Color(0xFF22c55e),
+                            tooltip: 'Aprobar',
+                            onTap: () => _approve(doc.id),
+                          ),
+                          const SizedBox(width: 6),
+                          _ActionBtn(
+                            icon: Icons.close_rounded,
+                            color: AppColors.red,
+                            tooltip: 'Rechazar',
+                            onTap: () => _reject(doc.id),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('N.° $certNum',
+                        style: TextStyle(color: textS, fontSize: 11)),
+                    Text(issuer,
+                        style: TextStyle(
+                            color: textS.withValues(alpha: 0.7),
+                            fontSize: 11)),
+                    if (reason != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 12, color: AppColors.red),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(reason,
+                                style: const TextStyle(
+                                    color: AppColors.red,
+                                    fontSize: 11,
+                                    height: 1.4)),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (d['fileUrl'] != null) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () {
+                          // File preview — open in browser
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('URL: ${d['fileUrl']}'),
+                                duration: const Duration(seconds: 3)),
+                          );
+                        },
+                        child: const Row(
+                          children: [
+                            Icon(Icons.attach_file_rounded,
+                                size: 13, color: AppColors.brand),
+                            SizedBox(width: 4),
+                            Text('Ver documento',
+                                style: TextStyle(
+                                    color: AppColors.brand,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 18),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _ActionBtn(
+      {required this.icon,
+      required this.color,
+      required this.tooltip,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+              border:
+                  Border.all(color: color.withValues(alpha: 0.3), width: 1),
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+        ),
+      );
+}
+
+// ─── Info row ─────────────────────────────────────────────────────────────────
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,6 +22,7 @@ import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
 import 'package:siercp/core/services/sync_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:siercp/core/constants/environment.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
@@ -28,10 +30,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Firebase.apps.isEmpty) {
+  try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
+  }
+
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      appleProvider:   kDebugMode ? AppleProvider.debug   : AppleProvider.deviceCheck,
+      webProvider:     ReCaptchaV3Provider('REEMPLAZA_CON_TU_RECAPTCHA_V3_SITE_KEY'),
+    );
+  } catch (e) {
+    debugPrint('App Check activation skipped: $e');
   }
 
   // Configuración global de Firestore
@@ -40,10 +54,11 @@ void main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  // RTDB
-  FirebaseDatabase.instance.databaseURL =
-      'https://siercp-default-rtdb.firebaseio.com';
-  FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
+  // RTDB (Configurada exclusivamente vía --dart-define=RTDB_URL=...)
+  if (Environment.isConfigured) {
+    FirebaseDatabase.instance.databaseURL = Environment.rtdbUrl;
+    FirebaseDatabase.instance.ref('telemetria').keepSynced(true);
+  }
 
   if (!kIsWeb) {
     if (Platform.isWindows || Platform.isLinux) {

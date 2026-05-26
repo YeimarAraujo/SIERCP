@@ -72,7 +72,7 @@ void resetSession() {
 void updateFSM(float depth, uint32_t now) {
 
     bool down = depth > DEPTH_DOWN;
-    bool up   = depth < DEPTH_UP;
+    bool up   = dep th < DEPTH_UP;
 
     switch (state) {
 

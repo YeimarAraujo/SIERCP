@@ -1,8 +1,11 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/features/users/data/models/user.dart' show CertVerificationStatus;
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/core/widgets/metric_card.dart';
@@ -11,6 +14,9 @@ import 'package:siercp/features/notifications/presentation/providers/notificatio
 import 'package:siercp/features/devices/data/ble_service.dart';
 import 'package:siercp/core/providers/connectivity_provider.dart';
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/core/widgets/xp_strip.dart';
+import 'package:siercp/features/users/data/admin_service.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -21,7 +27,10 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final loc = AppLocalizations.of(context)!;
     final isAdmin = user?.isAdmin ?? false;
+    final orgCtx = ref.watch(orgContextProvider);
     final isInstructor = user?.isInstructor ?? false;
+    final isUsuario = !isAdmin && !isInstructor;
+    final certApproved = user?.certVerification == CertVerificationStatus.approved;
     final theme = Theme.of(context);
 
     // BLE State
@@ -70,7 +79,7 @@ class HomeScreen extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     isAdmin
-                                        ? loc.adminDashboardTitle
+                                        ? (orgCtx.activeOrgName ?? loc.adminDashboardTitle)
                                         : loc.welcomeName(user?.firstName ?? loc.user),
                                     style: TextStyle(
                                       color: theme.textTheme.bodyLarge?.color,
@@ -143,11 +152,27 @@ class HomeScreen extends ConsumerWidget {
                         isConnected: isConnected,
                       ),
 
-                    // ── Metrics / Activity (Ocultar para Admin si se prefiere) ───
-                    if (!isAdmin) ...[
+                    // ── Instructor CTA (solo USUARIO sin cert aprobado) ──────────
+                    if (isUsuario && !certApproved)
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                          child: _InstructorCtaCard(),
+                        ),
+                      ),
+
+                    // ── Metrics / Activity (Ocultar para Admin si se prefiere) ───
+                    if (!isAdmin) ...[
+                      // XP / Level strip
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(24, 24, 24, 0),
+                          child: XpStrip(),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -226,10 +251,18 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
 
+                    // ── Calendar Banner ──────────────────────────────────────────────
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                        child: _CalendarBannerTile(),
+                      ),
+                    ),
+
                     // ── AHA 2025 Tips & More ─────────────────────────────────────────
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
                         child: _TipCard(),
                       ),
                     ),
@@ -316,6 +349,78 @@ class _TipCard extends StatelessWidget {
   }
 }
 
+class _CalendarBannerTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context)!;
+
+    return GestureDetector(
+      onTap: () => context.push('/calendar'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: AppColors.brand.withValues(alpha: 0.18),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brand.withValues(alpha: 0.07),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.brand.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.calendar_month_rounded,
+                  color: AppColors.brand, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loc.calendarBannerTitle,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    loc.calendarBannerSubtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 //  Admin dashboard
 class _AdminDashboard extends StatelessWidget {
   final WidgetRef ref;
@@ -341,8 +446,11 @@ class _AdminDashboard extends StatelessWidget {
                   value: '...',
                   icon: Icons.people_outline,
                   color: AppColors.brand,
-                  stream: ref.watch(usersStreamProvider).whenData(
-                      (u) => u.where((x) => x.isStudent).length.toString()),
+                  stream: ref.watch(orgUsersProvider).whenData(
+                      (members) => members.where((m) =>
+                          m.role == AppConstants.roleUsuario ||
+                          m.role == AppConstants.roleUsuarioProfesional ||
+                          m.role == AppConstants.roleUsuarioSST).length.toString()),
                 ),
                 const SizedBox(width: 12),
                 _AdminStatPill(
@@ -410,7 +518,184 @@ class _AdminDashboard extends StatelessWidget {
             ],
           ),
         ),
+
+        // ── Role Distribution Chart ──────────────────────────────────────
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: _AdminOrgChart(ref: ref),
+        ),
+        const SizedBox(height: 24),
       ]),
+    );
+  }
+}
+
+// ── Role donut chart ──────────────────────────────────────────────────────────
+
+class _AdminOrgChart extends StatelessWidget {
+  final WidgetRef ref;
+  const _AdminOrgChart({required this.ref});
+
+  static const _roleColors = {
+    AppConstants.roleInstructor:         AppColors.accent,
+    AppConstants.roleUsuario:            AppColors.brand,
+    AppConstants.roleUsuarioProfesional: AppColors.cyan,
+    AppConstants.roleUsuarioSST:         AppColors.green,
+    AppConstants.roleAdmin:              AppColors.amber,
+  };
+
+  static const _roleLabels = {
+    AppConstants.roleInstructor:         'Instructor',
+    AppConstants.roleUsuario:            'Participante',
+    AppConstants.roleUsuarioProfesional: 'Profesional',
+    AppConstants.roleUsuarioSST:         'SST',
+    AppConstants.roleAdmin:              'Admin',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme  = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final membersAsync = ref.watch(orgUsersProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.card : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Distribución de roles',
+            style: TextStyle(
+              color:      theme.textTheme.bodyLarge?.color,
+              fontSize:   14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          membersAsync.when(
+            loading: () => const SizedBox(
+              height: 160,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            error: (_, __) => const SizedBox(
+              height: 80,
+              child: Center(child: Text('No se pudo cargar')),
+            ),
+            data: (members) {
+              if (members.isEmpty) {
+                return SizedBox(
+                  height: 80,
+                  child: Center(
+                    child: Text(
+                      'Sin miembros registrados',
+                      style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color
+                              ?.withValues(alpha: 0.5)),
+                    ),
+                  ),
+                );
+              }
+
+              final counts = <String, int>{};
+              for (final m in members) {
+                counts[m.role] = (counts[m.role] ?? 0) + 1;
+              }
+
+              final sections = counts.entries.map((e) {
+                final color = _roleColors[e.key] ?? AppColors.textSecondary;
+                return PieChartSectionData(
+                  value:          e.value.toDouble(),
+                  color:          color,
+                  radius:         48,
+                  title:          '${e.value}',
+                  titleStyle: const TextStyle(
+                    color:      Colors.white,
+                    fontSize:   12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                );
+              }).toList();
+
+              return Row(
+                children: [
+                  SizedBox(
+                    height: 160,
+                    width:  160,
+                    child: PieChart(
+                      PieChartData(
+                        sections:         sections,
+                        centerSpaceRadius: 40,
+                        sectionsSpace:    3,
+                        startDegreeOffset: -90,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: counts.entries.map((e) {
+                        final color =
+                            _roleColors[e.key] ?? AppColors.textSecondary;
+                        final label =
+                            _roleLabels[e.key] ?? e.key;
+                        final pct =
+                            (e.value / members.length * 100).round();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10, height: 10,
+                                decoration: BoxDecoration(
+                                    color: color, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$pct%',
+                                style: TextStyle(
+                                  color:      color,
+                                  fontSize:   12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1156,6 +1441,85 @@ class _StudentDashboard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _NotEnrolledCard(),
               ),
+      ),
+    );
+  }
+}
+
+// ── Instructor CTA ────────────────────────────────────────────────────────────
+
+class _InstructorCtaCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme  = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textP  = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  AppColors.accent.withValues(alpha: 0.18),
+                  AppColors.brand.withValues(alpha: 0.10),
+                ]
+              : [
+                  AppColors.accent.withValues(alpha: 0.08),
+                  AppColors.brand.withValues(alpha: 0.04),
+                ],
+          begin: Alignment.topLeft,
+          end:   Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.accent.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color:        AppColors.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: const Icon(Icons.school_outlined,
+                color: AppColors.accent, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('¿Quieres ser Instructor?',
+                    style: TextStyle(
+                        color:      textP,
+                        fontWeight: FontWeight.w800,
+                        fontSize:   14)),
+                const SizedBox(height: 3),
+                Text('Sube tu licencia SST y certificados profesionales '
+                    'para operar de forma independiente.',
+                    style: TextStyle(color: textS, fontSize: 11, height: 1.4)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton(
+            onPressed: () => context.go('/instructor-apply'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              padding:         const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
+            ),
+            child: const Text('Aplicar',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }

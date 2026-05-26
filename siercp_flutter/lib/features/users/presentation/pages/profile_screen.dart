@@ -10,6 +10,7 @@ import 'package:siercp/features/devices/presentation/providers/device_provider.d
 import 'package:siercp/core/widgets/section_label.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 import 'package:siercp/core/theme/locale_provider.dart';
+import 'package:siercp/features/users/data/models/user.dart' show CertVerificationStatus;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -50,9 +51,12 @@ class ProfileScreen extends ConsumerWidget {
 
   String _translateRole(String role, AppLocalizations loc) {
     switch (role.toUpperCase()) {
-      case 'ADMIN': return loc.admin;
-      case 'INSTRUCTOR': return loc.instructor;
-      default: return loc.student;
+      case 'SUPER_ADMIN':        return 'Super Admin';
+      case 'ADMIN':              return loc.admin;
+      case 'INSTRUCTOR':         return loc.instructor;
+      case 'USUARIO_SST':        return 'Usuario SST';
+      case 'USUARIO_PROFESIONAL': return 'Profesional';
+      default:                   return 'Usuario';
     }
   }
 
@@ -194,17 +198,21 @@ class ProfileScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _Badge(
-                          label: _translateRole(user?.role ?? 'ESTUDIANTE', loc),
-                          color: user?.role == 'ADMIN'
-                              ? AppColors.amber
-                              : user?.role == 'INSTRUCTOR'
-                                  ? AppColors.accent
-                                  : AppColors.cyan,
-                          bg: (user?.role == 'ADMIN'
-                              ? AppColors.amber
-                              : user?.role == 'INSTRUCTOR'
-                                  ? AppColors.accent
-                                  : AppColors.cyan).withValues(alpha: 0.12),
+                          label: _translateRole(user?.role ?? 'USUARIO', loc),
+                          color: (user?.isSuperAdmin ?? false)
+                              ? const Color(0xFFa855f7)
+                              : (user?.isAdmin ?? false)
+                                  ? AppColors.amber
+                                  : (user?.isInstructor ?? false)
+                                      ? AppColors.accent
+                                      : AppColors.cyan,
+                          bg: ((user?.isSuperAdmin ?? false)
+                              ? const Color(0xFFa855f7)
+                              : (user?.isAdmin ?? false)
+                                  ? AppColors.amber
+                                  : (user?.isInstructor ?? false)
+                                      ? AppColors.accent
+                                      : AppColors.cyan).withValues(alpha: 0.12),
                         ),
                         const SizedBox(width: 8),
                         _Badge(label: 'SIERCP v2.0', color: AppColors.brand, bg: AppColors.brandBg),
@@ -263,6 +271,35 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: 24),
+
+              // Certificates (visible to all users)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: SectionLabel('Certificados'),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _NavTile(
+                    label: 'Certificados Profesionales',
+                    value: user?.certVerification == CertVerificationStatus.approved
+                        ? 'Verificado'
+                        : user?.certVerification == CertVerificationStatus.pending
+                            ? 'En revisión'
+                            : 'Subir certificado',
+                    textColor: textColor,
+                    secondaryColor: secondaryTextColor,
+                    onTap: () => context.push('/profile/certificados'),
+                    icon: Icons.workspace_premium_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Settings
               Padding(

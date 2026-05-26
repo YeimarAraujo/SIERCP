@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/auth/presentation/pages/splash_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/login_screen.dart';
@@ -17,8 +19,16 @@ import 'package:siercp/features/guides/presentation/pages/add_guide_screen.dart'
 import 'package:siercp/features/users/presentation/pages/profile_screen.dart';
 import 'package:siercp/features/scenarios/presentation/pages/scenario_select_screen.dart';
 import 'package:siercp/features/scenarios/presentation/pages/scenario_detail_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/simulation_menu_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/theoretical_hub_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/quiz_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/quiz_result_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/practical_hub_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/practical_evaluations_screen.dart';
+import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
+import 'package:siercp/features/auth/presentation/pages/institution_register_screen.dart';
 import 'package:siercp/features/users/presentation/pages/manage_users_screen.dart';
 import 'package:siercp/features/users/presentation/pages/user_detail_screen.dart';
 import 'package:siercp/features/devices/presentation/pages/device_status_screen.dart';
@@ -26,6 +36,7 @@ import 'package:siercp/features/users/presentation/pages/create_user_screen.dart
 import 'package:siercp/features/devices/presentation/pages/device_selection_screen.dart';
 import 'package:siercp/features/reports/presentation/pages/reports_screen.dart';
 import 'package:siercp/features/users/presentation/pages/edit_profile_screen.dart';
+import 'package:siercp/features/users/presentation/pages/certificates_screen.dart';
 import 'package:siercp/features/guides/data/models/guide.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/presentation/pages/course_editor_screen.dart';
@@ -39,47 +50,83 @@ import 'package:siercp/features/notifications/presentation/pages/notifications_s
 import 'package:siercp/features/users/presentation/pages/instructor_students_screen.dart';
 import 'package:siercp/features/users/presentation/pages/student_detail_screen.dart';
 import 'package:siercp/features/analytics/presentation/dashboard/analytics_screen.dart';
+import 'package:siercp/features/calendar/presentation/pages/calendar_screen.dart';
+// ── Nuevas pantallas multi-tenant ────────────────────────────────────────────
+import 'package:siercp/features/org/presentation/pages/no_org_screen.dart';
+import 'package:siercp/features/org/presentation/pages/org_switcher_screen.dart';
+import 'package:siercp/features/users/presentation/pages/instructor_apply_screen.dart';
 
-final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final rootNavigatorKey  = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
+// Rutas que no requieren contexto de organización
+const _orgFreeRoutes = {'/no-org', '/org-select'};
+// Rutas que requieren rol ADMIN en la org activa
+const _adminRoutes = {'/admin/'};
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    navigatorKey: rootNavigatorKey,
-    initialLocation: '/splash',
-    refreshListenable: _AuthListenable(ref),
+    navigatorKey:      rootNavigatorKey,
+    initialLocation:   '/splash',
+    refreshListenable: _AppListenable(ref),
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
-      final isAuth = authState.value?.isAuthenticated ?? false;
+      final isAuth    = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
-      final location = state.matchedLocation;
+      final location  = state.matchedLocation;
 
-      // Si todavía está cargando el estado inicial, nos quedamos en splash
-      if (isLoading) {
-        return location == '/splash' ? null : '/splash';
-      }
-
-      // Lógica de redirección basada en autenticación
+      // ── 1. Splash: esperar carga inicial ─────────────────────────────────
+      if (isLoading) return location == '/splash' ? null : '/splash';
       if (location == '/splash') {
-        return isAuth ? '/home' : '/login';
-      }
-
-      final isPublic = location == '/login' || location == '/register';
-
-      if (!isAuth) {
-        return isPublic ? null : '/login';
-      }
-
-      if (isAuth && isPublic) {
+        if (!isAuth) return '/login';
         return '/home';
+      }
+
+      // ── 2. Guard de autenticación ─────────────────────────────────────────
+      final isPublic = location == '/login' || location == '/register' || location == '/register-institution';
+      if (!isAuth) return isPublic ? null : '/login';
+      if (isAuth && (location == '/login' || location == '/register')) return '/home';
+
+      final authValue = ref.read(authStateProvider).value;
+      final user      = ref.read(currentUserProvider);
+
+      // ── 4. Guard de contexto de organización ──────────────────────────────
+      if (_orgFreeRoutes.contains(location)) return null;
+
+      final orgCtx = ref.read(orgContextProvider);
+      if (orgCtx.isLoading) return null; // Espera silenciosa
+
+      // Solo ADMIN está obligado a tener org. USUARIO e INSTRUCTOR
+      // pueden usar la plataforma sin pertenecer a ninguna organización.
+      if (!orgCtx.hasOrg) {
+        final roleGlobal = user?.role ?? authValue?.user?.role;
+        if (roleGlobal == AppConstants.roleAdmin) return '/no-org';
+        // Todos los demás (USUARIO, INSTRUCTOR, etc.) pasan al home.
+      }
+
+      // ── 5. Guard de rol admin para rutas /admin/* ─────────────────────────
+      if (_adminRoutes.any(location.startsWith)) {
+        if (!orgCtx.isAdmin) return '/home';
+      }
+
+      // ── 6. Guard de rol instructor para rutas live y course-editor ────────
+      if (location.startsWith('/live/') || location.startsWith('/course-editor/')) {
+        if (!orgCtx.isInstructor) return '/home';
       }
 
       return null;
     },
     routes: [
-      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/splash',   builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/register-institution', builder: (_, __) => const InstitutionRegisterScreen()),
+
+      // ── Pantallas de org (fuera del shell) ───────────────────────────────
+      GoRoute(path: '/no-org',    builder: (_, __) => const NoOrgScreen()),
+      GoRoute(path: '/org-select', builder: (_, __) => const OrgSwitcherScreen()),
+
+      // ── Shell principal (botón nav bar) ──────────────────────────────────────
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => MainShell(child: child),
@@ -90,10 +137,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/session',
             builder: (_, state) => SessionScreen(
               scenarioId: state.uri.queryParameters['scenario'],
-              courseId: state.uri.queryParameters['courseId'],
+              courseId:   state.uri.queryParameters['courseId'],
             ),
           ),
-
           GoRoute(
             path: '/session-result/:id',
             builder: (_, state) => SessionResultScreen(
@@ -102,26 +148,66 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/scenario-detail/:id',
-            builder: (context, state) => ScenarioDetailScreen(
+            builder: (_, state) => ScenarioDetailScreen(
               scenarioId: state.pathParameters['id']!,
             ),
           ),
 
-          GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
-          GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
+          GoRoute(path: '/history',  builder: (_, __) => const HistoryScreen()),
+          GoRoute(path: '/courses',  builder: (_, __) => const CoursesScreen()),
+          GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
+          GoRoute(path: '/reports',  builder: (_, __) => const ReportsScreen()),
+
+          // ── Simulación ──────────────────────────────────────────────────
+          GoRoute(
+            path: '/simulation',
+            builder: (_, __) => const SimulationMenuScreen(),
+            routes: [
+              GoRoute(
+                path: 'theoretical',
+                builder: (_, __) => const TheoreticalHubScreen(),
+              ),
+              GoRoute(
+                path: 'theoretical/quiz/:topicId',
+                builder: (_, state) => QuizScreen(
+                  topicId: state.pathParameters['topicId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'theoretical/result/:sessionId',
+                builder: (_, state) => QuizResultScreen(
+                  sessionId: state.pathParameters['sessionId']!,
+                  result:    state.extra as QuizSessionResult?,
+                ),
+              ),
+              GoRoute(
+                path: 'practical',
+                builder: (_, __) => const PracticalHubScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'evaluations',
+                    builder: (_, __) => const PracticalEvaluationsScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Alias legacy
           GoRoute(
               path: '/scenarios',
               builder: (_, __) => const ScenarioSelectScreen()),
-          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-          GoRoute(
-              path: '/profile/edit',
-              builder: (_, __) => const EditProfileScreen()),
-          GoRoute(
-              path: '/analytics',
-              builder: (_, __) => const AnalyticsDashboardScreen()),
-          GoRoute(
-              path: '/notifications',
-              builder: (_, __) => const NotificationsScreen()),
+
+          // ── Perfil ───────────────────────────────────────────────────────
+          GoRoute(path: '/profile',               builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/profile/edit',          builder: (_, __) => const EditProfileScreen()),
+          GoRoute(path: '/profile/certificados',  builder: (_, __) => const CertificatesScreen()),
+
+          // ── Analytics ───────────────────────────────────────────────────
+          GoRoute(path: '/analytics',     builder: (_, __) => const AnalyticsDashboardScreen()),
+          GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+
+          // ── Instructor ───────────────────────────────────────────────────
           GoRoute(
             path: '/instructor/students',
             builder: (_, __) => const InstructorStudentsScreen(),
@@ -135,23 +221,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // ── Editor de curso (Instructor/Admin) ───────────────────────────
+          // ── Cursos ───────────────────────────────────────────────────────
           GoRoute(
             path: '/course-editor/:courseId',
             builder: (_, state) => CourseEditorScreen(
               courseId: state.pathParameters['courseId']!,
             ),
           ),
-
-          // ── Course Detail (instructor/admin) ─────────────────────────────
           GoRoute(
             path: '/courses/:id',
             builder: (_, state) => CourseDetailScreen(
               courseId: state.pathParameters['id']!,
             ),
           ),
-
-          // Alias legacy para compatibilidad
           GoRoute(
             path: '/course-detail/:courseId',
             builder: (_, state) => CourseDetailScreen(
@@ -160,73 +242,66 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/student/course-detail',
-            builder: (context, state) {
+            builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>?;
               return StudentCourseDetailScreen(
-                courseId: extra?['courseId'] ?? '',
-                studentId: extra?['studentId'],
-                courseTitle: extra?['courseTitle'],
+                courseId:       extra?['courseId'] ?? '',
+                studentId:      extra?['studentId'],
+                courseTitle:    extra?['courseTitle'],
                 instructorName: extra?['instructorName'],
               );
             },
           ),
-
-          // ── Vista de detalle del ALUMNO (lista de módulos) ────────────────
           GoRoute(
             path: '/student/course-modules/:courseId',
-            builder: (context, state) {
-              return StudentCourseModulesScreen(
-                courseId: state.pathParameters['courseId']!,
-              );
-            },
+            builder: (_, state) => StudentCourseModulesScreen(
+              courseId: state.pathParameters['courseId']!,
+            ),
           ),
-
-          // ── Visor de módulo del ALUMNO (PDF inline + YouTube integrado) ───
           GoRoute(
             path: '/student/module-viewer',
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
+            builder: (_, state) {
+              // SECURITY (MED-09): hard cast crashes on deep link / state restore.
+              final extra = state.extra as Map<String, dynamic>?;
+              if (extra == null) return const HomeScreen();
               return StudentModuleViewerScreen(
-                module: extra['module'] as CourseModule,
-                courseId: extra['courseId'] as String,
-                studentId: extra['studentId'] as String,
+                module:      extra['module'] as CourseModule,
+                courseId:    extra['courseId'] as String,
+                studentId:   extra['studentId'] as String,
                 isCompleted: extra['isCompleted'] as bool? ?? false,
               );
             },
           ),
-
-          // ── Práctica guiada (Entrenamiento) ──────────────────────────────
           GoRoute(
             path: '/student/practica',
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              if (extra == null) return const HomeScreen();
               return ModulePracticaScreen(
-                module: extra['module'] as CourseModule,
+                module:   extra['module'] as CourseModule,
                 courseId: extra['courseId'] as String,
               );
             },
           ),
-
-          // ── Evaluación teórica (Quiz) ───────────────────────────────────
           GoRoute(
             path: '/student/quiz',
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              if (extra == null) return const HomeScreen();
               return ModuleQuizScreen(
-                module: extra['module'] as CourseModule,
-                courseId: extra['courseId'] as String,
+                module:    extra['module'] as CourseModule,
+                courseId:  extra['courseId'] as String,
                 studentId: extra['studentId'] as String,
               );
             },
           ),
-
-          // ── Certificación ───────────────────────────────────────────────
           GoRoute(
             path: '/student/certificacion',
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>;
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              if (extra == null) return const HomeScreen();
               return ModuleCertificacionScreen(
-                courseId: extra['courseId'] as String,
+                courseId:  extra['courseId'] as String,
                 studentId: extra['studentId'] as String,
               );
             },
@@ -235,10 +310,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           // ── Guías ────────────────────────────────────────────────────────
           GoRoute(
             path: '/courses/:courseId/guides',
-            builder: (_, state) => GuideListScreen(
-              courseId: state.pathParameters['courseId']!,
-              canEdit: state.uri.queryParameters['edit'] == 'true',
-            ),
+            builder: (context, state) {
+              // SECURITY (HIGH-04): canEdit must be derived from the user's
+              // role, never from a URL query parameter that any user can craft.
+              final orgCtx = ref.read(orgContextProvider);
+              return GuideListScreen(
+                courseId: state.pathParameters['courseId']!,
+                canEdit:  orgCtx.isAdmin || orgCtx.isInstructor,
+              );
+            },
           ),
           GoRoute(
             path: '/courses/:courseId/add-guide',
@@ -252,18 +332,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               final guide = state.extra as GuideModel?;
               if (guide == null) {
                 return const Scaffold(
-                  body: Center(child: Text('Guía no encontrada')),
-                );
+                    body: Center(child: Text('Guía no encontrada')));
               }
               return GuidePDFViewerScreen(guide: guide);
             },
           ),
 
-          // ── Selección de dispositivo ──────────────────────────────────────
+          // ── Dispositivos ─────────────────────────────────────────────────
           GoRoute(
-            path: '/session/device-select',
-            builder: (_, __) => const DeviceSelectionScreen(),
-          ),
+              path: '/session/device-select',
+              builder: (_, __) => const DeviceSelectionScreen()),
 
           // ── Live instructor ───────────────────────────────────────────────
           GoRoute(
@@ -273,25 +351,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
 
-          // ── Reportes PDF ──────────────────────────────────────────────────
-          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
+          // ── Instructor apply (USUARIO → independiente) ───────────────────
+          GoRoute(path: '/instructor-apply', builder: (_, __) => const InstructorApplyScreen()),
 
-          // ── Admin routes ──────────────────────────────────────────────────
-          GoRoute(
-              path: '/admin/users',
-              builder: (_, __) => const ManageUsersScreen()),
+          // ── Admin ─────────────────────────────────────────────────────────
+          GoRoute(path: '/admin/users',       builder: (_, __) => const ManageUsersScreen()),
+          GoRoute(path: '/admin/devices',     builder: (_, __) => const DeviceStatusScreen()),
+          GoRoute(path: '/admin/create-user', builder: (_, __) => const CreateUserScreen()),
           GoRoute(
             path: '/admin/users/:id',
             builder: (_, state) => UserDetailScreen(
               userId: state.pathParameters['id']!,
             ),
           ),
-          GoRoute(
-              path: '/admin/devices',
-              builder: (_, __) => const DeviceStatusScreen()),
-          GoRoute(
-              path: '/admin/create-user',
-              builder: (_, __) => const CreateUserScreen()),
         ],
       ),
     ],
@@ -302,10 +374,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 12),
-            Text(
-              'Ruta no encontrada: ${state.uri}',
-              style: const TextStyle(color: Colors.grey),
-            ),
+            Text('Ruta no encontrada: ${state.uri}',
+                style: const TextStyle(color: Colors.grey)),
           ],
         ),
       ),
@@ -313,19 +383,27 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Clase auxiliar para notificar cambios de autenticación al GoRouter sin recrearlo.
-class _AuthListenable extends ChangeNotifier {
-  _AuthListenable(Ref ref) {
-    _subscription = ref.listen(authStateProvider, (_, __) {
-      notifyListeners();
+// ── Listenable que reacciona a auth + cambios de org ─────────────────────────
+
+class _AppListenable extends ChangeNotifier {
+  _AppListenable(Ref ref) {
+    _authSub = ref.listen(authStateProvider, (_, __) => notifyListeners());
+    _orgSub  = ref.listen(orgContextProvider, (prev, next) {
+      // Solo notificar si cambia hasOrg o el activeOrgId (no en isLoading)
+      if (prev?.hasOrg != next.hasOrg ||
+          prev?.activeOrgId != next.activeOrgId) {
+        notifyListeners();
+      }
     });
   }
 
-  late final ProviderSubscription _subscription;
+  late final ProviderSubscription _authSub;
+  late final ProviderSubscription _orgSub;
 
   @override
   void dispose() {
-    _subscription.close();
+    _authSub.close();
+    _orgSub.close();
     super.dispose();
   }
 }
