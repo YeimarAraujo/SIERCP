@@ -152,6 +152,9 @@ class _QuizResultScreenState extends State<QuizResultScreen>
                           if (result.xpEarned > 0) ...[
                             _XpCard(result: result, loc: loc, isDark: isDark),
                             const SizedBox(height: 16),
+                          ] else ...[
+                            _NoXpHint(isDark: isDark),
+                            const SizedBox(height: 16),
                           ],
 
                           // ── Actions ────────────────────────────────────
@@ -398,6 +401,42 @@ class _XpCard extends StatelessWidget {
                   .toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NoXpHint extends StatelessWidget {
+  final bool isDark;
+  const _NoXpHint({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: isDark ? 0.12 : 0.06),
+        border: Border.all(
+          color: AppColors.red.withValues(alpha: isDark ? 0.3 : 0.2),
+          width: 0.5,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded,
+              size: 16, color: AppColors.red.withValues(alpha: 0.8)),
+          const SizedBox(width: 8),
+          Text(
+            'Necesitas ≥70% para ganar XP',
+            style: TextStyle(
+              color: AppColors.red.withValues(alpha: 0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
