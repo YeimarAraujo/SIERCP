@@ -8,6 +8,7 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 import 'package:siercp/core/theme/theme_provider.dart';
 import 'package:siercp/features/devices/presentation/providers/device_provider.dart';
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/core/widgets/xp_strip.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 import 'package:siercp/core/theme/locale_provider.dart';
 import 'package:siercp/features/users/data/models/user.dart' show CertVerificationStatus;
@@ -221,7 +222,16 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // XP / nivel
+              if (user?.isAdmin != true) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: XpStrip(),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Stats grid (Ocultar para Admin)
               if (user?.isAdmin != true)

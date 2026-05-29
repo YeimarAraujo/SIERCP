@@ -35,7 +35,7 @@ class XpStrip extends ConsumerWidget {
     final stats = statsAsync.valueOrNull ?? {};
     final xp = (stats['xp'] as num?)?.toInt() ?? 0;
     final level = (stats['level'] as num?)?.toInt() ?? 1;
-    final quizCount = (stats['totalQuizSessions'] as num?)?.toInt() ?? 0;
+    final quizCount = (stats['quizzesCompleted'] as num?)?.toInt() ?? 0;
     final progress = levelProgress(xp, level);
     final toNext = xpToNext(xp, level);
 

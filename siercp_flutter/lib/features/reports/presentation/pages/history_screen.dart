@@ -7,56 +7,135 @@ import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/reports/data/export_service.dart';
+import 'package:siercp/features/simulation/data/simulation_service.dart';
 import 'package:siercp/core/widgets/section_label.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
-class HistoryScreen extends ConsumerWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends ConsumerState<HistoryScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: sessionsAsync.when(
-          loading: () => const Center(
-              child: CircularProgressIndicator(color: AppColors.brand)),
-          error: (e, _) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                    Icons
-                        .signal_wifi_statusbar_connected_no_internet_4_outlined,
-                    size: 36,
-                    color: Theme.of(context).textTheme.bodyMedium?.color),
-                const SizedBox(height: 12),
-                Text(loc.historyLoadError,
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-                const SizedBox(height: 4),
-                Text(e.toString(),
-                    style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 11)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(loc.historyTitle,
+                      style: TextStyle(
+                          color: textP,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700)),
+                  Text(loc.historySubtitle,
+                      style: TextStyle(color: textS, fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            TabBar(
+              controller: _tabController,
+              labelColor: AppColors.brand,
+              unselectedLabelColor: textS,
+              indicatorColor: AppColors.brand,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+              unselectedLabelStyle: const TextStyle(fontSize: 13),
+              tabs: const [
+                Tab(text: 'Sesiones RCP'),
+                Tab(text: 'Evaluaciones'),
               ],
             ),
-          ),
-          data: (sessions) => _HistoryBody(sessions: sessions),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _CprHistoryTab(loc: loc),
+                  const _QuizHistoryTab(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _HistoryBody extends ConsumerWidget {
-  final List<SessionModel> sessions;
-  const _HistoryBody({required this.sessions});
+// ── Tab 1: Sesiones RCP ───────────────────────────────────────────────────────
+
+class _CprHistoryTab extends ConsumerWidget {
+  final AppLocalizations loc;
+  const _CprHistoryTab({required this.loc});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final loc = AppLocalizations.of(context)!;
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    return sessionsAsync.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.brand)),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.signal_wifi_statusbar_connected_no_internet_4_outlined,
+                size: 36,
+                color: Theme.of(context).textTheme.bodyMedium?.color),
+            const SizedBox(height: 12),
+            Text(loc.historyLoadError,
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+            const SizedBox(height: 4),
+            Text(e.toString(),
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 11)),
+          ],
+        ),
+      ),
+      data: (sessions) => _CprHistoryBody(sessions: sessions, loc: loc),
+    );
+  }
+}
+
+class _CprHistoryBody extends ConsumerWidget {
+  final List<SessionModel> sessions;
+  final AppLocalizations loc;
+  const _CprHistoryBody({required this.sessions, required this.loc});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final scores = sessions
         .where((s) => s.metrics != null)
         .map((s) => s.metrics!.score)
@@ -76,22 +155,13 @@ class _HistoryBody extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
+        // Export menu
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(loc.historyTitle,
-                        style: TextStyle(color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
-                    Text(loc.historySubtitle,
-                        style: TextStyle(color: textS, fontSize: 12)),
-                  ],
-                ),
-                // Export menu
                 PopupMenuButton<String>(
                   onSelected: (value) async {
                     final svc = ref.read(exportServiceProvider);
@@ -107,7 +177,10 @@ class _HistoryBody extends ConsumerWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.exportError(e.toString())), backgroundColor: AppColors.red),
+                          SnackBar(
+                              content:
+                                  Text(loc.exportError(e.toString())),
+                              backgroundColor: AppColors.red),
                         );
                       }
                     }
@@ -115,28 +188,26 @@ class _HistoryBody extends ConsumerWidget {
                   itemBuilder: (_) => [
                     PopupMenuItem(
                       value: 'csv',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.table_chart_outlined, size: 18, color: AppColors.green),
-                          const SizedBox(width: 10),
-                          Text(loc.exportCsv),
-                        ],
-                      ),
+                      child: Row(children: [
+                        const Icon(Icons.table_chart_outlined,
+                            size: 18, color: AppColors.green),
+                        const SizedBox(width: 10),
+                        Text(loc.exportCsv),
+                      ]),
                     ),
                     PopupMenuItem(
                       value: 'pdf',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.picture_as_pdf_outlined, size: 18, color: AppColors.red),
-                          const SizedBox(width: 10),
-                          Text(loc.exportPdf),
-                        ],
-                      ),
+                      child: Row(children: [
+                        const Icon(Icons.picture_as_pdf_outlined,
+                            size: 18, color: AppColors.red),
+                        const SizedBox(width: 10),
+                        Text(loc.exportPdf),
+                      ]),
                     ),
                   ],
                   icon: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       border: Border.all(
                           color: AppColors.brand.withValues(alpha: 0.35),
@@ -146,10 +217,14 @@ class _HistoryBody extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.download_outlined, size: 14, color: AppColors.brand),
+                        const Icon(Icons.download_outlined,
+                            size: 14, color: AppColors.brand),
                         const SizedBox(width: 5),
                         Text(loc.exportBtn,
-                            style: const TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(
+                                color: AppColors.brand,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -255,7 +330,8 @@ class _HistoryBody extends ConsumerWidget {
                             .toList()
                             .asMap()
                             .entries
-                            .map((e) => FlSpot(e.key.toDouble(), e.value))
+                            .map((e) =>
+                                FlSpot(e.key.toDouble(), e.value))
                             .toList(),
                         isCurved: true,
                         color: AppColors.brand,
@@ -304,9 +380,11 @@ class _HistoryBody extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.history_outlined,
-                            size: 48, color: textS.withValues(alpha: 0.3)),
+                            size: 48,
+                            color: textS.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text(loc.noSessions, style: TextStyle(color: textS)),
+                        Text(loc.noSessions,
+                            style: TextStyle(color: textS)),
                       ],
                     ),
                   ),
@@ -316,8 +394,8 @@ class _HistoryBody extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, i) =>
-                        _SessionTile(session: sessions[i], isDark: isDark),
+                    (context, i) => _SessionTile(
+                        session: sessions[i], isDark: isDark),
                     childCount: sessions.length,
                   ),
                 ),
@@ -327,6 +405,299 @@ class _HistoryBody extends ConsumerWidget {
     );
   }
 }
+
+// ── Tab 2: Evaluaciones (quiz history) ───────────────────────────────────────
+
+class _QuizHistoryTab extends ConsumerWidget {
+  const _QuizHistoryTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(quizHistoryProvider);
+    final theme = Theme.of(context);
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+
+    return historyAsync.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.brand)),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_outlined, size: 36, color: textS),
+            const SizedBox(height: 12),
+            Text('Error al cargar evaluaciones',
+                style: TextStyle(color: textS)),
+          ],
+        ),
+      ),
+      data: (sessions) => _QuizHistoryBody(sessions: sessions),
+    );
+  }
+}
+
+class _QuizHistoryBody extends StatelessWidget {
+  final List<Map<String, dynamic>> sessions;
+  const _QuizHistoryBody({required this.sessions});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+
+    if (sessions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.quiz_outlined,
+                size: 48, color: textS.withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
+            Text('Aún no tienes evaluaciones',
+                style: TextStyle(color: textS)),
+            const SizedBox(height: 4),
+            Text('Completa una evaluación teórica o práctica',
+                style: TextStyle(color: textS, fontSize: 11)),
+          ],
+        ),
+      );
+    }
+
+    // Resumen XP total
+    final totalXp = sessions.fold<int>(
+        0, (sum, s) => sum + ((s['xpEarned'] as num?)?.toInt() ?? 0));
+    final totalPassed =
+        sessions.where((s) => s['passed'] == true).length;
+
+    return CustomScrollView(
+      slivers: [
+        // Summary cards
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          sliver: SliverGrid.count(
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.6,
+            children: [
+              _QuizSummaryCard(
+                icon: Icons.bolt_rounded,
+                label: 'XP Total',
+                value: '$totalXp XP',
+                color: AppColors.brand,
+                isDark: isDark,
+              ),
+              _QuizSummaryCard(
+                icon: Icons.check_circle_outline_rounded,
+                label: 'Aprobadas',
+                value: '$totalPassed',
+                color: AppColors.green,
+                isDark: isDark,
+              ),
+              _QuizSummaryCard(
+                icon: Icons.quiz_outlined,
+                label: 'Total',
+                value: '${sessions.length}',
+                color: textP,
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: SectionLabel('Historial de evaluaciones'),
+          ),
+        ),
+
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => _QuizSessionTile(
+                  session: sessions[i], isDark: isDark),
+              childCount: sessions.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuizSummaryCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  final bool isDark;
+  const _QuizSummaryCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border:
+            Border.all(color: theme.colorScheme.outline, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: isDark ? null : AppShadows.card(false),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const Spacer(),
+          Text(value,
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'SpaceMono',
+              )),
+          Text(label,
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color,
+                fontSize: 10,
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuizSessionTile extends StatelessWidget {
+  final Map<String, dynamic> session;
+  final bool isDark;
+  const _QuizSessionTile(
+      {required this.session, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS =
+        theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final border = theme.colorScheme.outline;
+    final surface = theme.colorScheme.surface;
+
+    final type = session['type'] as String? ?? 'theoretical';
+    final score = (session['score'] as num?)?.toDouble() ?? 0.0;
+    final passed = session['passed'] as bool? ?? false;
+    final xpEarned =
+        (session['xpEarned'] as num?)?.toInt() ?? 0;
+    final completedAt = session['completedAt'];
+
+    final isPractical = type == 'practical_eval';
+    final color = passed ? AppColors.green : AppColors.red;
+    final icon = isPractical
+        ? Icons.favorite_outline_rounded
+        : Icons.quiz_outlined;
+    final typeLabel =
+        isPractical ? 'Evaluación práctica' : 'Evaluación teórica';
+
+    String dateStr = '';
+    if (completedAt != null) {
+      try {
+        final ts = completedAt as dynamic;
+        final dt = ts.toDate() as DateTime;
+        dateStr = DateFormat('d MMM yyyy · HH:mm').format(dt);
+      } catch (_) {}
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: surface,
+        border: Border.all(color: border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: isDark ? null : AppShadows.card(false),
+      ),
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(typeLabel,
+                      style: TextStyle(
+                          color: textP,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
+                  Text(
+                    dateStr.isNotEmpty ? dateStr : 'Sin fecha',
+                    style: TextStyle(color: textS, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${score.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'SpaceMono',
+                  ),
+                ),
+                if (xpEarned > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bolt_rounded,
+                          size: 11, color: AppColors.brand),
+                      Text(
+                        '+$xpEarned XP',
+                        style: const TextStyle(
+                            color: AppColors.brand,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    passed ? 'Aprobado' : 'No aprobado',
+                    style: TextStyle(color: textS, fontSize: 10),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared widgets ────────────────────────────────────────────────────────────
 
 class _SummaryCard extends StatelessWidget {
   final IconData icon;
@@ -349,7 +720,8 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border.all(color: theme.colorScheme.outline, width: 0.5),
+        border:
+            Border.all(color: theme.colorScheme.outline, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: isDark ? null : AppShadows.card(false),
       ),
@@ -391,11 +763,12 @@ class _SessionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final score    = session.metrics?.score;
+    final score = session.metrics?.score;
     final approved = session.metrics?.approved ?? false;
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textS =
+        theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
 
@@ -426,7 +799,8 @@ class _SessionTile extends StatelessWidget {
           onTap: () => context.go('/session-result/${session.id}'),
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 12),
             child: Row(
               children: [
                 Container(
@@ -434,7 +808,8 @@ class _SessionTile extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(icon, color: color, size: 20),
                 ),
@@ -445,7 +820,10 @@ class _SessionTile extends StatelessWidget {
                     children: [
                       Text(
                         session.scenarioTitle ?? loc.cprSession,
-                        style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                            color: textP,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500),
                       ),
                       Text(
                         '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} ${loc.compLabel}',
@@ -458,7 +836,9 @@ class _SessionTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      score != null ? '${score.toStringAsFixed(0)}%' : '--',
+                      score != null
+                          ? '${score.toStringAsFixed(0)}%'
+                          : '--',
                       style: TextStyle(
                         color: color,
                         fontSize: 16,
@@ -468,7 +848,11 @@ class _SessionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      approved ? loc.approved : score != null ? loc.review : loc.noData,
+                      approved
+                          ? loc.approved
+                          : score != null
+                              ? loc.review
+                              : loc.noData,
                       style: TextStyle(color: textS, fontSize: 10),
                     ),
                   ],
