@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/core/constants/clinical_scenarios.dart';
 import 'package:siercp/core/models/support_ticket.dart';
 import 'package:siercp/features/users/data/models/user.dart';
 import 'package:siercp/features/session/data/models/session.dart';
@@ -23,14 +24,18 @@ class FirestoreService {
   CollectionReference get _scenarios => _db.collection('scenarios');
   CollectionReference get _notifications => _db.collection('notifications');
   CollectionReference get _institutions => _db.collection('institutions');
-  CollectionReference get _memberships  => _db.collection('memberships');
-  CollectionReference get _supportTickets => _db.collection(AppConstants.colSupportTickets);
+  CollectionReference get _memberships => _db.collection('memberships');
+  CollectionReference get _supportTickets =>
+      _db.collection(AppConstants.colSupportTickets);
 
   CollectionReference _userAlerts(String userId) =>
       _users.doc(userId).collection('alerts');
 
   Future<void> createUser(UserModel user) async {
-    await _users.doc(user.id).set(user.toFirestore());
+    await _users.doc(user.id).set({
+      ...user.toFirestore(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<UserModel?> getUser(String uid) async {
@@ -91,9 +96,8 @@ class FirestoreService {
     final List<UserModel> result = [];
     for (var i = 0; i < ids.length; i += 30) {
       final chunk = ids.sublist(i, (i + 30).clamp(0, ids.length));
-      final snap = await _users
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
+      final snap =
+          await _users.where(FieldPath.documentId, whereIn: chunk).get();
       result.addAll(snap.docs.map(UserModel.fromFirestore));
     }
     return result;
@@ -132,9 +136,18 @@ class FirestoreService {
   // Sensitive fields (role, certVerification, isActive, accountStatus) must be
   // changed only via Cloud Functions or explicit typed methods below.
   static const _allowedUserUpdateFields = {
-    'firstName', 'lastName', 'phoneNumber', 'avatarUrl',
-    'identificacion', 'bio', 'isOnline', 'lastActive',
-    'coursesCreated', 'stats', 'language', 'timezone',
+    'firstName',
+    'lastName',
+    'phoneNumber',
+    'avatarUrl',
+    'identificacion',
+    'bio',
+    'isOnline',
+    'lastActive',
+    'coursesCreated',
+    'stats',
+    'language',
+    'timezone',
   };
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
@@ -157,10 +170,10 @@ class FirestoreService {
     String? accountStatus,
   }) async {
     final data = <String, dynamic>{};
-    if (role != null)              data['role']              = role;
-    if (certVerification != null)  data['certVerification']  = certVerification;
-    if (isActive != null)          data['isActive']          = isActive;
-    if (accountStatus != null)     data['accountStatus']     = accountStatus;
+    if (role != null) data['role'] = role;
+    if (certVerification != null) data['certVerification'] = certVerification;
+    if (isActive != null) data['isActive'] = isActive;
+    if (accountStatus != null) data['accountStatus'] = accountStatus;
     if (data.isEmpty) return;
     await _users.doc(uid).update({
       ...data,
@@ -313,8 +326,9 @@ class FirestoreService {
           .where('status', isEqualTo: status.name)
           .orderBy('createdAt', descending: true);
     }
-    return q.snapshots().map(
-        (s) => s.docs.map(SupportTicket.fromFirestore).toList());
+    return q
+        .snapshots()
+        .map((s) => s.docs.map(SupportTicket.fromFirestore).toList());
   }
 
   Future<void> respondToTicket({
@@ -323,17 +337,17 @@ class FirestoreService {
     required String respondedBy,
   }) async {
     await _supportTickets.doc(ticketId).update({
-      'response':    response,
+      'response': response,
       'respondedBy': respondedBy,
-      'status':      TicketStatus.resolved.name,
+      'status': TicketStatus.resolved.name,
       'respondedAt': FieldValue.serverTimestamp(),
-      'updatedAt':   FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
   Future<void> updateTicketStatus(String ticketId, TicketStatus status) async {
     await _supportTickets.doc(ticketId).update({
-      'status':    status.name,
+      'status': status.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -343,7 +357,8 @@ class FirestoreService {
   Stream<List<UserCertificate>> watchPendingCertificates() {
     return _db
         .collection(AppConstants.colUserCertificates)
-        .where('verificationStatus', isEqualTo: CertVerificationStatus.pending.name)
+        .where('verificationStatus',
+            isEqualTo: CertVerificationStatus.pending.name)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((s) => s.docs.map(UserCertificate.fromFirestore).toList());
@@ -351,21 +366,22 @@ class FirestoreService {
 
   Future<void> approveCertificate(String certId, String approvedBy) async {
     final batch = _db.batch();
-    final certRef = _db.collection(AppConstants.colUserCertificates).doc(certId);
+    final certRef =
+        _db.collection(AppConstants.colUserCertificates).doc(certId);
     final certSnap = await certRef.get();
     final userId = certSnap.data()?['userId'] as String?;
 
     batch.update(certRef, {
       'verificationStatus': CertVerificationStatus.approved.name,
-      'approvedBy':         approvedBy,
-      'approvedAt':         FieldValue.serverTimestamp(),
+      'approvedBy': approvedBy,
+      'approvedAt': FieldValue.serverTimestamp(),
     });
 
     if (userId != null) {
       batch.update(_users.doc(userId), {
         'certVerification': CertVerificationStatus.approved.name,
-        'role':             AppConstants.roleInstructor,
-        'updatedAt':        FieldValue.serverTimestamp(),
+        'role': AppConstants.roleInstructor,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     }
     await batch.commit();
@@ -375,9 +391,9 @@ class FirestoreService {
       String certId, String rejectedBy, String reason) async {
     await _db.collection(AppConstants.colUserCertificates).doc(certId).update({
       'verificationStatus': CertVerificationStatus.rejected.name,
-      'rejectionReason':    reason,
-      'rejectedBy':         rejectedBy,
-      'updatedAt':          FieldValue.serverTimestamp(),
+      'rejectionReason': reason,
+      'rejectedBy': rejectedBy,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -392,20 +408,20 @@ class FirestoreService {
   }) async {
     final ref = _db.collection(AppConstants.colUserCertificates).doc();
     await ref.set({
-      'id':                 ref.id,
-      'userId':             userId,
-      'type':               type,
-      'issuer':             issuer,
-      'certificateNumber':  certificateNumber,
-      'issueDate':          issueDate,
-      'expiryDate':         expiryDate,
-      'fileUrl':            fileUrl,
+      'id': ref.id,
+      'userId': userId,
+      'type': type,
+      'issuer': issuer,
+      'certificateNumber': certificateNumber,
+      'issueDate': issueDate,
+      'expiryDate': expiryDate,
+      'fileUrl': fileUrl,
       'verificationStatus': CertVerificationStatus.pending.name,
-      'createdAt':          FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
     });
     await _users.doc(userId).update({
       'certVerification': CertVerificationStatus.pending.name,
-      'updatedAt':        FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -478,25 +494,25 @@ class FirestoreService {
   }) async {
     final ref = id != null ? _sessions.doc(id) : _sessions.doc();
     await ref.set(<String, dynamic>{
-      'id':             ref.id,
-      'studentId':      studentId,
-      'studentName':    studentName,
-      'courseId':       courseId,
-      'manikinId':      manikinId,
-      'scenarioId':     scenarioId,
-      'scenarioTitle':  scenarioTitle,
-      'patientType':    patientType,
+      'id': ref.id,
+      'studentId': studentId,
+      'studentName': studentName,
+      'courseId': courseId,
+      'manikinId': manikinId,
+      'scenarioId': scenarioId,
+      'scenarioTitle': scenarioTitle,
+      'patientType': patientType,
       // Solo incluir institutionId si hay org activa; omitirlo activa la
       // rama de "sesión libre" en las Firestore rules sin dejar '' huérfano.
       if (institutionId != null && institutionId.isNotEmpty)
         'institutionId': institutionId,
-      'status':         'active',
-      'startedAt':      FieldValue.serverTimestamp(),
-      'endedAt':        null,
-      'duration':       0,
-      'metrics':        null,
-      'createdAt':      FieldValue.serverTimestamp(),
-      'updatedAt':      FieldValue.serverTimestamp(),
+      'status': 'active',
+      'startedAt': FieldValue.serverTimestamp(),
+      'endedAt': null,
+      'duration': 0,
+      'metrics': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
     return ref.id;
   }
@@ -515,14 +531,6 @@ class FirestoreService {
       'metrics': metrics.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-  }
-
-  Future<void> updateSessionLiveMetrics(
-      String sessionId, Map<String, dynamic> liveData) async {
-    await _sessions.doc(sessionId).update({
-      'liveMetrics': liveData,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
   }
 
   Future<void> abortSession(String sessionId) async {
@@ -567,17 +575,6 @@ class FirestoreService {
         .map((snap) => snap.docs.map(SessionModel.fromFirestore).toList());
   }
 
-  Future<void> addCompression(String sessionId, LiveSessionData data) async {
-    await _sessions.doc(sessionId).collection('compressions').add({
-      'timestamp': FieldValue.serverTimestamp(),
-      'depthMm': data.depthMm,
-      'forceKg': data.forceKg,
-      'ratePerMin': data.ratePerMin,
-      'decompressedFully': data.decompressedFully,
-      'correct': data.correctPct >= 80,
-    });
-  }
-
   Future<void> addSessionAlert(String sessionId, AlertModel alert) async {
     await _sessions
         .doc(sessionId)
@@ -586,7 +583,7 @@ class FirestoreService {
   }
 
   Future<void> addInstructorAlert(String instructorId, AlertModel alert) async {
-    debugPrint('💾 Guardando alerta en users/$instructorId/alerts');
+    debugPrint('Guardando alerta en users/$instructorId/alerts');
     await _userAlerts(instructorId).add(alert.toFirestore());
   }
 
@@ -638,27 +635,27 @@ class FirestoreService {
     required String inviteCode,
     required String certification,
     double requiredScore = 85.0,
-    String? institutionId,  // requerido para tenant isolation
+    String? institutionId, // requerido para tenant isolation
   }) async {
     final ref = _courses.doc();
     await ref.set({
-      'id':             ref.id,
-      'title':          title,
-      'description':    description ?? '',
-      'instructorId':   instructorId,
+      'id': ref.id,
+      'title': title,
+      'description': description ?? '',
+      'instructorId': instructorId,
       'instructorName': instructorName,
-      'inviteCode':     inviteCode.toUpperCase(),
-      'requiredScore':  requiredScore,
-      'certification':  certification,
-      'institutionId':  institutionId,  // tenant field
-      'isActive':       true,
-      'studentCount':   0,
-      'totalModules':   0,
+      'inviteCode': inviteCode.toUpperCase(),
+      'requiredScore': requiredScore,
+      'certification': certification,
+      'institutionId': institutionId, // tenant field
+      'isActive': true,
+      'studentCount': 0,
+      'totalModules': 0,
       'completedModules': 0,
-      'nextDeadline':   null,
+      'nextDeadline': null,
       'nextDeadlineTitle': null,
-      'createdAt':      FieldValue.serverTimestamp(),
-      'updatedAt':      FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
     await _users.doc(instructorId).update({
       'coursesCreated': FieldValue.increment(1),
@@ -711,7 +708,7 @@ class FirestoreService {
     // Decrementar contador de alumnos en el curso
     await _courses.doc(courseId).update({
       'studentCount': FieldValue.increment(-1),
-      'updatedAt':    FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -720,10 +717,10 @@ class FirestoreService {
   Future<void> assignInstructor(
       String courseId, String instructorId, String instructorName) async {
     await _courses.doc(courseId).update({
-      'instructorId':    instructorId,
-      'instructorName':  instructorName,
-      'instructorIds':   FieldValue.arrayUnion([instructorId]),
-      'updatedAt':       FieldValue.serverTimestamp(),
+      'instructorId': instructorId,
+      'instructorName': instructorName,
+      'instructorIds': FieldValue.arrayUnion([instructorId]),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -731,7 +728,7 @@ class FirestoreService {
   Future<void> addInstructor(String courseId, String instructorId) async {
     await _courses.doc(courseId).update({
       'instructorIds': FieldValue.arrayUnion([instructorId]),
-      'updatedAt':     FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -739,7 +736,7 @@ class FirestoreService {
   Future<void> removeInstructor(String courseId, String instructorId) async {
     await _courses.doc(courseId).update({
       'instructorIds': FieldValue.arrayRemove([instructorId]),
-      'updatedAt':     FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -801,7 +798,8 @@ class FirestoreService {
     return snap.docs.map(CourseModel.fromFirestore).toList();
   }
 
-  Future<List<CourseModel>> getCoursesByInstitution(String institutionId) async {
+  Future<List<CourseModel>> getCoursesByInstitution(
+      String institutionId) async {
     final snap = await _courses
         .where('institutionId', isEqualTo: institutionId)
         .where('isActive', isEqualTo: true)
@@ -840,10 +838,6 @@ class FirestoreService {
       'sessionCount': 0,
       'status': 'active',
     });
-
-    // El incremento de studentCount en el documento del curso padre
-    // suele fallar por permisos cuando lo hace un estudiante (QR).
-    // Es mejor calcularlo dinámicamente o que lo actualice el instructor.
   }
 
   Future<List<Map<String, dynamic>>> getCourseStudents(String courseId) async {
@@ -859,7 +853,6 @@ class FirestoreService {
         .snapshots()
         .asyncMap((snap) async {
       final enrollments = snap.docs.map((d) => d.data()).toList();
-      // We could also fetch user status here if needed, or use a separate stream
       return enrollments;
     });
   }
@@ -899,7 +892,6 @@ class FirestoreService {
     int currentSessionCount = (data['sessionCount'] as num?)?.toInt() ?? 0;
     double currentAvgScore = (data['avgScore'] as num?)?.toDouble() ?? 0.0;
 
-    // Calcular nuevo promedio
     double newAvgScore =
         ((currentAvgScore * currentSessionCount) + metrics.score) /
             (currentSessionCount + 1);
@@ -940,122 +932,20 @@ class FirestoreService {
 
   Future<List<ScenarioModel>> getScenarios() async {
     try {
-      // Intentamos obtener de la nube con un timeout muy corto
       final snap = await _scenarios
           .orderBy('orderIndex')
           .get(const GetOptions(source: Source.serverAndCache))
           .timeout(const Duration(seconds: 3));
 
-      if (snap.docs.isEmpty) {
-        return _localScenarios();
-      }
+      if (snap.docs.isEmpty) return _localScenarios();
       return snap.docs.map(ScenarioModel.fromFirestore).toList();
     } catch (e) {
       debugPrint('Usando escenarios locales por error de red: $e');
-      return _localScenarios(); // Fallback inmediato
+      return _localScenarios();
     }
   }
 
-  List<ScenarioModel> _localScenarios() => [
-        const ScenarioModel(
-          id: 'paroCardiaco',
-          title: 'Paro cardíaco en casa',
-          description:
-              'Familiar inconsciente en el suelo. Sin pulso ni respiración.',
-          audioIntroText:
-              'Adulto de 52 años. Sin pulso. Inicie RCP de inmediato.',
-          patientAge: 'Adulto (52 años)',
-          patientType: 'adult',
-          category: ScenarioCategory.paroCardiaco,
-          difficulty: 'medium',
-          relatedGuideId: 'guide_001',
-        ),
-        const ScenarioModel(
-          id: 'accidenteTransito',
-          title: 'Accidente de tránsito',
-          description: 'Víctima en la vía, sin respuesta. Múltiples traumas.',
-          audioIntroText:
-              'Adulto de 35 años. Accidente vial. Sin respuesta. Evalúa la escena.',
-          patientAge: 'Adulto (35 años)',
-          patientType: 'adult',
-          category: ScenarioCategory.accidenteTransito,
-          difficulty: 'hard',
-        ),
-        const ScenarioModel(
-          id: 'ahogamiento',
-          title: 'Ahogamiento en piscina',
-          description:
-              'Rescatado del agua. Protocolo especial: ventilaciones primero.',
-          audioIntroText:
-              'Adulto rescatado de la piscina. Sin respiración. Ventile primero.',
-          patientAge: 'Adulto',
-          patientType: 'adult',
-          category: ScenarioCategory.ahogamiento,
-          difficulty: 'hard',
-          relatedGuideId: 'guide_005',
-          isNew: true,
-        ),
-        const ScenarioModel(
-          id: 'colapsoEjercicio',
-          title: 'Colapso durante ejercicio',
-          description:
-              'Atleta en el gimnasio. Posible fibrilación ventricular.',
-          audioIntroText:
-              'Adulto de 28 años. Colapso en gimnasio. Usa el DEA disponible.',
-          patientAge: 'Adulto (28 años)',
-          patientType: 'adult',
-          category: ScenarioCategory.colapsoEjercicio,
-          difficulty: 'medium',
-          relatedGuideId: 'guide_003',
-          isNew: true,
-        ),
-        const ScenarioModel(
-          id: 'atragantamiento',
-          title: 'Atragantamiento severo',
-          description:
-              'Obstrucción de vía aérea. Heimlich + RCP si pierde el conocimiento.',
-          audioIntroText:
-              'Adulto. Atragantamiento durante cena. Aplica Heimlich primero.',
-          patientAge: 'Adulto',
-          patientType: 'adult',
-          category: ScenarioCategory.atragantamiento,
-          difficulty: 'medium',
-        ),
-        const ScenarioModel(
-          id: 'descargaElectrica',
-          title: 'Descarga eléctrica',
-          description: 'Accidente laboral. Asegurar escena antes de actuar.',
-          audioIntroText:
-              'Adulto electrocutado. Asegura la escena. Sin pulso ni respiración.',
-          patientAge: 'Adulto',
-          patientType: 'adult',
-          category: ScenarioCategory.descargaElectrica,
-          difficulty: 'hard',
-        ),
-        const ScenarioModel(
-          id: 'sobredosis',
-          title: 'Sobredosis por opioides',
-          description:
-              'Intoxicación con respiración lenta. Naloxona + RCP si hay paro.',
-          audioIntroText:
-              'Adulto con sobredosis. Respiración muy lenta. Administra Naloxona si disponible.',
-          patientAge: 'Adulto',
-          patientType: 'adult',
-          category: ScenarioCategory.sobredosis,
-          difficulty: 'hard',
-        ),
-        const ScenarioModel(
-          id: 'infarto',
-          title: 'Infarto que evoluciona a paro',
-          description:
-              'Dolor torácico que evoluciona a paro cardíaco. Actúa rápido.',
-          audioIntroText:
-              'Adulto de 60 años. Dolor torácico severo. Ahora pierde el conocimiento.',
-          patientAge: 'Adulto (60 años)',
-          patientType: 'adult',
-          category: ScenarioCategory.infarto,
-          difficulty: 'hard',
-          relatedGuideId: 'guide_002',
-        ),
-      ];
+  // Fallback estático: usa la lista maestra centralizada de clinical_scenarios.dart.
+  List<ScenarioModel> _localScenarios() =>
+      kClinicalScenarios.map((s) => s.toScenarioModel()).toList();
 }

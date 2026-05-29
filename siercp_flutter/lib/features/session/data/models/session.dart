@@ -265,19 +265,6 @@ class LiveSessionData {
     alertType:               m['alertType'],
   );
 
-  Map<String, dynamic> toLiveMap() => {
-    'depthMm': depthMm,
-    'ratePerMin': ratePerMin,
-    'forceKg': forceKg,
-    'compressionCount': compressionCount,
-    'correctCompressionCount': correctCompressionCount,
-    'correctPct': correctPct,
-    'sessionScore': sessionScore,
-    'decompressedFully': decompressedFully,
-    'recoilPct': recoilPct,
-    'pauseCount': pauseCount,
-  };
-
   LiveSessionData copyWith({
     double? depthMm, int? ratePerMin, double? forceKg,
     int? compressionCount, int? correctCompressionCount,

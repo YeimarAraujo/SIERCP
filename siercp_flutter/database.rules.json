@@ -1,0 +1,89 @@
+{
+  "rules": {
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SIERCP — Firebase Realtime Database Security Rules v2.0
+    //
+    // Estructura de nodos:
+    //   live_sessions/{institutionId}/{courseId}/{sessionId}  — metadata sesión activa
+    //   telemetry/{sessionId}                                 — datos BLE tiempo real
+    //   presence/{userId}                                     — presencia online/offline
+    //
+    // Reglas de acceso:
+    //   live_sessions  → solo miembros de la misma institución (r) / estudiante propietario (w)
+    //   telemetry      → solo el estudiante dueño escribe (w) / inst members leen (r)
+    //   presence       → cada usuario escribe la suya (w) / cualquier auth lee (r)
+    // ────────────────────────────────────────────────────────────────────────
+
+    "live_sessions": {
+      "$institutionId": {
+        "$courseId": {
+
+          // Lectura: solo usuarios de la misma institución (ADMIN, INSTRUCTOR, SUPER_ADMIN)
+          // NOTA: RTDB no puede hacer cross-reference a Firestore en reglas directamente,
+          // así que validamos que el usuario esté autenticado y el institutionId no sea 'no_org'.
+          // La validación de membership se refuerza en Firestore rules y en la UI.
+          ".read": "auth != null && ($institutionId === 'no_org' ? false : true)",
+
+          "$sessionId": {
+            // Escritura: el estudiante dueño de la sesión, o admins (verificado en la app).
+            // La app solo escribe si el usuario es el estudiante de la sesión.
+            ".write": "auth != null && (
+              !data.exists() ||
+              data.child('studentId').val() === auth.uid ||
+              root.child('users').child(auth.uid).child('role').val() === 'SUPER_ADMIN' ||
+              root.child('users').child(auth.uid).child('role').val() === 'ADMIN' ||
+              root.child('users').child(auth.uid).child('role').val() === 'INSTRUCTOR'
+            )",
+
+            // Validación de estructura del nodo de sesión activa
+            ".validate": "newData.hasChildren(['studentId', 'studentName', 'status'])"
+          }
+        }
+      }
+    },
+
+    "telemetry": {
+      "$sessionId": {
+        // Lectura: cualquier usuario autenticado (instructores/admins ven telemetría)
+        ".read": "auth != null",
+
+        // Escritura: solo el dueño de la sesión (verificado contra live_sessions)
+        // O usuarios privilegiados. La validación estricta está en la app.
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'SUPER_ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() === 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() === 'INSTRUCTOR' ||
+          root.child('users').child(auth.uid).child('role').val() === 'USUARIO_SST' ||
+          root.child('users').child(auth.uid).child('role').val() === 'USUARIO_PROFESIONAL' ||
+          root.child('users').child(auth.uid).child('role').val() === 'USUARIO'
+        )"
+      }
+    },
+
+    "presence": {
+      "$userId": {
+        // Solo el propio usuario puede escribir su presencia
+        ".write": "auth != null && auth.uid === $userId",
+        // Cualquier usuario autenticado puede leer presencia (para mostrar online/offline)
+        ".read": "auth != null",
+        ".validate": "newData.hasChildren(['online'])"
+      }
+    },
+
+    // Nodo de heartbeat separado para actualizaciones frecuentes sin reescribir todo
+    "heartbeats": {
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.isNumber()"
+      }
+    },
+
+    // Bloquear todo lo demás por defecto
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

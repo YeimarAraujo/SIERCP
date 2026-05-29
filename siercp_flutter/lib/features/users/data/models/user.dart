@@ -87,12 +87,20 @@ class UserModel {
   /// El Firestore escribe 'identification' (canónico Web); fromFirestore lee ambos.
   final String? identificacion;
 
+  /// Tipo de documento: CC, CE, TI, PP, NIT, DIE.
+  final String? documentType;
+
+  /// Departamento de Colombia.
+  final String? department;
+
+  /// Ciudad / Municipio.
+  final String? city;
+
   final String? phoneNumber;
   final bool isActive;
   final DateTime? lastActive;
   final bool isOnline;
   final UserStats? stats;
-  final List<String>? memberships;
 
   /// ID de la organización primaria. Cadena vacía si el usuario no tiene org.
   final String institutionId;
@@ -114,12 +122,14 @@ class UserModel {
     required this.role,
     this.avatarUrl,
     this.identificacion,
+    this.documentType,
+    this.department,
+    this.city,
     this.phoneNumber,
     this.isActive = true,
     this.lastActive,
     this.isOnline = false,
     this.stats,
-    this.memberships,
     this.institutionId = '',
     this.accountStatus = 'ACTIVE',
     this.coursesCreated = 0,
@@ -134,12 +144,14 @@ class UserModel {
     String? role,
     String? avatarUrl,
     String? identificacion,
+    String? documentType,
+    String? department,
+    String? city,
     String? phoneNumber,
     bool? isActive,
     DateTime? lastActive,
     bool? isOnline,
     UserStats? stats,
-    List<String>? memberships,
     String? institutionId,
     String? accountStatus,
     int? coursesCreated,
@@ -153,12 +165,14 @@ class UserModel {
         role: role ?? this.role,
         avatarUrl: avatarUrl ?? this.avatarUrl,
         identificacion: identificacion ?? this.identificacion,
+        documentType: documentType ?? this.documentType,
+        department: department ?? this.department,
+        city: city ?? this.city,
         phoneNumber: phoneNumber ?? this.phoneNumber,
         isActive: isActive ?? this.isActive,
         lastActive: lastActive ?? this.lastActive,
         isOnline: isOnline ?? this.isOnline,
         stats: stats ?? this.stats,
-        memberships: memberships ?? this.memberships,
         institutionId: institutionId ?? this.institutionId,
         accountStatus: accountStatus ?? this.accountStatus,
         coursesCreated: coursesCreated ?? this.coursesCreated,
@@ -237,13 +251,14 @@ class UserModel {
       avatarUrl: d['avatarUrl'],
       // Lee 'identification' (canónico Web) primero; si no existe lee 'identificacion' (legado Flutter).
       identificacion: (d['identification'] ?? d['identificacion']) as String?,
+      documentType: d['documentType'] as String?,
+      department: d['department'] as String?,
+      city: d['city'] as String?,
       phoneNumber: d['phoneNumber'],
       isActive: d['isActive'] ?? true,
       lastActive: (d['lastActive'] as Timestamp?)?.toDate(),
       isOnline: d['isOnline'] ?? false,
       stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
-      memberships:
-          (d['memberships'] as List?)?.map((e) => e.toString()).toList(),
       institutionId: d['institutionId'] as String? ?? '',
       accountStatus: d['status'] as String? ?? 'ACTIVE',
       coursesCreated: (d['coursesCreated'] as num?)?.toInt() ?? 0,
@@ -261,6 +276,9 @@ class UserModel {
         'avatarUrl': avatarUrl,
         // Escribe 'identification' (canónico) para que Web también lo lea.
         'identification': identificacion,
+        'documentType': documentType,
+        'department': department,
+        'city': city,
         'phoneNumber': phoneNumber,
         'isActive': isActive,
         'status': accountStatus,
@@ -278,7 +296,6 @@ class UserModel {
           'averageDepthMm': stats?.averageDepthMm ?? 0.0,
           'averageRatePerMin': stats?.averageRatePerMin ?? 0.0,
         },
-        'memberships': memberships,
         'coursesCreated': coursesCreated,
         'certVerification': certVerification.name,
         'updatedAt': FieldValue.serverTimestamp(),

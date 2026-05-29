@@ -1319,17 +1319,36 @@ class _QRScannerPageState extends State<_QRScannerPage> {
     final raw = barcode?.rawValue;
     if (raw == null || raw.isEmpty) return;
 
-    String code = raw;
-    try {
-      final uri = Uri.tryParse(raw);
-      if (uri != null && uri.queryParameters.containsKey('code')) {
-        code = uri.queryParameters['code']!;
-      }
-    } catch (_) {}
+    final code = _extractInviteCode(raw);
+    if (code.isEmpty) return;
 
     setState(() => _scanned = true);
     _ctrl.stop();
     Navigator.of(context).pop(code.toUpperCase());
+  }
+
+  /// Extrae el código de invitación de cualquier formato QR soportado:
+  ///   siercp://course?code=ABCD12     ← formato canónico (Flutter + Web)
+  ///   https://domain.com/join/ABCD12  ← formato URL legacy
+  ///   ABCD12                           ← código directo
+  static String _extractInviteCode(String raw) {
+    try {
+      final uri = Uri.tryParse(raw);
+      if (uri != null) {
+        // Formato canónico: siercp://course?code=
+        if (uri.queryParameters.containsKey('code')) {
+          return uri.queryParameters['code']!;
+        }
+        // Formato URL legacy: .../join/{code}
+        final segments = uri.pathSegments;
+        final joinIdx = segments.indexOf('join');
+        if (joinIdx >= 0 && joinIdx + 1 < segments.length) {
+          return segments[joinIdx + 1];
+        }
+      }
+    } catch (_) {}
+    // Último recurso: usar el raw completo como código
+    return raw.trim();
   }
 
   @override
