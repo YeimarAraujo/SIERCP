@@ -90,11 +90,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     required String lastName,
     required String role,
     String? identificacion,
+    String? documentType,
+    String? department,
+    String? city,
     String? phoneNumber,
   }) async {
     state = const AsyncLoading();
     final authService = ref.read(firebaseAuthServiceProvider);
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await authService.register(
         email:          email,
         password:       password,
@@ -102,11 +105,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         lastName:       lastName,
         role:           role,
         identificacion: identificacion,
+        documentType:   documentType,
+        department:     department,
+        city:           city,
         phoneNumber:    phoneNumber,
       );
-      // Nuevo usuario no tiene org todavía — org context queda vacío
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   // ── Logout ────────────────────────────────────────────────────────────────

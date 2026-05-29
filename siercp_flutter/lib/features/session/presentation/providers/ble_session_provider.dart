@@ -10,7 +10,7 @@ import 'package:siercp/core/services/audio_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/core/services/leaderboard_service.dart';
-import 'package:siercp/core/services/firestore_service.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 enum SessionMode { training, evaluation }
 
@@ -20,9 +20,12 @@ final rcpEngineProvider = Provider((ref) => RcpEngine.instance);
 
 class BleSessionNotifier extends Notifier<ActiveSessionState> {
   Timer? _timer;
-  Timer? _firestoreTimer;
   StreamSubscription<RcpTelemetry>? _telemetrySub;
   int _lastCount = 0;
+  String? _rtdbInstitutionId;
+  String? _rtdbCourseId;
+  int _heartbeatTick = 0;
+  DateTime? _lastTelemetryPush;
 
   @override
   ActiveSessionState build() {
@@ -72,34 +75,12 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
           state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
     });
 
-    // Push inicial inmediato: el instructor ve la sesión activa desde el primer segundo.
-    _pushLiveMetrics();
-    // Push periódico cada 2s durante toda la sesión.
-    _firestoreTimer?.cancel();
-    _firestoreTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _pushLiveMetrics();
-    });
+    _registerLiveSessionInRtdb(session, courseId, institutionId);
 
     _telemetrySub?.cancel();
     _telemetrySub = bleService.telemetryStream.listen((data) {
       _processBleTelemetry(data, audioService);
     });
-  }
-
-  void _pushLiveMetrics() {
-    final sessionId = state.session?.id;
-    if (sessionId == null ||
-        sessionId.startsWith('offline_') ||
-        sessionId.startsWith('error_')) {
-      return;
-    }
-
-    // Enviar telemetría SIEMPRE durante la sesión, no solo cuando hay compresiones.
-    // Esto permite al instructor ver que la sesión está activa desde el primer segundo.
-    ref
-        .read(firestoreServiceProvider)
-        .updateSessionLiveMetrics(sessionId, state.liveData.toLiveMap())
-        .catchError((_) {});
   }
 
   void _processBleTelemetry(RcpTelemetry data, AudioService audioService) {
@@ -184,6 +165,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       calibrated: true,
     );
 
+    _writeTelemetryToRtdb(liveData);
     state = state.copyWith(liveData: liveData, depthHistory: history);
   }
 
@@ -219,12 +201,12 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
   Future<({SessionModel session, bool synced})> endSession() async {
     _timer?.cancel();
-    _firestoreTimer?.cancel();
-    _firestoreTimer = null;
     _telemetrySub?.cancel();
 
     final currentSession = state.session;
     if (currentSession == null) throw Exception('No hay sesión activa.');
+
+    _cleanupRtdb(currentSession.id);
 
     final engine = ref.read(rcpEngineProvider);
     final sessionService = ref.read(sessionServiceProvider);
@@ -306,6 +288,95 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       // Forzar la actualización del historial siempre
       ref.invalidate(sessionsHistoryProvider);
     }
+  }
+  void _registerLiveSessionInRtdb(
+      SessionModel session, String? courseId, String institutionId) {
+    if (session.id.startsWith('offline_') || session.id.startsWith('error_')) {
+      return;
+    }
+    _rtdbInstitutionId = institutionId.isEmpty ? 'no_org' : institutionId;
+    _rtdbCourseId = (courseId != null && courseId.isNotEmpty) ? courseId : 'free';
+    _heartbeatTick = 0;
+    _lastTelemetryPush = null;
+
+    final liveRef = FirebaseDatabase.instance
+        .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/${session.id}');
+
+    liveRef.set({
+      'studentId':     session.studentId,
+      'studentName':   session.studentName,
+      'scenarioId':    session.scenarioId    ?? '',
+      'scenarioTitle': session.scenarioTitle ?? '',
+      'manikinId':     session.manikinId     ?? '',
+      'courseId':      _rtdbCourseId,
+      'institutionId': _rtdbInstitutionId,
+      'status':        'active',
+      'startedAt':     ServerValue.timestamp,
+      'heartbeat':     ServerValue.timestamp,
+    }).catchError((e) => debugPrint('[RTDB] Error registrando sesión: $e'));
+
+    // Limpieza automática si la app muere sin llamar endSession
+    liveRef.onDisconnect().remove().catchError((_) {});
+  }
+
+  void _writeTelemetryToRtdb(LiveSessionData data) {
+    final sessionId = state.session?.id;
+    if (sessionId == null ||
+        sessionId.startsWith('offline_') ||
+        sessionId.startsWith('error_')) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTelemetryPush != null &&
+        now.difference(_lastTelemetryPush!).inMilliseconds < 200) {
+      return;
+    }
+    _lastTelemetryPush = now;
+
+    FirebaseDatabase.instance.ref('telemetry/$sessionId').update({
+      'depthMm':                data.depthMm,
+      'ratePerMin':             data.ratePerMin,
+      'forceKg':                data.forceKg,
+      'compressionCount':       data.compressionCount,
+      'correctCompressionCount': data.correctCompressionCount,
+      'correctPct':             data.correctPct,
+      'sessionScore':           data.sessionScore,
+      'decompressedFully':      data.decompressedFully,
+      'recoilPct':              data.recoilPct,
+      'pauseCount':             data.pauseCount,
+      'maxPauseSec':            data.maxPauseSec,
+      'sensorOk':               data.sensorOk,
+      'calibrated':             data.calibrated,
+      'updatedAt':              ServerValue.timestamp,
+    }).catchError((e) => debugPrint('[RTDB] Error telemetría: $e'));
+
+    _heartbeatTick++;
+    if (_heartbeatTick % 30 == 0 &&
+        _rtdbInstitutionId != null &&
+        _rtdbCourseId != null) {
+      FirebaseDatabase.instance
+          .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/$sessionId/heartbeat')
+          .set(ServerValue.timestamp)
+          .catchError((_) {});
+    }
+  }
+
+  void _cleanupRtdb(String sessionId) {
+    if (sessionId.startsWith('offline_') || sessionId.startsWith('error_')) {
+      return;
+    }
+    if (_rtdbInstitutionId != null && _rtdbCourseId != null) {
+      FirebaseDatabase.instance
+          .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/$sessionId')
+          .remove()
+          .catchError((_) {});
+    }
+    FirebaseDatabase.instance
+        .ref('telemetry/$sessionId')
+        .remove()
+        .catchError((_) {});
+    _rtdbInstitutionId = null;
+    _rtdbCourseId = null;
   }
 }
 

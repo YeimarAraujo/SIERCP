@@ -8,6 +8,7 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/core/utils/connection_guard.dart';
+import 'package:siercp/core/constants/clinical_scenarios.dart';
 
 class ModulePracticaScreen extends ConsumerWidget {
   final CourseModule module;
@@ -293,15 +294,8 @@ class _RequirementCard extends StatelessWidget {
     );
   }
 
-  String _getScenarioLabel(String id) {
-    switch (id) {
-      case 'paroCardiaco': return 'Paro cardíaco';
-      case 'accidenteTransito': return 'Accidente de tránsito';
-      case 'ahogamiento': return 'Ahogamiento';
-      case 'descargaElectrica': return 'Descarga eléctrica';
-      default: return id[0].toUpperCase() + id.substring(1);
-    }
-  }
+  String _getScenarioLabel(String id) =>
+      getScenarioById(id)?.title ?? (id[0].toUpperCase() + id.substring(1));
 }
 
 class _FinalizeButton extends StatelessWidget {

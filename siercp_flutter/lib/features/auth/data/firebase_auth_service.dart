@@ -60,6 +60,9 @@ class FirebaseAuthService {
     required String lastName,
     required String role,
     String? identificacion,
+    String? documentType,
+    String? department,
+    String? city,
     String? phoneNumber,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
@@ -68,17 +71,29 @@ class FirebaseAuthService {
     );
     await credential.user?.updateDisplayName('$firstName $lastName');
 
+    final uid = credential.user!.uid;
     final user = UserModel(
-      id: credential.user!.uid,
+      id: uid,
       email: email.trim(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       role: role,
       identificacion: identificacion?.trim(),
+      documentType: documentType,
+      department: department,
+      city: city,
       phoneNumber: phoneNumber?.trim(),
       isActive: true,
+      institutionId: uid,
     );
-    await _firestore.createUser(user);
+    try {
+      await _firestore.createUser(user);
+    } catch (e) {
+      // Firestore write failed — eliminar el usuario de Auth para evitar
+      // cuentas huérfanas que no pueden iniciar sesión.
+      await credential.user?.delete().catchError((_) {});
+      rethrow;
+    }
     return user;
   }
 
