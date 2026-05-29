@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/features/session/data/models/session.dart';
@@ -128,6 +129,9 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
 
     state = state.copyWith(session: session, isConnected: true);
 
+    // Registrar sesión activa en RTDB para que el Web pueda monitorearla
+    _registerLiveSessionInRtdb(session, courseId);
+
     // Timer de duración
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       state =
@@ -136,6 +140,87 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
 
     _startFirebaseTelemetryListener(audioService);
   }
+
+  // ── RTDB helpers (telemetría en tiempo real para el monitor Web) ─────────────
+
+  /// Registra la sesión como activa en RTDB para que el Web pueda listarla.
+  void _registerLiveSessionInRtdb(SessionModel session, String? courseId) {
+    if (session.id.startsWith('offline_') || session.id.startsWith('error_')) {
+      return;
+    }
+    try {
+      final orgCtx = ref.read(orgContextProvider);
+      final institutionId = orgCtx.activeOrgId ?? 'no_org';
+      final cId = courseId ?? 'free';
+      FirebaseDatabase.instance
+          .ref('live_sessions/$institutionId/$cId/${session.id}')
+          .set({
+        'studentId': session.studentId,
+        'studentName': session.studentName,
+        'scenarioId': session.scenarioId ?? '',
+        'scenarioTitle': session.scenarioTitle ?? '',
+        'manikinId': session.manikinId ?? '',
+        'courseId': cId,
+        'institutionId': institutionId,
+        'status': 'active',
+        'startedAt': ServerValue.timestamp,
+        'heartbeat': ServerValue.timestamp,
+      });
+    } catch (e) {
+      debugPrint('[RTDB] Error registrando sesión: $e');
+    }
+  }
+
+  /// Escribe datos de telemetría procesados en RTDB para el monitor Web.
+  void _writeTelemetryToRtdb(LiveSessionData data) {
+    final sessionId = state.session?.id;
+    if (sessionId == null ||
+        sessionId.startsWith('offline_') ||
+        sessionId.startsWith('error_')) {
+      return;
+    }
+    try {
+      FirebaseDatabase.instance.ref('telemetry/$sessionId').update({
+        'depthMm':                data.depthMm,
+        'ratePerMin':             data.ratePerMin,
+        'forceKg':                data.forceKg,
+        'compressionCount':       data.compressionCount,
+        'correctCompressionCount': data.correctCompressionCount,
+        'correctPct':             data.correctPct,
+        'sessionScore':           data.sessionScore,
+        'decompressedFully':      data.decompressedFully,
+        'recoilPct':              data.recoilPct,
+        'pauseCount':             data.pauseCount,
+        'maxPauseSec':            data.maxPauseSec,
+        'sensorOk':               data.sensorOk,
+        'calibrated':             data.calibrated,
+        'updatedAt':              ServerValue.timestamp,
+      });
+    } catch (e) {
+      debugPrint('[RTDB] Error escribiendo telemetría: $e');
+    }
+  }
+
+  /// Limpia los nodos RTDB al finalizar o abortar la sesión.
+  void _cleanupRtdb(SessionModel session) {
+    if (session.id.startsWith('offline_') || session.id.startsWith('error_')) {
+      return;
+    }
+    try {
+      final orgCtx = ref.read(orgContextProvider);
+      final institutionId = orgCtx.activeOrgId ?? 'no_org';
+      final cId = session.courseId ?? 'free';
+      FirebaseDatabase.instance
+          .ref('live_sessions/$institutionId/$cId/${session.id}')
+          .remove();
+      // La telemetría se mantiene 5 min para consulta post-sesión;
+      // una Cloud Function la elimina después.
+    } catch (e) {
+      debugPrint('[RTDB] Error limpiando sesión: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   void _startFirebaseTelemetryListener(AudioService audioService) {
     final deviceService = ref.read(deviceServiceProvider);
@@ -247,10 +332,13 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
         ? newHistory.sublist(newHistory.length - 40)
         : newHistory;
 
+    // Escribe telemetría a RTDB para el monitor Web (no Firestore)
+    _writeTelemetryToRtdb(data);
+
     state = state.copyWith(
       liveData: data,
       depthHistory: trimmed,
-      lastDeviceInfo: deviceInfo, // Guardamos para usar en endSession
+      lastDeviceInfo: deviceInfo,
     );
   }
 
@@ -271,6 +359,10 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     _telemetrySubMulti?.cancel();
     _telemetrySub = null;
     _telemetrySubMulti = null;
+
+    // Elimina sesión activa de RTDB
+    _cleanupRtdb(currentSession);
+
     final sessionId = currentSession.id;
     final sessionService = ref.read(sessionServiceProvider);
 
@@ -338,6 +430,9 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     _telemetrySubMulti?.cancel();
     _telemetrySub = null;
     _telemetrySubMulti = null;
+    if (state.session != null) {
+      _cleanupRtdb(state.session!);
+    }
     state = const ActiveSessionState();
   }
 
@@ -503,7 +598,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
       averageDepthMm: avgDepth,
       averageRatePerMin: avgRate,
       correctCompressionsPct: correctPct,
-      averageForcKg: avgFuerza,
+      averageForceKg: avgFuerza,
       recoilPct: recoilPct,
       interruptionCount: pausas,
       maxPauseSeconds: devInfo.maxPausaSeg,
@@ -554,29 +649,60 @@ final scenariosProvider = FutureProvider<List<ScenarioModel>>((ref) async {
   return ref.read(sessionServiceProvider).getScenarios();
 });
 
+// ─── Instructor por asignación de curso ──────────────────────────────────────
+/// Detecta si el usuario es instructor en algún curso de la org activa,
+/// aunque su membership tenga rol USUARIO.
+/// Soluciona el caso donde admin asigna instructorId en el curso sin cambiar la membership.
+final isInstructorOnCourseProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return false;
+  final orgCtx = ref.watch(orgContextProvider);
+  if (orgCtx.isInstructor || (user.isInstructor)) return true;
+  final orgId = orgCtx.activeOrgId;
+  if (orgId == null || orgId.isEmpty) return false;
+  return ref.read(sessionServiceProvider).isInstructorOnAnyCourse(user.id, orgId);
+});
+
 // ─── Courses ─────────────────────────────────────────────────────────────────
+
+/// Cursos donde el usuario es INSTRUCTOR o ADMIN (cursos para gestionar).
 final coursesProvider = FutureProvider<List<CourseModel>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
   final orgCtx = ref.watch(orgContextProvider);
+  final effectiveRole = orgCtx.activeRole ?? user.role;
   return ref.read(sessionServiceProvider).getCoursesForUser(
     user.id,
-    user.role,
+    effectiveRole,
     institutionId: orgCtx.activeOrgId,
   );
+});
+
+/// Cursos donde el usuario está inscrito como ESTUDIANTE.
+/// Se carga siempre (independientemente del rol) para el dashboard dual.
+final enrolledCoursesProvider = FutureProvider<List<CourseModel>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  return ref.read(firestoreServiceProvider).getStudentCourses(user.id);
 });
 
 // ─── Alerts (Stream en tiempo real) ──────────────────────────────────────────
 final recentAlertsProvider = StreamProvider<List<AlertModel>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Stream.value([]);
-  
-  // Si es instructor o admin, ver alertas de su buzón en tiempo real
-  if (user.isInstructor || user.isAdmin) {
+  final orgCtx = ref.watch(orgContextProvider);
+
+  // Usar el rol efectivo (membership > global) para determinar scope de alertas
+  final effectiveRole = orgCtx.activeRole ?? user.role;
+  final isInstructorOrAdmin = effectiveRole == 'INSTRUCTOR' ||
+      effectiveRole == 'ADMIN' ||
+      user.isAdmin;
+
+  if (isInstructorOrAdmin) {
     debugPrint('📡 Escuchando alertas para usuario: ${user.id}');
     return ref.read(sessionServiceProvider).watchInstructorAlerts(user.id);
   }
-  
+
   return Stream.value([]);
 });
 

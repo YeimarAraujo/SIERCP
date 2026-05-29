@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/session/data/models/session.dart';
@@ -41,10 +44,7 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ─────────────────────────────────────────────────────
             _LiveHeader(course: course, isDark: isDark),
-
-            // ── Summary bar ────────────────────────────────────────────────
             activeSessionsAsync.when(
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
@@ -52,8 +52,6 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
                   ? const SizedBox.shrink()
                   : _SummaryBar(sessions: sessions, isDark: isDark),
             ),
-
-            // ── Content ─────────────────────────────────────────────────────
             Expanded(
               child: activeSessionsAsync.when(
                 loading: () => const Center(
@@ -164,7 +162,7 @@ class _LiveHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Sesiones activas de estudiantes',
+                  'Telemetría BLE en tiempo real',
                   style: TextStyle(
                     color: isDark
                         ? theme.textTheme.bodyMedium?.color
@@ -175,7 +173,6 @@ class _LiveHeader extends StatelessWidget {
               ],
             ),
           ),
-          // Refresh indicator
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -238,16 +235,16 @@ class _SummaryBar extends StatelessWidget {
             icon: Icons.people_alt_outlined,
             color: AppColors.brand,
           ),
-          _Divider(),
+          _VerticalDivider(),
           _StatPill(
             label: 'En curso',
             value: '${sessions.where((s) => s.status == SessionStatus.active).length}',
             icon: Icons.play_circle_outline_rounded,
             color: const Color(0xFF00FF94),
           ),
-          _Divider(),
+          _VerticalDivider(),
           _StatPill(
-            label: 'Con dispositivo',
+            label: 'Con BLE',
             value: '${sessions.where((s) => s.manikinId != null && s.manikinId!.isNotEmpty).length}',
             icon: Icons.bluetooth_connected_rounded,
             color: AppColors.cyan,
@@ -258,7 +255,7 @@ class _SummaryBar extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
+class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -343,7 +340,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Cuando un estudiante inicie una práctica con maniquí\naparecer aquí en tiempo real.',
+              'Cuando un estudiante inicie una práctica con maniquí\naparecerá aquí en tiempo real.',
               textAlign: TextAlign.center,
               style: TextStyle(color: textS, fontSize: 12, height: 1.5),
             ),
@@ -354,33 +351,76 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ─── Realtime session card ────────────────────────────────────────────────────
-class _RealtimeSessionCard extends ConsumerWidget {
+// ─── Realtime session card (stateful para historia de gráfica) ─────────────────
+class _RealtimeSessionCard extends ConsumerStatefulWidget {
   final SessionModel session;
   final bool isDark;
   final int index;
 
-  const _RealtimeSessionCard(
-      {required this.session, required this.isDark, required this.index});
+  const _RealtimeSessionCard({
+    required this.session,
+    required this.isDark,
+    required this.index,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final liveMetrics = session.liveMetrics;
-    final manikinId = session.manikinId;
+  ConsumerState<_RealtimeSessionCard> createState() =>
+      _RealtimeSessionCardState();
+}
+
+class _RealtimeSessionCardState extends ConsumerState<_RealtimeSessionCard> {
+  static const int _maxHistory = 40;
+  final List<double> _depthHistory = [];
+  final List<double> _rateHistory = [];
+  StreamSubscription<DeviceInfo?>? _deviceSub;
+
+  @override
+  void initState() {
+    super.initState();
+    final manikinId = widget.session.manikinId;
+    if (manikinId != null && manikinId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startListening(manikinId));
+    }
+  }
+
+  void _startListening(String manikinId) {
+    final deviceService = ref.read(deviceServiceProvider);
+    _deviceSub = deviceService.streamDevice(manikinId).listen((device) {
+      if (!mounted || device == null || !device.isActive) return;
+      setState(() {
+        _depthHistory.add(device.profundidadMm);
+        _rateHistory.add(device.frecuenciaCpm.toDouble());
+        if (_depthHistory.length > _maxHistory) _depthHistory.removeAt(0);
+        if (_rateHistory.length > _maxHistory) _rateHistory.removeAt(0);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _deviceSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final liveMetrics = widget.session.liveMetrics;
+    final manikinId = widget.session.manikinId;
     final hasLiveData = (liveMetrics?.compressionCount ?? 0) > 0;
 
     if (manikinId == null || manikinId.isEmpty) {
-      return _DeviceMonitorCard(
-        studentName: session.studentName,
-        scenarioTitle: session.scenarioTitle,
+      return _SessionMonitorCard(
+        studentName: widget.session.studentName,
+        scenarioTitle: widget.session.scenarioTitle,
         deviceId: null,
         depthMm: liveMetrics?.depthMm ?? 0,
         ratePerMin: liveMetrics?.ratePerMin ?? 0,
         qualityPct: liveMetrics?.correctPct ?? 0,
         connected: hasLiveData,
-        isDark: isDark,
-        index: index,
+        isDark: widget.isDark,
         liveMetrics: liveMetrics,
+        depthHistory: _depthHistory,
+        rateHistory: _rateHistory,
       );
     }
 
@@ -391,25 +431,26 @@ class _RealtimeSessionCard extends ConsumerWidget {
       builder: (context, snapshot) {
         final device = snapshot.data;
         final deviceConnected = device != null && device.isActive;
-        return _DeviceMonitorCard(
-          studentName: session.studentName,
-          scenarioTitle: session.scenarioTitle,
+        return _SessionMonitorCard(
+          studentName: widget.session.studentName,
+          scenarioTitle: widget.session.scenarioTitle,
           deviceId: manikinId,
           depthMm: device?.profundidadMm ?? liveMetrics?.depthMm ?? 0,
           ratePerMin: device?.frecuenciaCpm ?? liveMetrics?.ratePerMin ?? 0,
           qualityPct: liveMetrics?.correctPct ?? device?.calidadPct ?? 0,
           connected: deviceConnected || hasLiveData,
-          isDark: isDark,
-          index: index,
+          isDark: widget.isDark,
           liveMetrics: liveMetrics,
+          depthHistory: _depthHistory,
+          rateHistory: _rateHistory,
         );
       },
     );
   }
 }
 
-// ─── Device monitor card ─────────────────────────────────────────────────────
-class _DeviceMonitorCard extends StatelessWidget {
+// ─── Session monitor card ──────────────────────────────────────────────────────
+class _SessionMonitorCard extends StatelessWidget {
   final String studentName;
   final String? scenarioTitle;
   final String? deviceId;
@@ -418,10 +459,11 @@ class _DeviceMonitorCard extends StatelessWidget {
   final double qualityPct;
   final bool connected;
   final bool isDark;
-  final int index;
   final LiveSessionData? liveMetrics;
+  final List<double> depthHistory;
+  final List<double> rateHistory;
 
-  const _DeviceMonitorCard({
+  const _SessionMonitorCard({
     required this.studentName,
     required this.scenarioTitle,
     required this.deviceId,
@@ -430,8 +472,9 @@ class _DeviceMonitorCard extends StatelessWidget {
     this.qualityPct = 0,
     required this.connected,
     required this.isDark,
-    required this.index,
     this.liveMetrics,
+    required this.depthHistory,
+    required this.rateHistory,
   });
 
   Color get _qualityColor {
@@ -446,12 +489,11 @@ class _DeviceMonitorCard extends StatelessWidget {
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
-    final surfaceColor = theme.colorScheme.surface;
     final borderColor = theme.colorScheme.outline;
 
     return Container(
       decoration: BoxDecoration(
-        color: surfaceColor,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: connected
@@ -473,157 +515,34 @@ class _DeviceMonitorCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // ── Header ───────────────────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: connected
-                  ? AppColors.brand.withValues(alpha: isDark ? 0.12 : 0.04)
-                  : borderColor.withValues(alpha: 0.08),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(15)),
-              border: Border(
-                  bottom: BorderSide(
-                      color: borderColor.withValues(alpha: 0.2), width: 0.5)),
-            ),
-            child: Row(
-              children: [
-                // Avatar
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: connected
-                        ? AppColors.brand.withValues(alpha: 0.12)
-                        : textT.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      studentName.isNotEmpty
-                          ? studentName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: connected ? AppColors.brand : textT,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(studentName,
-                          style: TextStyle(
-                              color: textP,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 1),
-                      Text(
-                        scenarioTitle ?? 'Sin escenario',
-                        style: TextStyle(color: textS, fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                // Connection status
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: connected
-                        ? const Color(0xFF00FF94).withValues(alpha: 0.1)
-                        : textT.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: connected
-                          ? const Color(0xFF00FF94).withValues(alpha: 0.35)
-                          : textT.withValues(alpha: 0.2),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        connected
-                            ? Icons.bluetooth_connected_rounded
-                            : Icons.bluetooth_disabled_rounded,
-                        size: 11,
-                        color: connected
-                            ? const Color(0xFF00FF94)
-                            : textT.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        connected ? 'EN VIVO' : 'OFFLINE',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                          color: connected
-                              ? const Color(0xFF00FF94)
-                              : textT.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          // ── Header ────────────────────────────────────────────────────────
+          _CardHeader(
+            studentName: studentName,
+            scenarioTitle: scenarioTitle,
+            connected: connected,
+            isDark: isDark,
+            textP: textP,
+            textS: textS,
+            textT: textT,
+            borderColor: borderColor,
           ),
 
-          // ── Body ─────────────────────────────────────────────────────────
+          // ── Body ──────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(16),
             child: connected
                 ? Column(
                     children: [
-                      // ── Live metrics row (score / compressions / quality) ──
-                      if (liveMetrics != null &&
-                          liveMetrics!.compressionCount > 0) ...[
-                        _LiveMetricsRow(
-                            liveMetrics: liveMetrics!, textT: textT),
+                      // Métricas en vivo
+                      if (liveMetrics != null && liveMetrics!.compressionCount > 0) ...[
+                        _LiveMetricsRow(liveMetrics: liveMetrics!, textT: textT),
                         const SizedBox(height: 14),
                       ] else if (qualityPct > 0) ...[
-                        // Fallback: barra de calidad del device stream
-                        Row(
-                          children: [
-                            Text('CALIDAD',
-                                style: TextStyle(
-                                    color: textT,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1)),
-                            const Spacer(),
-                            Text(
-                              '${qualityPct.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                  color: _qualityColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: (qualityPct / 100).clamp(0.0, 1.0),
-                            backgroundColor:
-                                _qualityColor.withValues(alpha: 0.12),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(_qualityColor),
-                            minHeight: 5,
-                          ),
-                        ),
+                        _QualityBar(qualityPct: qualityPct, qualityColor: _qualityColor, textT: textT),
                         const SizedBox(height: 14),
                       ],
-                      // ── Gauges row ─────────────────────────────────────────
+
+                      // Gauges
                       Row(
                         children: [
                           Expanded(
@@ -636,9 +555,7 @@ class _DeviceMonitorCard extends StatelessWidget {
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5)),
                                 const SizedBox(height: 6),
-                                SizedBox(
-                                    height: 80,
-                                    child: DepthGauge(depthMm: depthMm)),
+                                SizedBox(height: 80, child: DepthGauge(depthMm: depthMm)),
                               ],
                             ),
                           ),
@@ -656,15 +573,24 @@ class _DeviceMonitorCard extends StatelessWidget {
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5)),
                                 const SizedBox(height: 6),
-                                SizedBox(
-                                    height: 80,
-                                    child: RateGauge(ratePerMin: ratePerMin)),
+                                SizedBox(height: 80, child: RateGauge(ratePerMin: ratePerMin)),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      // ── Device ID chip ─────────────────────────────────────
+
+                      // Gráfica de profundidad histórica
+                      if (depthHistory.length >= 3) ...[
+                        const SizedBox(height: 16),
+                        _DepthHistoryChart(
+                          depthHistory: depthHistory,
+                          isDark: isDark,
+                          textT: textT,
+                        ),
+                      ],
+
+                      // Device ID
                       if (deviceId != null) ...[
                         const SizedBox(height: 10),
                         Row(
@@ -695,8 +621,7 @@ class _DeviceMonitorCard extends StatelessWidget {
                         Text(
                           'Esperando datos del estudiante...',
                           style: TextStyle(
-                              color: textT.withValues(alpha: 0.5),
-                              fontSize: 12),
+                              color: textT.withValues(alpha: 0.5), fontSize: 12),
                         ),
                       ],
                     ),
@@ -708,22 +633,144 @@ class _DeviceMonitorCard extends StatelessWidget {
   }
 }
 
-// ─── Live metrics row (score / compressions / quality) ───────────────────────
+// ─── Card header ──────────────────────────────────────────────────────────────
+class _CardHeader extends StatelessWidget {
+  final String studentName;
+  final String? scenarioTitle;
+  final bool connected;
+  final bool isDark;
+  final Color textP;
+  final Color textS;
+  final Color textT;
+  final Color borderColor;
+
+  const _CardHeader({
+    required this.studentName,
+    required this.scenarioTitle,
+    required this.connected,
+    required this.isDark,
+    required this.textP,
+    required this.textS,
+    required this.textT,
+    required this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: connected
+            ? AppColors.brand.withValues(alpha: isDark ? 0.12 : 0.04)
+            : borderColor.withValues(alpha: 0.08),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+        border: Border(
+            bottom: BorderSide(
+                color: borderColor.withValues(alpha: 0.2), width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: connected
+                  ? AppColors.brand.withValues(alpha: 0.12)
+                  : textT.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: connected ? AppColors.brand : textT,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(studentName,
+                    style: TextStyle(
+                        color: textP,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 1),
+                Text(
+                  scenarioTitle ?? 'Sin escenario',
+                  style: TextStyle(color: textS, fontSize: 10),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: connected
+                  ? const Color(0xFF00FF94).withValues(alpha: 0.1)
+                  : textT.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: connected
+                    ? const Color(0xFF00FF94).withValues(alpha: 0.35)
+                    : textT.withValues(alpha: 0.2),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  connected
+                      ? Icons.bluetooth_connected_rounded
+                      : Icons.bluetooth_disabled_rounded,
+                  size: 11,
+                  color: connected
+                      ? const Color(0xFF00FF94)
+                      : textT.withValues(alpha: 0.5),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  connected ? 'EN VIVO' : 'OFFLINE',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                    color: connected
+                        ? const Color(0xFF00FF94)
+                        : textT.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Live metrics row ─────────────────────────────────────────────────────────
 class _LiveMetricsRow extends StatelessWidget {
   final LiveSessionData liveMetrics;
   final Color textT;
-
   const _LiveMetricsRow({required this.liveMetrics, required this.textT});
 
-  Color _scoreColor(double score) {
-    if (score >= 85) return AppColors.green;
-    if (score >= 70) return AppColors.amber;
+  Color _scoreColor(double s) {
+    if (s >= 85) return AppColors.green;
+    if (s >= 70) return AppColors.amber;
     return AppColors.red;
   }
 
-  Color _qualColor(double pct) {
-    if (pct >= 70) return AppColors.green;
-    if (pct >= 50) return AppColors.amber;
+  Color _qualColor(double p) {
+    if (p >= 70) return AppColors.green;
+    if (p >= 50) return AppColors.amber;
     return AppColors.red;
   }
 
@@ -742,66 +789,241 @@ class _LiveMetricsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _MetricCell(
-            value: '${liveMetrics.sessionScore.round()}',
-            unit: 'PTS',
-            color: scoreColor,
-            textT: textT,
-          ),
+          _MetricCell(value: '${liveMetrics.sessionScore.round()}', unit: 'PTS', color: scoreColor, textT: textT),
           Container(width: 0.5, height: 28, color: textT.withValues(alpha: 0.15)),
-          _MetricCell(
-            value: '${liveMetrics.compressionCount}',
-            unit: 'COMPRES.',
-            color: textT,
-            textT: textT,
-          ),
+          _MetricCell(value: '${liveMetrics.compressionCount}', unit: 'COMPRES.', color: textT, textT: textT),
           Container(width: 0.5, height: 28, color: textT.withValues(alpha: 0.15)),
-          _MetricCell(
-            value: '${liveMetrics.correctPct.round()}%',
-            unit: 'CALIDAD',
-            color: qualColor,
-            textT: textT,
-          ),
+          _MetricCell(value: '${liveMetrics.correctPct.round()}%', unit: 'CALIDAD', color: qualColor, textT: textT),
         ],
       ),
     );
   }
 }
 
+// ─── Quality bar (fallback sin compresiones) ──────────────────────────────────
+class _QualityBar extends StatelessWidget {
+  final double qualityPct;
+  final Color qualityColor;
+  final Color textT;
+  const _QualityBar({required this.qualityPct, required this.qualityColor, required this.textT});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text('CALIDAD', style: TextStyle(color: textT, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1)),
+            const Spacer(),
+            Text('${qualityPct.toStringAsFixed(0)}%', style: TextStyle(color: qualityColor, fontSize: 13, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (qualityPct / 100).clamp(0.0, 1.0),
+            backgroundColor: qualityColor.withValues(alpha: 0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(qualityColor),
+            minHeight: 5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Metric cell ─────────────────────────────────────────────────────────────
 class _MetricCell extends StatelessWidget {
   final String value;
   final String unit;
   final Color color;
   final Color textT;
 
-  const _MetricCell({
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.textT,
-  });
+  const _MetricCell({required this.value, required this.unit, required this.color, required this.textT});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
         const SizedBox(height: 2),
-        Text(
-          unit,
-          style: TextStyle(
-            color: textT.withValues(alpha: 0.6),
-            fontSize: 8,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
+        Text(unit, style: TextStyle(color: textT.withValues(alpha: 0.6), fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+      ],
+    );
+  }
+}
+
+// ─── Depth history chart ───────────────────────────────────────────────────────
+class _DepthHistoryChart extends StatelessWidget {
+  final List<double> depthHistory;
+  final bool isDark;
+  final Color textT;
+
+  const _DepthHistoryChart({
+    required this.depthHistory,
+    required this.isDark,
+    required this.textT,
+  });
+
+  Color _colorForDepth(double mm) {
+    if (mm >= AppConstants.ahaMinDepthMm && mm <= AppConstants.ahaMaxDepthMm) {
+      return AppColors.green;
+    }
+    return AppColors.red;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (depthHistory.isEmpty) return const SizedBox.shrink();
+
+    final spots = depthHistory.asMap().entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value))
+        .toList();
+
+    final lastDepth = depthHistory.last;
+    final lineColor = _colorForDepth(lastDepth);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.show_chart_rounded, size: 12, color: textT.withValues(alpha: 0.6)),
+            const SizedBox(width: 6),
+            Text(
+              'PROFUNDIDAD (mm)',
+              style: TextStyle(color: textT, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: lineColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${lastDepth.toStringAsFixed(1)} mm',
+                style: TextStyle(color: lineColor, fontSize: 10, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 90,
+          child: LineChart(
+            LineChartData(
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: 10,
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: textT.withValues(alpha: 0.08),
+                  strokeWidth: 0.5,
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 28,
+                    interval: 20,
+                    getTitlesWidget: (value, meta) => Text(
+                      '${value.toInt()}',
+                      style: TextStyle(color: textT.withValues(alpha: 0.5), fontSize: 8),
+                    ),
+                  ),
+                ),
+              ),
+              minY: 0,
+              maxY: 80,
+              // Zona AHA target (50–60 mm) sombreada
+              rangeAnnotations: RangeAnnotations(
+                horizontalRangeAnnotations: [
+                  HorizontalRangeAnnotation(
+                    y1: AppConstants.ahaMinDepthMm.toDouble(),
+                    y2: AppConstants.ahaMaxDepthMm.toDouble(),
+                    color: AppColors.green.withValues(alpha: isDark ? 0.08 : 0.06),
+                  ),
+                ],
+              ),
+              // Líneas de referencia AHA
+              extraLinesData: ExtraLinesData(
+                horizontalLines: [
+                  HorizontalLine(
+                    y: AppConstants.ahaMinDepthMm.toDouble(),
+                    color: AppColors.green.withValues(alpha: 0.4),
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                    label: HorizontalLineLabel(
+                      show: true,
+                      alignment: Alignment.topRight,
+                      labelResolver: (_) => '50mm',
+                      style: TextStyle(color: AppColors.green.withValues(alpha: 0.7), fontSize: 8, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  HorizontalLine(
+                    y: AppConstants.ahaMaxDepthMm.toDouble(),
+                    color: AppColors.green.withValues(alpha: 0.4),
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                    label: HorizontalLineLabel(
+                      show: true,
+                      alignment: Alignment.topRight,
+                      labelResolver: (_) => '60mm',
+                      style: TextStyle(color: AppColors.green.withValues(alpha: 0.7), fontSize: 8, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  curveSmoothness: 0.3,
+                  color: lineColor,
+                  barWidth: 2,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, bar, index) {
+                      final isLast = index == spots.length - 1;
+                      return FlDotCirclePainter(
+                        radius: isLast ? 4 : 0,
+                        color: lineColor,
+                        strokeWidth: isLast ? 2 : 0,
+                        strokeColor: Colors.white,
+                      );
+                    },
+                  ),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: lineColor.withValues(alpha: isDark ? 0.08 : 0.05),
+                  ),
+                ),
+              ],
+              lineTouchData: LineTouchData(
+                enabled: true,
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) =>
+                      isDark ? const Color(0xFF1E2A3A) : Colors.white,
+                  getTooltipItems: (spots) => spots
+                      .map((s) => LineTooltipItem(
+                            '${s.y.toStringAsFixed(1)} mm',
+                            TextStyle(color: lineColor, fontSize: 10, fontWeight: FontWeight.w700),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ),
+            duration: const Duration(milliseconds: 150),
           ),
         ),
       ],

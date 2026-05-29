@@ -16,7 +16,7 @@ void main() {
       averageDepthMm: 55, // ✅ 50-60 mm AHA
       averageRatePerMin: 110, // ✅ 100-120 /min AHA
       correctCompressionsPct: 100,
-      averageForcKg: 5.0,
+      averageForceKg: 5.0,
       recoilPct: 100,
       interruptionCount: 0,
       maxPauseSeconds: 0,
@@ -76,7 +76,7 @@ void main() {
       averageDepthMm: 52,
       averageRatePerMin: 105,
       correctCompressionsPct: 85,
-      averageForcKg: 4.5,
+      averageForceKg: 4.5,
       recoilPct: 85,
       interruptionCount: 0,
       maxPauseSeconds: 0,

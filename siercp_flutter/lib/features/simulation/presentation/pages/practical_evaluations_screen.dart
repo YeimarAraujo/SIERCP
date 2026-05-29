@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:siercp/core/theme/theme.dart';
 
@@ -1036,6 +1038,8 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
   int _correctCount = 0;
   bool _finished = false;
   final List<bool> _results = [];
+  int _xpEarned = 0;
+  int _levelAfter = 0;
 
   void _selectAnswer(int idx) {
     if (_answered) return;
@@ -1057,6 +1061,61 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
       });
     } else {
       setState(() => _finished = true);
+      _awardXp();
+    }
+  }
+
+  static const _xpThresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
+  static int _calcLevel(int xp) => _xpThresholds.where((t) => xp >= t).length;
+
+  Future<void> _awardXp() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final total = widget.eval.questions.length;
+    final score = total == 0 ? 0 : (_correctCount / total * 100).round();
+    final passed = score >= 75;
+    if (!passed) return;
+
+    final xpEarned = score == 100 ? 50 : 20;
+    final db = FirebaseFirestore.instance;
+    final statsRef = db.collection('userStats').doc(uid);
+
+    try {
+      int newLevel = 0;
+      await db.runTransaction((tx) async {
+        final snap = await tx.get(statsRef);
+        final data = snap.data() ?? {};
+        final currentXp = (data['xp'] as int?) ?? 0;
+        final newXp = currentXp + xpEarned;
+        newLevel = _calcLevel(newXp);
+        tx.set(statsRef, {
+          'xp': newXp,
+          'level': newLevel,
+          'quizzesCompleted': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+
+      if (mounted) {
+        setState(() {
+          _xpEarned = xpEarned;
+          _levelAfter = newLevel;
+        });
+      }
+
+      // Registro histórico sin bloquear la UI
+      db.collection('quizSessions').add({
+        'userId':      uid,
+        'topicId':     widget.eval.id,
+        'type':        'practical_eval',
+        'score':       score,
+        'passed':      passed,
+        'xpEarned':    xpEarned,
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('[PracticalEval] Error guardando XP: $e');
     }
   }
 
@@ -1075,6 +1134,8 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
         isDark: isDark,
         textP: textP,
         textS: textS,
+        xpEarned: _xpEarned,
+        levelAfter: _levelAfter,
       );
     }
 
@@ -1376,6 +1437,8 @@ class _ResultScreen extends StatelessWidget {
   final bool isDark;
   final Color textP;
   final Color textS;
+  final int xpEarned;
+  final int levelAfter;
 
   const _ResultScreen({
     required this.eval,
@@ -1384,6 +1447,8 @@ class _ResultScreen extends StatelessWidget {
     required this.isDark,
     required this.textP,
     required this.textS,
+    this.xpEarned = 0,
+    this.levelAfter = 0,
   });
 
   @override
@@ -1492,7 +1557,84 @@ class _ResultScreen extends StatelessWidget {
                     style: TextStyle(color: textS, fontSize: 13),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
+                  // ── XP & nivel ganado ─────────────────────────────────────
+                  if (xpEarned > 0) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: const Color(0xFFF59E0B)
+                                .withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded,
+                              size: 18, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '+$xpEarned XP ganados',
+                                style: const TextStyle(
+                                  color: Color(0xFFF59E0B),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              if (levelAfter > 0)
+                                Text(
+                                  'Nivel actual: $levelAfter',
+                                  style: TextStyle(
+                                    color: const Color(0xFFF59E0B)
+                                        .withValues(alpha: 0.75),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ] else if (passed == false) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.red.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: AppColors.red.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 16,
+                              color: AppColors.red.withValues(alpha: 0.8)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Necesitas ≥75% para ganar XP',
+                            style: TextStyle(
+                              color: AppColors.red.withValues(alpha: 0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

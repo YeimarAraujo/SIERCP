@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/simulation/data/models/quiz_question.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/simulation/data/simulation_service.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
@@ -116,8 +117,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         }
       }
 
+      final userId = ref.read(currentUserProvider)?.id ?? '';
       final result = await service.submitAnswers(
         topicId: widget.topicId,
+        userId:  userId,
         answers: answers,
       );
 

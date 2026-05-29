@@ -183,11 +183,14 @@ class OrgContextNotifier extends Notifier<OrgContextState> {
 
   Future<List<MembershipModel>> _fetchActiveMemberships(String userId) async {
     try {
+      // Aceptamos status 'approved' (asignado por admin via app) y
+      // 'active' (seteado directamente desde la consola Firebase o Cloud Function).
+      // whereIn requiere un índice compuesto en Firestore.
       final snap = await _db
           .collection(AppConstants.colMemberships)
           .where('userId', isEqualTo: userId)
           .where('isActive', isEqualTo: true)
-          .where('status', isEqualTo: 'approved')
+          .where('status', whereIn: ['approved', 'active'])
           .get()
           .timeout(const Duration(seconds: 5));
       return snap.docs.map(MembershipModel.fromFirestore).toList();

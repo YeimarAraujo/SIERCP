@@ -24,12 +24,17 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final loc = AppLocalizations.of(context)!;
-    final isAdmin = user?.isAdmin ?? false;
-    final orgCtx = ref.watch(orgContextProvider);
-    final isInstructor = user?.isInstructor ?? false;
-    final isUsuario = !isAdmin && !isInstructor;
+    final user    = ref.watch(currentUserProvider);
+    final orgCtx  = ref.watch(orgContextProvider);
+    final loc     = AppLocalizations.of(context)!;
+    // Detecta instructor por asignación directa en curso
+    final isInstructorOnCourse =
+        ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
+    // Usar membership como primario; si no, detectar por asignación de curso
+    final isAdmin      = orgCtx.isAdmin || (user?.isAdmin ?? false);
+    final isInstructor = !isAdmin &&
+        (orgCtx.isInstructor || (user?.isInstructor ?? false) || isInstructorOnCourse);
+    final isUsuario    = !isAdmin && !isInstructor;
     final certApproved = user?.certVerification == CertVerificationStatus.approved;
     final theme = Theme.of(context);
 

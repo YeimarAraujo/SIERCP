@@ -93,7 +93,7 @@ class SessionMetrics {
   final double averageDepthMm;
   final double averageRatePerMin;
   final double correctCompressionsPct;
-  final double averageForcKg;
+  final double averageForceKg;
   final double recoilPct;
   final int interruptionCount;
   final double maxPauseSeconds;
@@ -113,7 +113,7 @@ class SessionMetrics {
     required this.averageDepthMm,
     required this.averageRatePerMin,
     required this.correctCompressionsPct,
-    required this.averageForcKg,
+    required this.averageForceKg,
     this.recoilPct = 100.0,
     required this.interruptionCount,
     required this.maxPauseSeconds,
@@ -156,7 +156,7 @@ class SessionMetrics {
     averageDepthMm:       (m['averageDepthMm']       ?? 0).toDouble(),
     averageRatePerMin:    (m['averageRatePerMin']    ?? 0).toDouble(),
     correctCompressionsPct: (m['correctCompressionsPct'] ?? 0).toDouble(),
-    averageForcKg:        (m['averageForceKg']       ?? 0).toDouble(),
+    averageForceKg:        (m['averageForceKg']       ?? 0).toDouble(),
     recoilPct:            (m['recoilPct']            ?? 100).toDouble(),
     interruptionCount:    m['interruptionCount']    ?? 0,
     maxPauseSeconds:      (m['maxPauseSeconds']      ?? 0).toDouble(),
@@ -178,7 +178,7 @@ class SessionMetrics {
     'averageDepthMm':       averageDepthMm,
     'averageRatePerMin':    averageRatePerMin,
     'correctCompressionsPct': correctCompressionsPct,
-    'averageForceKg':       averageForcKg,
+    'averageForceKg':       averageForceKg,
     'recoilPct':            recoilPct,
     'interruptionCount':    interruptionCount,
     'maxPauseSeconds':      maxPauseSeconds,

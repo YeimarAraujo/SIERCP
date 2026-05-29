@@ -27,60 +27,40 @@ class _DeviceSelectionScreenState extends ConsumerState<DeviceSelectionScreen> {
   }
 
   Future<void> _checkLocationAndScan() async {
-    // Android requiere que el GPS físico esté encendido para escanear BLE
+    // Solicitar permisos silenciosamente al entrar a la pantalla.
+    // El sistema operativo mostrará el diálogo de permisos solo si es la
+    // primera vez; en siguientes ejecuciones simplemente usará el estado guardado.
     if (Platform.isAndroid) {
-      if (!await Permission.locationWhenInUse.serviceStatus.isEnabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Por favor, ENCIENDE LA UBICACIÓN (GPS) de tu teléfono para detectar Bluetooth.'), duration: Duration(seconds: 5)),
-          );
-        }
-      }
+      await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.location,
+      ].request();
     }
     _startScan();
   }
 
   Future<void> _startScan() async {
+    if (!mounted) return;
     setState(() => _isScanning = true);
-    
-    // Solicitar permisos de Bluetooth y Ubicación (Requerido en Android)
-    if (Platform.isAndroid) {
-      final statuses = await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.location,
-      ].request();
-      
-      if (statuses[Permission.bluetoothScan]!.isDenied || 
-          statuses[Permission.bluetoothConnect]!.isDenied) {
-        setState(() => _isScanning = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Se requieren permisos de Bluetooth para escanear.'), backgroundColor: AppColors.red),
-          );
-        }
-        return;
-      }
-    }
-
-    // Asegurarnos de que el Bluetooth esté encendido
-    if (await FlutterBluePlus.adapterState.first == BluetoothAdapterState.off) {
-      // En Android podemos intentar encenderlo
-      await FlutterBluePlus.turnOn();
-    }
 
     try {
+      // Encender Bluetooth si está apagado (Android)
+      final adapterState = await FlutterBluePlus.adapterState.first;
+      if (adapterState == BluetoothAdapterState.off) {
+        await FlutterBluePlus.turnOn();
+        // Esperar breve momento para que el adaptador encienda
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
       await FlutterBluePlus.startScan(
         timeout: const Duration(seconds: 15),
-        withServices: [Guid("12345678-1234-5678-1234-56789abcdef0")], // Solo maniquíes SIERCP
-        androidUsesFineLocation: false, // Optimización
+        withServices: [Guid("12345678-1234-5678-1234-56789abcdef0")],
+        androidUsesFineLocation: false,
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al escanear: $e'), backgroundColor: AppColors.red),
-        );
-      }
+    } catch (_) {
+      // Fallo silencioso — la pantalla mostrará el estado vacío de escaneo
+      // y el usuario puede reintentar con el botón de refrescar.
     }
 
     if (mounted) setState(() => _isScanning = false);

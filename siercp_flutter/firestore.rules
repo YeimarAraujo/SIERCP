@@ -37,32 +37,6 @@ service cloud.firestore {
     //   sessions/{id}/alerts
     //   institutions/{id}/planMembership
     //
-    // Vulnerabilidades corregidas en esta versión:
-    //   CRIT-01  Role spoofing — usuarios no pueden escribir su propio rol
-    //   CRIT-02  Default deny era isAdmin() — cambiado a false
-    //   CRIT-03  Users podían auto-asignarse rol admin en create
-    //   CRIT-04  user_certificates sin regla explícita, caía al catch-all
-    //   CRIT-05  Cualquier instructor leía TODAS las sesiones del sistema
-    //   CRIT-06  Fake payments — clientes podían crear documentos de pago
-    //   HIGH-01  Cualquier admin modificaba cualquier institución
-    //   HIGH-02  Cualquier autenticado leía TODOS los cursos globalmente
-    //   HIGH-03  isAdminOf() usaba IDs de membership inconsistentes (bug crítico)
-    //   MED-01   Instructores sin tenant scope en compressions/alerts
-    //   MED-02   Admin podía crear memberships en otras orgs
-    //   MED-03   Admin podía auto-promocionarse via membership update
-    //   MED-04   Campos server-only (planType, usages) escribibles por admins
-    //   MED-05   hasSstAccess usaba userDoc().institutionId (campo inexistente)
-    //   MED-06   guideProgress sin validación de userId
-    //   MED-07   notificaciones: admin podía crear para cualquier usuario
-    //   MED-08   courses/attendance subcollección sin regla (fallthrough)
-    //   LOW-01   Mass assignment en user create (isSuperAdmin, certVerification)
-    //   LOW-02   Sessions offline sin institutionId bloqueadas incorrectamente
-    //   LOW-03   Campos inmutables (createdBy, institutionId) mutables post-create
-    //   LOW-04   scenarios sin regla explícita (fallthrough)
-    //   LOW-05   users/{id}/alerts subcollección sin regla (fallthrough)
-    //   LOW-06   certification_payments sin regla (fallthrough)
-    // ══════════════════════════════════════════════════════════════════════════
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // §1. HELPERS DE AUTENTICACIÓN BASE
@@ -330,13 +304,13 @@ service cloud.firestore {
             request.resource.data.role == 'USUARIO'
             || (
               // Caso B: checkout web — solo ADMIN, institución debe existir y pertenecer al uid
-              request.resource.data.role == 'ADMIN'
-              && request.resource.data.memberships is list
-              && request.resource.data.memberships.size() == 1
-              && exists(/databases/$(database)/documents/institutions/$(request.resource.data.memberships[0]))
-              && get(/databases/$(database)/documents/institutions/$(request.resource.data.memberships[0])).data.primaryAdminId == uid()
-            )
-          );
+             request.resource.data.role == 'ADMIN'
+      && request.resource.data.institutionId is string
+      && request.resource.data.institutionId.size() > 4
+      && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId))
+      && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.primaryAdminId == uid()
+    )
+  );
 
       // ── UPDATE ─────────────────────────────────────────────────────────────
       // Caso 1: Self-update — cualquier campo excepto campos sensibles.
@@ -523,33 +497,7 @@ service cloud.firestore {
       // READ: abierto a todos los autenticados.
       // Necesario para búsqueda por inviteCode (joinCourse) y para collectionGroup.
       allow read: if isAuth();
-
-      // ── CREATE ─────────────────────────────────────────────────────────────
-      // Caso A — Usuario sin org (USUARIO / USUARIO_SST / USUARIO_PROFESIONAL):
-      //   Dentro del límite personal mensual. Sin institutionId obligatorio.
-      // Caso B — Instructor/Admin con org asignada:
-      //   Plan activo, dentro del límite de cursos, institutionId válido.
-      //   NOTA: Un INSTRUCTOR siempre debe tener al menos una org asignada.
-      //   Si tiene varias, la app le pide elegir cuál usar.
-      allow create: if isAuth() && (
-        (
-          isUserLevelRole() &&
-          withinPersonalCourseLimit() &&
-          request.resource.data.keys().hasAll(['title', 'createdBy']) &&
-          request.resource.data.createdBy == uid() &&
-          isNonEmptyString(request.resource.data.title)
-        ) || (
-          isInstructorRole() &&
-          validInstitutionId(request.resource.data.institutionId) &&
-          isInstructorOf(request.resource.data.institutionId) &&
-          planActive(request.resource.data.institutionId) &&
-          withinCourseLimit(request.resource.data.institutionId) &&
-          request.resource.data.keys().hasAll(['title', 'institutionId', 'instructorId']) &&
-          request.resource.data.instructorId == uid() &&
-          isNonEmptyString(request.resource.data.title)
-        )
-      );
-
+allow create: if isAuth()
       // ── UPDATE ─────────────────────────────────────────────────────────────
       allow update: if isSuperAdmin()
         || isAdminOf(resource.data.institutionId)
@@ -1067,6 +1015,11 @@ service cloud.firestore {
     // NOTA: el código usa 'audit_logs' (AppConstants.colAuditLogs).
     //       Mantenemos 'auditLog' como alias para compatibilidad con datos anteriores.
     // ═════════════════════════════════════════════════════════════════════════
+
+    match /auditLogs/{logId} {
+  allow read: if isSuperAdmin();
+  allow create, update, delete: if false;
+}
 
     match /audit_logs/{logId} {
       allow read: if isSuperAdmin();

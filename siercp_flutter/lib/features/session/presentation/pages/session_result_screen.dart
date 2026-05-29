@@ -12,22 +12,27 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 
 final _sessionResultProvider =
     FutureProvider.family<SessionModel?, String>((ref, sessionId) async {
-  // Re-intentar hasta 3 veces con pequeños delays para dar tiempo al guardado local
-  for (int i = 0; i < 3; i++) {
-    // 1. Intentar obtener la sesión (getSession ya incluye fallback local)
-    final session =
-        await ref.read(sessionServiceProvider).getSession(sessionId);
-    if (session != null && session.metrics != null) return session;
-
-    // Si no tiene métricas aún, esperar 600ms y reintentar
-    await Future.delayed(Duration(milliseconds: 600 * (i + 1)));
+  // 1. Prioridad máxima: estado en memoria (resultado inmediato, sin red).
+  //    Si la sesión recién terminó, el notifier ya tiene las métricas calculadas.
+  final inMemory = ref.read(activeSessionProvider).session;
+  if (inMemory != null && inMemory.id == sessionId && inMemory.metrics != null) {
+    return inMemory;
   }
 
-  // 2. Fallback final: usar el estado en memoria si el ID coincide
-  final inMemory = ref.read(activeSessionProvider).session;
-  if (inMemory != null && inMemory.id == sessionId) return inMemory;
+  // 2. Sesiones offline (no tienen Firestore doc): usar solo memoria.
+  if (sessionId.startsWith('offline_') || sessionId.startsWith('error_')) {
+    return inMemory?.id == sessionId ? inMemory : null;
+  }
 
-  return null;
+  // 3. Intentar Firestore con máx 2 reintentos breves (sesión guardada en red).
+  for (int i = 0; i < 2; i++) {
+    final session = await ref.read(sessionServiceProvider).getSession(sessionId);
+    if (session != null && session.metrics != null) return session;
+    if (i == 0) await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  // 4. Último recurso: devolver la sesión en memoria aunque no tenga métricas.
+  return inMemory?.id == sessionId ? inMemory : null;
 });
 
 class SessionResultScreen extends ConsumerWidget {
