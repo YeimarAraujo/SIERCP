@@ -51,20 +51,24 @@ class SimulationService {
 
     return selected.map((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      // Extraer sólo el texto de las opciones — el ID (A/B/C/D) no se expone en UI.
       final rawOpts = d['options'] as List? ?? [];
       final optTexts = rawOpts.map<String>((o) {
         if (o is Map) return (o['text'] ?? '').toString();
         return o.toString();
       }).toList();
 
+      final correctLetter = d['correctOption'] as String? ?? '';
+      final correctIdx   = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
+
       return QuizQuestion(
-        id: doc.id,
-        text: d['text'] as String? ?? '',
-        options: optTexts,
-        level: d['level'] as String? ?? 'basico',
-        source: d['source'] as String? ?? '',
-        imageUrl: d['imageUrl'] as String?,
+        id:                 doc.id,
+        text:               d['text']        as String? ?? '',
+        options:            optTexts,
+        level:              d['level']       as String? ?? 'basico',
+        source:             d['source']      as String? ?? '',
+        imageUrl:           d['imageUrl']    as String?,
+        correctOptionIndex: correctIdx >= 0 ? correctIdx : null,
+        explanation:        d['explanation'] as String? ?? '',
       );
     }).toList();
   }

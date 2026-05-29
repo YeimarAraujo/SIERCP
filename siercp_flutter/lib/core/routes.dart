@@ -180,7 +180,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, __) => const TheoreticalHubScreen(),
               ),
               GoRoute(
-                path: 'theoretical/quiz/:topicId',
+                path: 'theoretical/evaluations/:topicId',
                 builder: (_, state) => QuizScreen(
                   topicId: state.pathParameters['topicId']!,
                 ),
