@@ -225,14 +225,26 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId;
     }
 
+    // Verifica si el caller es instructor asignado al curso.
+    // Soporta tanto instructorId (singular, legacy) como instructorIds (array, nuevo modelo).
+    function isInstructorOfCourse(courseId) {
+      let d = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return isInstructorRole() && (
+        d.instructorId == uid() ||
+        uid() in d.get('instructorIds', [])
+      );
+    }
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // §5. HELPERS DE VALIDACIÓN DE DOCUMENTOS
     // ─────────────────────────────────────────────────────────────────────────
 
     // Campos sensibles del usuario — solo SuperAdmin o Cloud Functions los modifican.
+    // institutionId incluido: evita que un usuario se asigne a otra institución vía
+    // self-update y use el Caso C de membership CREATE para escalar privilegios.
     function sensitiveUserFields() {
-      return ['role', 'certVerification', 'isActive', 'accountStatus', 'isSuperAdmin'];
+      return ['role', 'certVerification', 'isActive', 'accountStatus', 'isSuperAdmin', 'institutionId'];
     }
 
     // Campos de plan en membership — solo Cloud Functions (Admin SDK) los modifican.
@@ -421,6 +433,7 @@ service cloud.firestore {
       // El admin de la institución lee las memberships de su org.
       // Fallback: admin cuyo campo institutionId coincide (cubre cuentas sin
       //   membership en ruta determinística, e.g. cuentas de prueba/legado).
+
       allow read: if isAuth() && (
         resource.data.userId == uid() ||
         isAdminOf(resource.data.institutionId) ||
@@ -428,10 +441,13 @@ service cloud.firestore {
       );
 
       // ── CREATE ─────────────────────────────────────────────────────────────
-      // Caso A: Admin de la institución crea memberships para su org.
-      // Caso B: Checkout web — usuario crea su primera membership ADMIN
-      //   (el CF normalmente lo hace; este caso es el fallback cliente).
-      //   Solo válido para plans corporativos; el usuario debe ser primaryAdmin.
+      // Caso A: Admin con membership formal activa en la institución.
+      // Caso C: Admin cuyo campo institutionId coincide (sin membership propia).
+      //   Cubre admins configurados manualmente sin documento de membership.
+      //   Solo permite roles no-admin y no-SA para evitar escalada horizontal.
+      //   Protegido: 'institutionId' en sensitiveUserFields() impide spoofing.
+      // Caso B: Checkout web — usuario crea su primera membership ADMIN.
+     
       allow create: if isSuperAdmin() || (
         isAdminRole() &&
         validInstitutionId(request.resource.data.institutionId) &&
@@ -439,6 +455,16 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.userId) &&
         request.resource.data.role != 'SUPER_ADMIN' &&
         (request.resource.data.role != 'ADMIN' || isAdminOf(request.resource.data.institutionId)) &&
+        !request.resource.data.keys().hasAny(serverOnlyMembershipFields()) &&
+        request.resource.data.status in ['approved', 'pending'] &&
+        request.resource.data.isActive == true
+      ) || (
+        // Caso C: admin sin membership propia pero con institutionId coincidente
+        isAdminRole() &&
+        validInstitutionId(request.resource.data.institutionId) &&
+        callerDoc().institutionId == request.resource.data.institutionId &&
+        isNonEmptyString(request.resource.data.userId) &&
+        request.resource.data.role in ['INSTRUCTOR', 'USUARIO', 'USUARIO_SST', 'USUARIO_PROFESIONAL'] &&
         !request.resource.data.keys().hasAny(serverOnlyMembershipFields()) &&
         request.resource.data.status in ['approved', 'pending'] &&
         request.resource.data.isActive == true
@@ -497,7 +523,15 @@ service cloud.firestore {
       // READ: abierto a todos los autenticados.
       // Necesario para búsqueda por inviteCode (joinCourse) y para collectionGroup.
       allow read: if isAuth();
-allow create: if isAuth()
+
+      // ── CREATE ─────────────────────────────────────────────────────────────
+      allow create: if isSuperAdmin()
+        || isAdminOf(request.resource.data.institutionId)
+        || (
+          isInstructorRole() &&
+          request.resource.data.createdBy == uid()
+        );
+
       // ── UPDATE ─────────────────────────────────────────────────────────────
       allow update: if isSuperAdmin()
         || isAdminOf(resource.data.institutionId)
@@ -518,20 +552,15 @@ allow create: if isAuth()
       match /enrollments/{studentId} {
 
         allow read: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId)
           || isOwner(studentId);
 
         allow create: if isSuperAdmin() || (
           // Admin o instructor de org inscribe desde el panel (plan activo)
-          (
-            validInstitutionId(courseOrgId(courseId)) &&
-            (
-              isAdminOf(courseOrgId(courseId)) ||
-              (isInstructorRole() && courseInstructorUid(courseId) == uid())
-            ) &&
-            withinUserLimit(courseOrgId(courseId))
-          )
+          validInstitutionId(courseOrgId(courseId)) &&
+          (isAdminOf(courseOrgId(courseId)) || isInstructorOfCourse(courseId)) &&
+          withinUserLimit(courseOrgId(courseId))
         ) || (
           // Estudiante se auto-inscribe via inviteCode
           isOwner(studentId) &&
@@ -540,12 +569,12 @@ allow create: if isAuth()
         );
 
         allow update: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId)
           || (isOwner(studentId) && notChanging(['studentId', 'enrolledAt']));
 
         allow delete: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
+          || isAdminOf(courseOrgId(courseId));
       }
 
       // ── SUBCOLLECCIÓN: courses/{courseId}/modules/{moduleId} ───────────────
@@ -553,29 +582,29 @@ allow create: if isAuth()
         // Cualquier autenticado puede leer módulos (necesario para los estudiantes).
         allow read: if isAuth();
         allow create, update: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId);
         allow delete: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId);
+          || isAdminOf(courseOrgId(courseId));
       }
 
       // ── SUBCOLLECCIÓN: courses/{courseId}/attendance/{dateStr} ─────────────
       // Corrección LOW-04: esta subcollección no tenía regla explícita.
       match /attendance/{dateStr} {
         allow read, write: if isSuperAdmin()
-          || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-          || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId);
 
         // ── SUB-SUBCOLLECCIÓN: attendance/{dateStr}/records/{studentId} ───────
         match /records/{studentId} {
           allow read: if isSuperAdmin()
-            || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-            || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid())
+            || isAdminOf(courseOrgId(courseId))
+            || isInstructorOfCourse(courseId)
             || isOwner(studentId);
 
           allow create, update: if isSuperAdmin()
-            || isAdminOf(get(/databases/$(database)/documents/courses/$(courseId)).data.institutionId)
-            || (isInstructorRole() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == uid());
+            || isAdminOf(courseOrgId(courseId))
+            || isInstructorOfCourse(courseId);
 
           allow delete: if isSuperAdmin();
         }

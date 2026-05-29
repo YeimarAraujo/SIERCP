@@ -1,4 +1,3 @@
-// Client-side model: never contains correctOption or explanation (server strips them)
 class QuizQuestion {
   final String id;
   final String text;
@@ -6,6 +5,8 @@ class QuizQuestion {
   final String level;
   final String source;
   final String? imageUrl;
+  final int? correctOptionIndex;
+  final String explanation;
 
   const QuizQuestion({
     required this.id,
@@ -14,6 +15,8 @@ class QuizQuestion {
     required this.level,
     required this.source,
     this.imageUrl,
+    this.correctOptionIndex,
+    this.explanation = '',
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> m) {
@@ -21,6 +24,8 @@ class QuizQuestion {
     final options = rawOptions is List
         ? List<String>.from(rawOptions.map((o) => o.toString()))
         : <String>[];
+    final correctLetter = m['correctOption'] as String? ?? '';
+    final correctIdx = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
     return QuizQuestion(
       id: m['id'] as String? ?? '',
       text: m['text'] as String? ?? '',
@@ -28,6 +33,8 @@ class QuizQuestion {
       level: m['level'] as String? ?? 'basic',
       source: m['source'] as String? ?? '',
       imageUrl: m['imageUrl'] as String?,
+      correctOptionIndex: correctIdx >= 0 ? correctIdx : null,
+      explanation: m['explanation'] as String? ?? '',
     );
   }
 }

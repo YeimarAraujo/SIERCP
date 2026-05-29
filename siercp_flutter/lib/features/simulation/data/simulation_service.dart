@@ -51,20 +51,24 @@ class SimulationService {
 
     return selected.map((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      // Extraer sólo el texto de las opciones — el ID (A/B/C/D) no se expone en UI.
       final rawOpts = d['options'] as List? ?? [];
       final optTexts = rawOpts.map<String>((o) {
         if (o is Map) return (o['text'] ?? '').toString();
         return o.toString();
       }).toList();
 
+      final correctLetter = d['correctOption'] as String? ?? '';
+      final correctIdx   = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
+
       return QuizQuestion(
-        id: doc.id,
-        text: d['text'] as String? ?? '',
-        options: optTexts,
-        level: d['level'] as String? ?? 'basico',
-        source: d['source'] as String? ?? '',
-        imageUrl: d['imageUrl'] as String?,
+        id:                 doc.id,
+        text:               d['text']        as String? ?? '',
+        options:            optTexts,
+        level:              d['level']       as String? ?? 'basico',
+        source:             d['source']      as String? ?? '',
+        imageUrl:           d['imageUrl']    as String?,
+        correctOptionIndex: correctIdx >= 0 ? correctIdx : null,
+        explanation:        d['explanation'] as String? ?? '',
       );
     }).toList();
   }
@@ -115,8 +119,21 @@ class SimulationService {
     final score   = total > 0 ? (correct / total * 100).roundToDouble() : 0.0;
     final passed  = score >= 70.0;
 
-    // XP: 20 base si aprueba, +30 si perfecto
-    final xpEarned = !passed ? 0 : (score == 100.0 ? 50 : 20);
+    // XP según escala AHA-SIERCP:
+    //   No aprobado: 0 XP (incentivo a seguir practicando)
+    //   Aprobado (≥70%): 50 XP
+    //   Excelente (≥90%): 100 XP
+    //   Perfecto (100%): 150 XP
+    final int xpEarned;
+    if (!passed) {
+      xpEarned = 0;
+    } else if (score == 100.0) {
+      xpEarned = 150;
+    } else if (score >= 90.0) {
+      xpEarned = 100;
+    } else {
+      xpEarned = 50;
+    }
 
     // 3. Guardar sesión de quiz en Firestore
     final sessionRef = _sessions.doc();
@@ -135,33 +152,54 @@ class SimulationService {
       'completedAt': FieldValue.serverTimestamp(),
     });
 
-    // 4. Actualizar userStats en transacción atómica (XP + nivel)
+    // 4. Actualizar userStats en transacción atómica (XP + nivel).
+    // Retornamos el nivel actual antes y después para mostrar level-up en UI.
+    int? newLevel;
+    final List<String> newBadges = [];
+
     if (xpEarned > 0) {
       final statsRef = _stats.doc(userId);
-      await _db.runTransaction((tx) async {
-        final snap   = await tx.get(statsRef);
-        final data   = snap.data() as Map<String, dynamic>? ?? {};
-        final newXp  = ((data['xp'] as int?) ?? 0) + xpEarned;
-        final newLvl = _calcLevel(newXp);
-        tx.set(statsRef, {
-          'xp':               newXp,
-          'level':            newLvl,
-          'quizzesCompleted': FieldValue.increment(1),
-          'updatedAt':        FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }).catchError((_) => null);
+      try {
+        await _db.runTransaction((tx) async {
+          final snap   = await tx.get(statsRef);
+          final data   = snap.data() as Map<String, dynamic>? ?? {};
+          final oldXp  = ((data['xp'] as num?)?.toInt()) ?? 0;
+          final oldLvl = _calcLevel(oldXp);
+          final updXp  = oldXp + xpEarned;
+          final updLvl = _calcLevel(updXp);
+
+          // Detectar badges nuevos
+          final completedCount = ((data['quizzesCompleted'] as num?)?.toInt() ?? 0) + 1;
+          if (completedCount == 1) newBadges.add('first_quiz');
+          if (score == 100.0) newBadges.add('quiz_perfect');
+          if (completedCount >= 10) newBadges.add('quiz_master');
+
+          // Registrar level-up
+          if (updLvl > oldLvl) newLevel = updLvl;
+
+          tx.set(statsRef, {
+            'xp':               updXp,
+            'level':            updLvl,
+            'quizzesCompleted': completedCount,
+            'quizAverageScore': score, // simplificado; una CF puede recalcular el real
+            'updatedAt':        FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+      } catch (_) {
+        // Si la transacción falla, el quiz igual se guarda correctamente
+      }
     }
 
     return QuizSessionResult(
-      sessionId:  sessionId,
-      score:      score,
-      passed:     passed,
-      correct:    correct,
-      total:      total,
-      xpEarned:   xpEarned,
-      newLevel:   null,
-      newBadges:  const [],
-      results:    results,
+      sessionId: sessionId,
+      score:     score,
+      passed:    passed,
+      correct:   correct,
+      total:     total,
+      xpEarned:  xpEarned,
+      newLevel:  newLevel,
+      newBadges: newBadges,
+      results:   results,
     );
   }
 

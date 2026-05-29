@@ -13,9 +13,37 @@ import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/guides/presentation/providers/guide_provider.dart';
 import 'package:siercp/features/reports/presentation/providers/report_cache_provider.dart';
 import 'package:siercp/core/services/firestore_service.dart';
+import 'package:siercp/core/services/rtdb_service.dart';
 import 'package:siercp/features/session/presentation/providers/ble_session_provider.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
 
+// ── Parámetros para el provider de sesiones RTDB ──────────────────────────────
+typedef _LiveSessionsParams = ({String institutionId, String courseId});
+
+/// Sesiones activas en tiempo real vía RTDB (más barato que Firestore stream).
+/// Úsalo en el monitor de instructor cuando conoces institutionId + courseId.
+final rtdbLiveSessionsProvider =
+    StreamProvider.family<List<LiveSessionRtdb>, _LiveSessionsParams>((ref, params) {
+  return ref.watch(rtdbServiceProvider).watchCourseLiveSessions(
+    institutionId: params.institutionId,
+    courseId:      params.courseId,
+  );
+});
+
+/// Todas las sesiones activas de una institución (admin dashboard).
+final rtdbInstitutionLiveSessionsProvider =
+    StreamProvider.family<List<LiveSessionRtdb>, String>((ref, institutionId) {
+  return ref.watch(rtdbServiceProvider).watchInstitutionLiveSessions(institutionId);
+});
+
+/// Telemetría en tiempo real de una sesión específica via RTDB.
+final rtdbTelemetryProvider =
+    StreamProvider.family<LiveTelemetryRtdb, String>((ref, sessionId) {
+  return ref.watch(rtdbServiceProvider).watchTelemetry(sessionId);
+});
+
+/// Sesiones activas de un curso via Firestore (fallback/legacy).
+/// Prefiere [rtdbLiveSessionsProvider] cuando tengas institutionId.
 final courseActiveSessionsProvider = StreamProvider.family<List<SessionModel>, String>((ref, courseId) {
   return ref.watch(firestoreServiceProvider).watchCourseActiveSessions(courseId);
 });
@@ -113,6 +141,7 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
     }
 
     // RESET de estado para nueva sesión
+    _heartbeatTick = 0;
     state = const ActiveSessionState();
 
     final session = await sessionService.startSession(
@@ -172,6 +201,9 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
   }
 
   /// Escribe datos de telemetría procesados en RTDB para el monitor Web.
+  /// También actualiza el heartbeat de la sesión activa cada ~30s para que
+  /// isSessionAlive() en el monitor web no descarte la sesión tras 60s.
+  int _heartbeatTick = 0;
   void _writeTelemetryToRtdb(LiveSessionData data) {
     final sessionId = state.session?.id;
     if (sessionId == null ||
@@ -196,6 +228,21 @@ class ActiveSessionNotifier extends Notifier<ActiveSessionState> {
         'calibrated':             data.calibrated,
         'updatedAt':              ServerValue.timestamp,
       });
+
+      // Actualizar heartbeat cada ~30 ticks (frames BLE) para que
+      // isSessionAlive() en el monitor web no descarte la sesión.
+      _heartbeatTick++;
+      if (_heartbeatTick % 30 == 0) {
+        final session = state.session;
+        if (session != null) {
+          final orgCtx = ref.read(orgContextProvider);
+          final institutionId = orgCtx.activeOrgId ?? 'no_org';
+          final cId = session.courseId ?? 'free';
+          FirebaseDatabase.instance
+              .ref('live_sessions/$institutionId/$cId/$sessionId/heartbeat')
+              .set(ServerValue.timestamp);
+        }
+      }
     } catch (e) {
       debugPrint('[RTDB] Error escribiendo telemetría: $e');
     }
