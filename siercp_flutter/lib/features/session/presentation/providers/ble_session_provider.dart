@@ -72,7 +72,9 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
           state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
     });
 
-    // Push métricas en vivo a Firestore cada 2s para el dashboard del instructor
+    // Push inicial inmediato: el instructor ve la sesión activa desde el primer segundo.
+    _pushLiveMetrics();
+    // Push periódico cada 2s durante toda la sesión.
     _firestoreTimer?.cancel();
     _firestoreTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _pushLiveMetrics();
@@ -86,20 +88,18 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
   void _pushLiveMetrics() {
     final sessionId = state.session?.id;
-    final liveData = state.liveData;
     if (sessionId == null ||
         sessionId.startsWith('offline_') ||
-        sessionId.startsWith('error_') ||
-        liveData.compressionCount == 0) {
+        sessionId.startsWith('error_')) {
       return;
     }
 
+    // Enviar telemetría SIEMPRE durante la sesión, no solo cuando hay compresiones.
+    // Esto permite al instructor ver que la sesión está activa desde el primer segundo.
     ref
         .read(firestoreServiceProvider)
-        .updateSessionLiveMetrics(sessionId, liveData.toLiveMap())
-        .catchError((e) {
-      debugPrint('[LiveMetrics] Error al sincronizar: $e');
-    });
+        .updateSessionLiveMetrics(sessionId, state.liveData.toLiveMap())
+        .catchError((_) {});
   }
 
   void _processBleTelemetry(RcpTelemetry data, AudioService audioService) {
@@ -255,7 +255,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
           ? (engine.sumBpm / engine.compresionesTotales)
           : 0,
       correctCompressionsPct: depthScore,
-      averageForcKg: engine.compresionesTotales > 0
+      averageForceKg: engine.compresionesTotales > 0
           ? (engine.sumFuerza /
               (state.depthHistory.isNotEmpty ? state.depthHistory.length : 1))
           : 0,

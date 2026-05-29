@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/users/data/models/user.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
@@ -18,23 +20,30 @@ class MainShell extends ConsumerWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
-  List<NavItem> _getNavItems(UserModel? user, AppLocalizations loc) {
-    if (user?.isAdmin == true) {
+  List<NavItem> _getNavItems(
+    UserModel? user,
+    OrgContextState orgCtx,
+    bool isInstructorOnCourse,
+    AppLocalizations loc,
+  ) {
+    final isAdminRole = orgCtx.isAdmin || (user?.isAdmin == true);
+    if (isAdminRole) {
       return [
-        NavItem(loc.navDashboard, Icons.dashboard_outlined,    Icons.dashboard,    '/home'),
-        NavItem(loc.navUsers,     Icons.group_outlined,        Icons.group,        '/admin/users'),
-        NavItem(loc.navReports,   Icons.picture_as_pdf_outlined, Icons.picture_as_pdf, '/reports'),
-        NavItem(loc.navAnalytics, Icons.analytics_outlined,    Icons.analytics,    '/analytics'),
-        NavItem(loc.navProfile,   Icons.person_outline,        Icons.person,       '/profile'),
+        NavItem(loc.navDashboard, Icons.dashboard_outlined,     Icons.dashboard,     '/home'),
+        NavItem('En vivo',        Icons.live_tv_outlined,        Icons.live_tv,       '/instructor/students'),
+        NavItem('Cursos',         Icons.menu_book_outlined,      Icons.menu_book,     '/courses'),
+        NavItem(loc.navUsers,     Icons.group_outlined,          Icons.group,         '/admin/users'),
+        NavItem(loc.navProfile,   Icons.person_outline,          Icons.person,        '/profile'),
       ];
     }
-    if (user?.isInstructor == true) {
+    // Instructor: por membership, por rol global, O por asignación directa en un curso
+    final isInstructor = orgCtx.isInstructor || (user?.isInstructor == true) || isInstructorOnCourse;
+    if (isInstructor) {
       return [
         NavItem(loc.navHome,       Icons.home_outlined,           Icons.home,          '/home'),
+        NavItem('En vivo',         Icons.live_tv_outlined,        Icons.live_tv,       '/instructor/students'),
+        NavItem('Mis cursos',      Icons.menu_book_outlined,      Icons.menu_book,     '/courses'),
         NavItem(loc.navSimulation, Icons.psychology_outlined,     Icons.psychology,    '/simulation'),
-        NavItem(loc.navHistory,    Icons.show_chart_outlined,     Icons.show_chart,    '/history'),
-        NavItem(loc.navCourses,    Icons.menu_book_outlined,      Icons.menu_book,     '/courses'),
-        NavItem(loc.navReports,    Icons.picture_as_pdf_outlined, Icons.picture_as_pdf, '/reports'),
         NavItem(loc.navProfile,    Icons.person_outline,          Icons.person,        '/profile'),
       ];
     }
@@ -51,6 +60,8 @@ class MainShell extends ConsumerWidget {
     if (location.startsWith('/admin/users'))              return 'Gestión de Usuarios';
     if (location.startsWith('/analytics'))                return 'Analíticas';
     if (location.startsWith('/reports'))                  return 'Reportes';
+    if (location.startsWith('/instructor/students'))      return 'Sesiones en Vivo';
+    if (location.startsWith('/live'))                     return 'Monitor en Vivo';
     if (location.startsWith('/courses'))                  return 'Cursos';
     if (location.startsWith('/simulation'))               return 'Simulación';
     if (location.startsWith('/history'))                  return 'Historial';
@@ -63,9 +74,13 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final loc  = AppLocalizations.of(context)!;
-    final navItems     = _getNavItems(user, loc);
+    final user    = ref.watch(currentUserProvider);
+    final orgCtx  = ref.watch(orgContextProvider);
+    final loc     = AppLocalizations.of(context)!;
+    // Detecta instructor por asignación directa en curso (puede ser async)
+    final isInstructorOnCourse =
+        ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
+    final navItems = _getNavItems(user, orgCtx, isInstructorOnCourse, loc);
 
     final location = GoRouterState.of(context).matchedLocation;
     int index = navItems.indexWhere(

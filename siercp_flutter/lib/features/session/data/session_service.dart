@@ -123,17 +123,41 @@ class SessionService {
     return _db.getScenarios();
   }
 
-  Future<List<CourseModel>> getCoursesForUser(String userId, String role, {String? institutionId}) {
-    if (role == 'ADMIN') {
+  Future<List<CourseModel>> getCoursesForUser(
+    String userId,
+    String role, {
+    String? institutionId,
+  }) async {
+    if (role == 'ADMIN' || role == 'SUPER_ADMIN') {
       if (institutionId != null && institutionId.isNotEmpty) {
         return _db.getCoursesByInstitution(institutionId);
       }
-      return Future.value([]);
+      return [];
     }
-    if (role == 'INSTRUCTOR') {
-      return _db.getInstructorCourses(userId);
+
+    // Verificar por asignación en cursos de la org (independiente del rol en membership).
+    // Cubre el caso donde admin asigna instructorId en el curso sin actualizar la membership.
+    if (institutionId != null && institutionId.isNotEmpty) {
+      final orgCourses = await _db.getCoursesByInstitution(institutionId);
+      final instructorCourses = orgCourses
+          .where((c) => c.isInstructorOf(userId))
+          .toList();
+      if (instructorCourses.isNotEmpty) return instructorCourses;
     }
+
+    // Verificar cursos fuera de la org donde sea instructor primario
+    final primaryCourses = await _db.getInstructorCourses(userId);
+    if (primaryCourses.isNotEmpty) return primaryCourses;
+
+    // Sin cursos como instructor → vista de alumno (por inscripción)
     return _db.getStudentCourses(userId);
+  }
+
+  /// Verifica si el usuario está asignado como instructor en algún curso de la org.
+  Future<bool> isInstructorOnAnyCourse(String userId, String institutionId) async {
+    if (institutionId.isEmpty) return false;
+    final orgCourses = await _db.getCoursesByInstitution(institutionId);
+    return orgCourses.any((c) => c.isInstructorOf(userId));
   }
 
   Future<List<CourseModel>> getAllCourses() {

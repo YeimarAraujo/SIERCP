@@ -700,6 +700,49 @@ class FirestoreService {
     });
   }
 
+  /// Elimina la inscripción de un alumno en un curso.
+  Future<void> unenrollStudent(String courseId, String studentId) async {
+    await _db
+        .collection(AppConstants.colCourses)
+        .doc(courseId)
+        .collection(AppConstants.subColEnrollments)
+        .doc(studentId)
+        .delete();
+    // Decrementar contador de alumnos en el curso
+    await _courses.doc(courseId).update({
+      'studentCount': FieldValue.increment(-1),
+      'updatedAt':    FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Asigna un instructor a un curso.
+  /// Actualiza instructorId (primario) y agrega a instructorIds[] si no está.
+  Future<void> assignInstructor(
+      String courseId, String instructorId, String instructorName) async {
+    await _courses.doc(courseId).update({
+      'instructorId':    instructorId,
+      'instructorName':  instructorName,
+      'instructorIds':   FieldValue.arrayUnion([instructorId]),
+      'updatedAt':       FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Agrega un instructor adicional (sin cambiar el primario).
+  Future<void> addInstructor(String courseId, String instructorId) async {
+    await _courses.doc(courseId).update({
+      'instructorIds': FieldValue.arrayUnion([instructorId]),
+      'updatedAt':     FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Quita un instructor del array instructorIds (no cambia el primario).
+  Future<void> removeInstructor(String courseId, String instructorId) async {
+    await _courses.doc(courseId).update({
+      'instructorIds': FieldValue.arrayRemove([instructorId]),
+      'updatedAt':     FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<List<CourseModel>> getInstructorCourses(String instructorId) async {
     final snap = await _courses
         .where('instructorId', isEqualTo: instructorId)

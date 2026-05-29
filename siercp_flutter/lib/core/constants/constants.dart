@@ -55,11 +55,56 @@ class AppConstants {
   static const String colSupportTickets         = 'supportTickets';
   static const String colCourseLimits          = 'course_limits';
 
+  // ── Colecciones LMS + Gamificación ──────────────────────────────────────────
+  static const String colQuizTopics            = 'quizTopics';
+  static const String colQuizQuestions         = 'quizQuestions';
+  static const String colQuizSessions          = 'quizSessions';
+  static const String colUserStats             = 'userStats';
+  static const String colStudentProgress       = 'student_progress';
+  static const String colCourseTemplates       = 'course_templates';
+  static const String colCohorts               = 'cohorts';
+  static const String colPlatformEnrollments   = 'platform_enrollments';
+  static const String colLeaderboards          = 'leaderboards';
+  static const String colPayments              = 'payments';
+  static const String colTransactions          = 'transactions';
+
   // ── Subcol Firestore ───────────────────────────────────────────────────────
-  static const String subColEnrollments  = 'enrollments';
-  static const String subColAttendance   = 'attendance';
-  static const String subColCompressions = 'compressions';
-  static const String subColAlerts       = 'alerts';
+  static const String subColEnrollments        = 'enrollments';
+  static const String subColModules            = 'modules';
+  static const String subColAttendance         = 'attendance';
+  static const String subColCompressions       = 'compressions';
+  static const String subColCompressionBatches = 'compression_batches';
+  static const String subColAlerts             = 'alerts';
+  static const String subColGuideProgress      = 'guideProgress';
+  static const String subColStudents           = 'students';
+  static const String subColPlanMembership     = 'planMembership';
+
+  // ── Nombres de campos canónicos (alineados con Web firestore.constants.ts) ──
+  // users
+  static const String fieldIdentification  = 'identification';
+  static const String fieldInstitutionId   = 'institutionId';
+  static const String fieldStatus          = 'status';
+  static const String fieldIsActive        = 'isActive';
+  static const String fieldRole            = 'role';
+  static const String fieldCreatedAt       = 'createdAt';
+  static const String fieldUpdatedAt       = 'updatedAt';
+  // sessions
+  static const String fieldStudentId       = 'studentId';
+  static const String fieldCourseId        = 'courseId';
+  static const String fieldPatientType     = 'patientType';
+  static const String fieldQualityScore    = 'qualityScore';
+  static const String fieldAverageForceKg  = 'averageForceKg';
+  // memberships
+  static const String fieldUserId          = 'userId';
+
+  // ── ID determinísticos ────────────────────────────────────────────────────
+  /// ID de membership: '{userId}_{institutionId}'
+  static String membershipId(String userId, String institutionId) =>
+      '${userId}_$institutionId';
+
+  /// ID de progreso de estudiante: '{userId}_{courseId}'
+  static String studentProgressId(String userId, String courseId) =>
+      '${userId}_$courseId';
 
   // ── Guías AHA 2025 (Adulto) ───────────────────────────────────────────────
   static const double ahaMinDepthMm      = 50.0;

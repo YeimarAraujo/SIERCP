@@ -87,45 +87,85 @@ class ModulePracticaScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // ── Lista de requerimientos ────────────────────────
-                ...module.requiredSessions.map((req) {
-                  // Contar cuántas sesiones de este escenario han sido aprobadas
-                  final approvedCount = courseSessions.where((s) {
-                    final isScenario = s.scenarioId == req.scenarioId;
-                    final score = s.metrics?.score ?? 0;
-                    return isScenario && score >= req.minScore;
-                  }).length;
+                if (module.requiredSessions.isEmpty) ...[
+                  // Módulo sin requerimientos configurados:
+                  // mostrar botón de sesión libre con selección de escenario.
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.amber.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 18),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'El instructor no ha configurado sesiones requeridas. '
+                            'Puedes practicar libremente eligiendo un escenario.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _startFreeSession(context, ref),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Iniciar sesión de práctica'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brand,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                    ),
+                  ),
+                ] else
+                  ...module.requiredSessions.map((req) {
+                    // Contar cuántas sesiones de este escenario han sido aprobadas
+                    final approvedCount = courseSessions.where((s) {
+                      final isScenario = s.scenarioId == req.scenarioId;
+                      final score = s.metrics?.score ?? 0;
+                      return isScenario && score >= req.minScore;
+                    }).length;
 
-                  final isDone = approvedCount >= req.count;
+                    final isDone = approvedCount >= req.count;
 
-                  return _RequirementCard(
-                    req: req,
-                    approvedCount: approvedCount,
-                    isDone: isDone,
-                    onStart: () => _startSession(context, ref, req.scenarioId),
-                  );
-                }),
+                    return _RequirementCard(
+                      req: req,
+                      approvedCount: approvedCount,
+                      isDone: isDone,
+                      onStart: () => _startSession(context, ref, req.scenarioId),
+                    );
+                  }),
 
-                const SizedBox(height: 40),
-
-                // ── Botón finalizar ────────────────────────────────
-                // Solo se habilita si todos los requerimientos están cumplidos
-                _FinalizeButton(
-                  module: module,
-                  courseSessions: courseSessions,
-                  onFinalize: () async {
-                    await ref.read(courseServiceProvider).markModuleComplete(
-                          courseId: courseId,
-                          moduleId: module.id,
-                          studentId: user?.id ?? '',
+                if (module.requiredSessions.isNotEmpty) ...[
+                  const SizedBox(height: 40),
+                  // ── Botón finalizar ─────────────────────────────
+                  // Solo se habilita si todos los requerimientos están cumplidos
+                  _FinalizeButton(
+                    module: module,
+                    courseSessions: courseSessions,
+                    onFinalize: () async {
+                      await ref.read(courseServiceProvider).markModuleComplete(
+                            courseId: courseId,
+                            moduleId: module.id,
+                            studentId: user?.id ?? '',
+                          );
+                      if (context.mounted) {
+                        context.pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('¡Módulo completado!')),
                         );
-                    if (context.mounted) {
-                      context.pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('¡Módulo completado!')),
-                      );
-                    }
-                  },
-                ),
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
           );
@@ -136,9 +176,18 @@ class ModulePracticaScreen extends ConsumerWidget {
 
   void _startSession(BuildContext context, WidgetRef ref, String scenarioId) {
     if (ConnectionGuard.checkConnection(context, ref)) {
-      // Navegamos a la pantalla de sesión pasando el escenario y el courseId
-      // para que la sesión quede vinculada a este curso.
       context.push('/session?scenario=$scenarioId&courseId=$courseId');
+    }
+  }
+
+  /// Inicio libre cuando el módulo no tiene requerimientos configurados.
+  /// Usa el primer escenario disponible del sistema o abre selección de escenario.
+  void _startFreeSession(BuildContext context, WidgetRef ref) {
+    if (ConnectionGuard.checkConnection(context, ref)) {
+      // Navegar a selección de escenario con el courseId para que la
+      // sesión quede vinculada al curso aunque el módulo no tenga
+      // escenarios configurados explícitamente.
+      context.push('/session?scenario=paroCardiaco&courseId=$courseId');
     }
   }
 }

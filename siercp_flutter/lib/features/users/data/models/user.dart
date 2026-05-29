@@ -81,7 +81,12 @@ class UserModel {
   final String role;
 
   final String? avatarUrl;
+
+  /// Número de identificación (cédula, pasaporte, etc.).
+  /// Mantenemos el nombre original para no romper las 18+ referencias existentes.
+  /// El Firestore escribe 'identification' (canónico Web); fromFirestore lee ambos.
   final String? identificacion;
+
   final String? phoneNumber;
   final bool isActive;
   final DateTime? lastActive;
@@ -89,14 +94,17 @@ class UserModel {
   final UserStats? stats;
   final List<String>? memberships;
 
+  /// ID de la organización primaria. Cadena vacía si el usuario no tiene org.
+  final String institutionId;
+
+  /// Estado de ciclo de vida de la cuenta. 'PENDING' | 'ACTIVE'.
+  final String accountStatus;
+
   /// Number of courses this user has created (enforced against role limit).
   final int coursesCreated;
 
   /// Certificate verification tier.
   final CertVerificationStatus certVerification;
-
-  /// Account lifecycle status. 'PENDING' = waiting for SuperAdmin approval.
-  final String? accountStatus;
 
   const UserModel({
     required this.id,
@@ -112,9 +120,10 @@ class UserModel {
     this.isOnline = false,
     this.stats,
     this.memberships,
+    this.institutionId = '',
+    this.accountStatus = 'ACTIVE',
     this.coursesCreated = 0,
     this.certVerification = CertVerificationStatus.none,
-    this.accountStatus,
   });
 
   UserModel copyWith({
@@ -131,9 +140,10 @@ class UserModel {
     bool? isOnline,
     UserStats? stats,
     List<String>? memberships,
+    String? institutionId,
+    String? accountStatus,
     int? coursesCreated,
     CertVerificationStatus? certVerification,
-    String? accountStatus,
   }) =>
       UserModel(
         id: id ?? this.id,
@@ -149,10 +159,15 @@ class UserModel {
         isOnline: isOnline ?? this.isOnline,
         stats: stats ?? this.stats,
         memberships: memberships ?? this.memberships,
+        institutionId: institutionId ?? this.institutionId,
+        accountStatus: accountStatus ?? this.accountStatus,
         coursesCreated: coursesCreated ?? this.coursesCreated,
         certVerification: certVerification ?? this.certVerification,
-        accountStatus: accountStatus ?? this.accountStatus,
       );
+
+  // ── Alias canónico (alineado con Web: field 'identification') ────────────
+  // El getter permite que código futuro use `.identification` sin romper nada.
+  String? get identification => identificacion;
 
   // ── Display helpers ──────────────────────────────────────────────────────
 
@@ -220,7 +235,8 @@ class UserModel {
       lastName: d['lastName'] ?? '',
       role: d['role'] ?? AppConstants.roleUsuario,
       avatarUrl: d['avatarUrl'],
-      identificacion: d['identificacion'],
+      // Lee 'identification' (canónico Web) primero; si no existe lee 'identificacion' (legado Flutter).
+      identificacion: (d['identification'] ?? d['identificacion']) as String?,
       phoneNumber: d['phoneNumber'],
       isActive: d['isActive'] ?? true,
       lastActive: (d['lastActive'] as Timestamp?)?.toDate(),
@@ -228,10 +244,11 @@ class UserModel {
       stats: statsMap != null ? UserStats.fromMap(statsMap) : null,
       memberships:
           (d['memberships'] as List?)?.map((e) => e.toString()).toList(),
+      institutionId: d['institutionId'] as String? ?? '',
+      accountStatus: d['status'] as String? ?? 'ACTIVE',
       coursesCreated: (d['coursesCreated'] as num?)?.toInt() ?? 0,
       certVerification:
           CertVerificationStatusExt.fromString(d['certVerification']),
-      accountStatus: d['status'] as String?,
     );
   }
 
@@ -242,10 +259,12 @@ class UserModel {
         'lastName': lastName,
         'role': role,
         'avatarUrl': avatarUrl,
-        'identificacion': identificacion,
+        // Escribe 'identification' (canónico) para que Web también lo lea.
+        'identification': identificacion,
         'phoneNumber': phoneNumber,
         'isActive': isActive,
-        if (accountStatus != null) 'status': accountStatus,
+        'status': accountStatus,
+        'institutionId': institutionId,
         'lastActive':
             lastActive != null ? Timestamp.fromDate(lastActive!) : null,
         'isOnline': isOnline,

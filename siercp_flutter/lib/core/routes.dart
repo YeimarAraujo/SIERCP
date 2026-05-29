@@ -111,7 +111,19 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // ── 6. Guard de rol instructor para rutas live y course-editor ────────
       if (location.startsWith('/live/') || location.startsWith('/course-editor/')) {
-        if (!orgCtx.isInstructor) return '/home';
+        // Permite si instructor por membership O por rol global.
+        // La detección por asignación de curso (isInstructorOnCourseProvider) es
+        // async y se verifica en la página; no bloqueamos aquí para no rechazar
+        // usuarios legítimos mientras el provider carga.
+        final roleGlobal = user?.role ?? authValue?.user?.role ?? '';
+        final isInstructorByRole = roleGlobal == AppConstants.roleInstructor ||
+            roleGlobal == AppConstants.roleAdmin ||
+            roleGlobal == AppConstants.roleSuperAdmin;
+        if (!orgCtx.isInstructor && !isInstructorByRole) {
+          // Solo bloquear si la org ya cargó y el rol no es instructor.
+          // Si orgCtx aún está cargando, dejamos pasar.
+          if (!orgCtx.isLoading) return '/home';
+        }
       }
 
       return null;

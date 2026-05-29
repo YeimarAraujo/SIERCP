@@ -842,7 +842,7 @@ class _ScenarioCard extends StatelessWidget {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Center(child: Text(scenario.emoji, style: const TextStyle(fontSize: 22))),
+            child: Center(child: Icon(scenario.icon, size: 22, color: color)),
           ),
           const SizedBox(height: 10),
           Text(scenario.title,

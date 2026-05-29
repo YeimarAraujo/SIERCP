@@ -102,21 +102,19 @@ class AlertModel {
       };
 }
 
+// Categorías canónicas de escenario (sin duplicados).
+// Cada valor mapea a un string fijo para Firestore.
 enum ScenarioCategory {
-  accident,
-  drowning,
-  cardiac,
-  pediatric,
-  electrocution,
-  // Nuevas categorías
-  ahogamiento,
-  accidenteTransito,
-  paroCardiaco,
-  colapsoEjercicio,
-  atragantamiento,
-  descargaElectrica,
-  sobredosis,
-  infarto,
+  paroCardiaco,      // paro_cardiaco — adulto genérico
+  infarto,           // infarto       — STEMI / isquemia
+  pediatrico,        // pediatrico    — RCP pediátrico/lactante
+  ahogamiento,       // ahogamiento   — submersión / near-drowning
+  accidenteTransito, // accidente_transito
+  colapsoEjercicio,  // colapso_ejercicio
+  atragantamiento,   // atragantamiento — OVACE
+  descargaElectrica, // descarga_electrica
+  sobredosis,        // sobredosis    — opioides u otras sustancias
+  quemadura,         // quemadura
 }
 
 class ScenarioModel {
@@ -130,9 +128,9 @@ class ScenarioModel {
   final String difficulty;
   final bool locked;
   final bool isNew;
-  final String? relatedGuideId; // Guía recomendada antes del escenario
-  final String? situation; // Descripción de la situación
-  final String? action; // Qué debe hacer el rescatador
+  final String? relatedGuideId;
+  final String? situation;
+  final String? action;
 
   const ScenarioModel({
     required this.id,
@@ -150,53 +148,44 @@ class ScenarioModel {
     this.action,
   });
 
-  String get emoji {
+  /// Icono representativo de la categoría (sin emojis).
+  IconData get icon {
     switch (category) {
-      case ScenarioCategory.accident:
-        return '🚗';
-      case ScenarioCategory.drowning:
-        return '🏊';
-      case ScenarioCategory.cardiac:
-        return '❤️';
-      case ScenarioCategory.pediatric:
-        return '🧒';
-      case ScenarioCategory.electrocution:
-        return '⚡';
-      case ScenarioCategory.ahogamiento:
-        return '🌊';
-      case ScenarioCategory.accidenteTransito:
-        return '🚗';
       case ScenarioCategory.paroCardiaco:
-        return '🏠';
-      case ScenarioCategory.colapsoEjercicio:
-        return '🏋️';
-      case ScenarioCategory.atragantamiento:
-        return '🍽️';
-      case ScenarioCategory.descargaElectrica:
-        return '⚡';
-      case ScenarioCategory.sobredosis:
-        return '🛏️';
+        return Icons.monitor_heart_outlined;
       case ScenarioCategory.infarto:
-        return '🚨';
+        return Icons.favorite_border_rounded;
+      case ScenarioCategory.pediatrico:
+        return Icons.child_care_outlined;
+      case ScenarioCategory.ahogamiento:
+        return Icons.water_outlined;
+      case ScenarioCategory.accidenteTransito:
+        return Icons.directions_car_outlined;
+      case ScenarioCategory.colapsoEjercicio:
+        return Icons.fitness_center_outlined;
+      case ScenarioCategory.atragantamiento:
+        return Icons.medical_services_outlined;
+      case ScenarioCategory.descargaElectrica:
+        return Icons.bolt_outlined;
+      case ScenarioCategory.sobredosis:
+        return Icons.medication_outlined;
+      case ScenarioCategory.quemadura:
+        return Icons.local_fire_department_outlined;
     }
   }
 
   Color get categoryColor {
     switch (category) {
-      case ScenarioCategory.cardiac:
       case ScenarioCategory.paroCardiaco:
       case ScenarioCategory.infarto:
         return const Color(0xFFFF3B5C);
-      case ScenarioCategory.drowning:
       case ScenarioCategory.ahogamiento:
         return const Color(0xFF00D4FF);
-      case ScenarioCategory.accident:
       case ScenarioCategory.accidenteTransito:
         return const Color(0xFFFFAB00);
-      case ScenarioCategory.electrocution:
       case ScenarioCategory.descargaElectrica:
         return const Color(0xFFFFD700);
-      case ScenarioCategory.pediatric:
+      case ScenarioCategory.pediatrico:
         return const Color(0xFF00E676);
       case ScenarioCategory.colapsoEjercicio:
         return const Color(0xFF8B5CF6);
@@ -204,26 +193,24 @@ class ScenarioModel {
         return const Color(0xFFFF6B35);
       case ScenarioCategory.sobredosis:
         return const Color(0xFFFF8C00);
+      case ScenarioCategory.quemadura:
+        return const Color(0xFFFF5722);
     }
   }
 
-  String get categoryString =>
-      {
-        ScenarioCategory.accident: 'accident',
-        ScenarioCategory.drowning: 'drowning',
-        ScenarioCategory.cardiac: 'cardiac',
-        ScenarioCategory.pediatric: 'pediatric',
-        ScenarioCategory.electrocution: 'electrocution',
-        ScenarioCategory.ahogamiento: 'ahogamiento',
-        ScenarioCategory.accidenteTransito: 'accidenteTransito',
-        ScenarioCategory.paroCardiaco: 'paroCardiaco',
-        ScenarioCategory.colapsoEjercicio: 'colapsoEjercicio',
-        ScenarioCategory.atragantamiento: 'atragantamiento',
-        ScenarioCategory.descargaElectrica: 'descargaElectrica',
-        ScenarioCategory.sobredosis: 'sobredosis',
-        ScenarioCategory.infarto: 'infarto',
-      }[category] ??
-      'cardiac';
+  /// String canónico persistido en Firestore.
+  String get categoryString => switch (category) {
+        ScenarioCategory.paroCardiaco      => 'paroCardiaco',
+        ScenarioCategory.infarto           => 'infarto',
+        ScenarioCategory.pediatrico        => 'pediatrico',
+        ScenarioCategory.ahogamiento       => 'ahogamiento',
+        ScenarioCategory.accidenteTransito => 'accidenteTransito',
+        ScenarioCategory.colapsoEjercicio  => 'colapsoEjercicio',
+        ScenarioCategory.atragantamiento   => 'atragantamiento',
+        ScenarioCategory.descargaElectrica => 'descargaElectrica',
+        ScenarioCategory.sobredosis        => 'sobredosis',
+        ScenarioCategory.quemadura         => 'quemadura',
+      };
 
   factory ScenarioModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -244,36 +231,27 @@ class ScenarioModel {
     );
   }
 
-  static ScenarioCategory _parseCategory(String? c) {
-    switch (c) {
-      case 'accident':
-        return ScenarioCategory.accident;
-      case 'drowning':
-        return ScenarioCategory.drowning;
-      case 'pediatric':
-        return ScenarioCategory.pediatric;
-      case 'electrocution':
-        return ScenarioCategory.electrocution;
-      case 'ahogamiento':
-        return ScenarioCategory.ahogamiento;
-      case 'accidenteTransito':
-        return ScenarioCategory.accidenteTransito;
-      case 'paroCardiaco':
-        return ScenarioCategory.paroCardiaco;
-      case 'colapsoEjercicio':
-        return ScenarioCategory.colapsoEjercicio;
-      case 'atragantamiento':
-        return ScenarioCategory.atragantamiento;
-      case 'descargaElectrica':
-        return ScenarioCategory.descargaElectrica;
-      case 'sobredosis':
-        return ScenarioCategory.sobredosis;
-      case 'infarto':
-        return ScenarioCategory.infarto;
-      default:
-        return ScenarioCategory.cardiac;
-    }
-  }
+  /// Parsea strings legacy y nuevos al enum canónico.
+  static ScenarioCategory _parseCategory(String? c) => switch (c) {
+        // Valores canónicos
+        'paroCardiaco'      => ScenarioCategory.paroCardiaco,
+        'infarto'           => ScenarioCategory.infarto,
+        'pediatrico'        => ScenarioCategory.pediatrico,
+        'ahogamiento'       => ScenarioCategory.ahogamiento,
+        'accidenteTransito' => ScenarioCategory.accidenteTransito,
+        'colapsoEjercicio'  => ScenarioCategory.colapsoEjercicio,
+        'atragantamiento'   => ScenarioCategory.atragantamiento,
+        'descargaElectrica' => ScenarioCategory.descargaElectrica,
+        'sobredosis'        => ScenarioCategory.sobredosis,
+        'quemadura'         => ScenarioCategory.quemadura,
+        // Valores legacy (migración backward-compat)
+        'cardiac'           => ScenarioCategory.paroCardiaco,
+        'drowning'          => ScenarioCategory.ahogamiento,
+        'accident'          => ScenarioCategory.accidenteTransito,
+        'pediatric'         => ScenarioCategory.pediatrico,
+        'electrocution'     => ScenarioCategory.descargaElectrica,
+        _                   => ScenarioCategory.paroCardiaco,
+      };
 }
 
 class CourseModel {
@@ -281,6 +259,9 @@ class CourseModel {
   final String title;
   final String instructorName;
   final String? instructorId;
+  /// Lista de UIDs de instructores asignados por el admin.
+  /// Complementa instructorId (instructor primario).
+  final List<String> instructorIds;
   final String? instructorEmail;
   final String? inviteCode;
   final int totalModules;
@@ -301,6 +282,7 @@ class CourseModel {
     required this.title,
     required this.instructorName,
     this.instructorId,
+    this.instructorIds = const [],
     this.instructorEmail,
     this.inviteCode,
     required this.totalModules,
@@ -321,15 +303,23 @@ class CourseModel {
       totalModules == 0 ? 0 : completedModules / totalModules;
   int get progressPct => (progress * 100).round();
 
+  /// Retorna true si el usuario es instructor de este curso
+  /// (ya sea como instructor primario o como instructor asignado).
+  bool isInstructorOf(String userId) =>
+      instructorId == userId || instructorIds.contains(userId);
+
   factory CourseModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
     final rawGuides = d['guideIds'];
     final guideList = rawGuides is List ? rawGuides.cast<String>() : <String>[];
+    final rawIds = d['instructorIds'];
+    final idList = rawIds is List ? rawIds.cast<String>() : <String>[];
     return CourseModel(
       id: doc.id,
       title: d['title'] ?? '',
       instructorName: d['instructorName'] ?? '',
       instructorId: d['instructorId'],
+      instructorIds: idList,
       instructorEmail: d['instructorEmail'],
       inviteCode: d['inviteCode'],
       totalModules: d['totalModules'] ?? 0,
