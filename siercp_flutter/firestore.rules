@@ -440,15 +440,7 @@ service cloud.firestore {
         (isAdminRole() && callerDoc().institutionId == resource.data.institutionId)
       );
 
-      // ── CREATE ─────────────────────────────────────────────────────────────
-      // Caso A: Admin con membership formal activa en la institución.
-      // Caso C: Admin cuyo campo institutionId coincide (sin membership propia).
-      //   Cubre admins configurados manualmente sin documento de membership.
-      //   Solo permite roles no-admin y no-SA para evitar escalada horizontal.
-      //   Protegido: 'institutionId' en sensitiveUserFields() impide spoofing.
-      // Caso B: Checkout web — usuario crea su primera membership ADMIN.
-     
-      allow create: if isSuperAdmin() || (
+     allow create: if isSuperAdmin() || (
         isAdminRole() &&
         validInstitutionId(request.resource.data.institutionId) &&
         isAdminOf(request.resource.data.institutionId) &&
@@ -480,7 +472,6 @@ service cloud.firestore {
         && request.resource.data.isActive == true
         && request.resource.data.planType in ['pyme', 'business', 'corporate']
       );
-
       // ── UPDATE ─────────────────────────────────────────────────────────────
       // Admin puede actualizar memberships de su org, con restricciones:
       //   - No puede cambiar campos inmutables (userId, institutionId, createdAt).

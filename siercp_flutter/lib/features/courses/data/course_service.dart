@@ -20,9 +20,34 @@ class CourseService {
       _db.collection('courses').doc(courseId).collection('enrollments');
 
   // ── Leer módulos ordenados ─────────────────────────────────────────────────
+  /// Lee la subcolección `courses/{courseId}/modules`.
+  /// Si está vacía, usa el array `modules[]` del documento del curso
+  /// (formato legado guardado por el panel web antes del refactor).
   Future<List<CourseModule>> getModules(String courseId) async {
+    // 1. Intentar subcolección (formato canónico)
     final snap = await _modulesRef(courseId).orderBy('order').get();
-    return snap.docs.map(CourseModule.fromDoc).toList();
+    if (snap.docs.isNotEmpty) {
+      return snap.docs.map(CourseModule.fromDoc).toList();
+    }
+
+    // 2. Fallback: array en el documento del curso (formato web legacy)
+    final courseDoc = await _db.collection('courses').doc(courseId).get();
+    if (!courseDoc.exists) return [];
+    final data = courseDoc.data()!;
+    final raw = data['modules'];
+    if (raw == null || raw is! List || (raw).isEmpty) return [];
+
+    final entries = <CourseModule>[];
+    for (int i = 0; i < raw.length; i++) {
+      final item = raw[i];
+      if (item is Map) {
+        entries.add(CourseModule.fromArrayEntry(
+          courseId, i, Map<String, dynamic>.from(item),
+        ));
+      }
+    }
+    entries.sort((a, b) => a.order.compareTo(b.order));
+    return entries;
   }
 
   // ── Crear módulo ───────────────────────────────────────────────────────────

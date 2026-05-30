@@ -11,6 +11,7 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/core/services/leaderboard_service.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum SessionMode { training, evaluation }
 
@@ -46,7 +47,24 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     final bleService = ref.read(bleServiceProvider);
     final engine = ref.read(rcpEngineProvider);
-    final institutionId = ref.read(orgContextProvider).activeOrgId ?? '';
+
+    // Obtener institutionId: primero del contexto de org activa;
+    // si el estudiante no tiene membership (solo enrollment), leerlo
+    // directamente del documento del curso para registrar la sesión
+    // en el path RTDB correcto (institutionId/courseId/sessionId).
+    var institutionId = ref.read(orgContextProvider).activeOrgId ?? '';
+    if (institutionId.isEmpty && courseId != null && courseId.isNotEmpty) {
+      try {
+        final courseDoc = await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(courseId)
+            .get();
+        if (courseDoc.exists) {
+          institutionId =
+              (courseDoc.data()?['institutionId'] as String?) ?? '';
+        }
+      } catch (_) {}
+    }
 
     engine.reset();
     _lastCount = 0;
