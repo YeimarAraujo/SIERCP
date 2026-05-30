@@ -39,7 +39,8 @@
       "PowerShell(\\(Get-Content \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\checkout\\\\manikin\\\\page.tsx\" | Measure-Object -Line\\).Lines)",
       "PowerShell(\\(Get-Content \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\checkout\\\\licencia-sst\\\\page.tsx\" | Measure-Object -Line\\).Lines)",
       "PowerShell(\\(Get-Content \"c:\\\\Programacion\\\\SIERCP\\\\SIERCP-WEB\\\\src\\\\app\\\\checkout\\\\pack\\\\page.tsx\" | Measure-Object -Line\\).Lines)",
-      "PowerShell(Sort)"
+      "PowerShell(Sort)",
+      "Bash(node -e \"const fs=require\\('fs'\\);let s=fs.readFileSync\\('database.rules.json','utf8'\\).replace\\(/\\\\/\\\\/.*$/gm,''\\);try{JSON.parse\\(s\\);console.log\\('RTDB JSON VALIDO'\\);}catch\\(e\\){console.log\\('ERROR:',e.message\\);process.exit\\(1\\);}\")"
     ]
   }
 }

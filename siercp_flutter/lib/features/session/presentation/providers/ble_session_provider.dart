@@ -288,7 +288,8 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       );
 
       await sessionService.updateCourseProgressAfterSession(
-          currentSession.studentId, metrics);
+          currentSession.studentId, metrics,
+          courseId: currentSession.courseId);
       state = state.copyWith(session: finished, isConnected: false);
 
       // Actualizar leaderboard institucional (fire-and-forget, no bloquea UI)
