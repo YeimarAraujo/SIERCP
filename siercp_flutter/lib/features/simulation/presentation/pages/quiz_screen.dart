@@ -88,7 +88,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         answers: answersMap,
       );
       if (!mounted) return;
-      router.pushReplacement(
+      context.pushReplacement(
         '/simulation/theoretical/result/${result.sessionId}',
         extra: result,
       );
