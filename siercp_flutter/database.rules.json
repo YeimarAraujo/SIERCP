@@ -17,6 +17,14 @@
 
     "live_sessions": {
       "$institutionId": {
+
+        // Lectura a nivel institución: necesaria para el dashboard de admin, que
+        // escucha live_sessions/{institutionId} completo (todos los cursos). En RTDB
+        // los permisos NO suben del hijo al padre, por eso debe declararse aquí.
+        // (El instructor escucha el nodo específico {institutionId}/{courseId},
+        // que queda cubierto por herencia de este .read.)
+        ".read": "auth != null && ($institutionId === 'no_org' ? false : true)",
+
         "$courseId": {
 
           // Lectura: solo usuarios de la misma institución (ADMIN, INSTRUCTOR, SUPER_ADMIN)
@@ -28,13 +36,7 @@
           "$sessionId": {
             // Escritura: el estudiante dueño de la sesión, o admins (verificado en la app).
             // La app solo escribe si el usuario es el estudiante de la sesión.
-            ".write": "auth != null && (
-              !data.exists() ||
-              data.child('studentId').val() === auth.uid ||
-              root.child('users').child(auth.uid).child('role').val() === 'SUPER_ADMIN' ||
-              root.child('users').child(auth.uid).child('role').val() === 'ADMIN' ||
-              root.child('users').child(auth.uid).child('role').val() === 'INSTRUCTOR'
-            )",
+            ".write": "auth != null && (!data.exists() || data.child('studentId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'SUPER_ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'INSTRUCTOR')",
 
             // Validación de estructura del nodo de sesión activa
             ".validate": "newData.hasChildren(['studentId', 'studentName', 'status'])"
@@ -48,16 +50,12 @@
         // Lectura: cualquier usuario autenticado (instructores/admins ven telemetría)
         ".read": "auth != null",
 
-        // Escritura: solo el dueño de la sesión (verificado contra live_sessions)
-        // O usuarios privilegiados. La validación estricta está en la app.
-        ".write": "auth != null && (
-          root.child('users').child(auth.uid).child('role').val() === 'SUPER_ADMIN' ||
-          root.child('users').child(auth.uid).child('role').val() === 'ADMIN' ||
-          root.child('users').child(auth.uid).child('role').val() === 'INSTRUCTOR' ||
-          root.child('users').child(auth.uid).child('role').val() === 'USUARIO_SST' ||
-          root.child('users').child(auth.uid).child('role').val() === 'USUARIO_PROFESIONAL' ||
-          root.child('users').child(auth.uid).child('role').val() === 'USUARIO'
-        )"
+        // Escritura: cualquier usuario autenticado. NOTA: los roles de usuario viven
+        // en Firestore, NO en RTDB, por lo que NO podemos consultarlos aquí
+        // (root.child('users') no existe en RTDB → devolvía null → bloqueaba TODA
+        // escritura de telemetría). La telemetría son métricas RCP no sensibles y la
+        // app ya valida que solo el dueño de la sesión escriba en su propio sessionId.
+        ".write": "auth != null"
       }
     },
 

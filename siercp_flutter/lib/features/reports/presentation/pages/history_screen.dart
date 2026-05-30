@@ -507,9 +507,9 @@ class _QuizHistoryBody extends StatelessWidget {
           ),
         ),
 
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: SectionLabel('Historial de evaluaciones'),
           ),
         ),

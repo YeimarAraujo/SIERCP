@@ -216,7 +216,7 @@ class ProfileScreen extends ConsumerWidget {
                                       : AppColors.cyan).withValues(alpha: 0.12),
                         ),
                         const SizedBox(width: 8),
-                        _Badge(label: 'SIERCP v2.0', color: AppColors.brand, bg: AppColors.brandBg),
+                        const _Badge(label: 'SIERCP v2.0', color: AppColors.brand, bg: AppColors.brandBg),
                       ],
                     ),
                   ],
@@ -283,8 +283,8 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Certificates (visible to all users)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
                 child: SectionLabel('Certificados'),
               ),
               Padding(

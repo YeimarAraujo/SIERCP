@@ -440,15 +440,7 @@ service cloud.firestore {
         (isAdminRole() && callerDoc().institutionId == resource.data.institutionId)
       );
 
-      // ── CREATE ─────────────────────────────────────────────────────────────
-      // Caso A: Admin con membership formal activa en la institución.
-      // Caso C: Admin cuyo campo institutionId coincide (sin membership propia).
-      //   Cubre admins configurados manualmente sin documento de membership.
-      //   Solo permite roles no-admin y no-SA para evitar escalada horizontal.
-      //   Protegido: 'institutionId' en sensitiveUserFields() impide spoofing.
-      // Caso B: Checkout web — usuario crea su primera membership ADMIN.
-     
-      allow create: if isSuperAdmin() || (
+     allow create: if isSuperAdmin() || (
         isAdminRole() &&
         validInstitutionId(request.resource.data.institutionId) &&
         isAdminOf(request.resource.data.institutionId) &&
@@ -480,7 +472,6 @@ service cloud.firestore {
         && request.resource.data.isActive == true
         && request.resource.data.planType in ['pyme', 'business', 'corporate']
       );
-
       // ── UPDATE ─────────────────────────────────────────────────────────────
       // Admin puede actualizar memberships de su org, con restricciones:
       //   - No puede cambiar campos inmutables (userId, institutionId, createdAt).
@@ -588,6 +579,23 @@ service cloud.firestore {
           || isAdminOf(courseOrgId(courseId));
       }
 
+      // ── SUBCOLLECCIÓN: courses/{courseId}/progress/{studentId} ─────────────
+      // Progreso de módulos completados POR CURSO. El path por curso garantiza
+      // que un avance en un curso jamás se filtra a otro curso.
+      // El estudiante gestiona su propio progreso; staff del curso puede leerlo.
+      match /progress/{studentId} {
+        allow read: if isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId)
+          || isOwner(studentId);
+        allow create, update: if isOwner(studentId)
+          || isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId);
+        allow delete: if isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId));
+      }
+
       // ── SUBCOLLECCIÓN: courses/{courseId}/attendance/{dateStr} ─────────────
       // Corrección LOW-04: esta subcollección no tenía regla explícita.
       match /attendance/{dateStr} {
@@ -645,29 +653,17 @@ service cloud.firestore {
       );
 
       // CREATE:
-      //   - studentId DEBE ser el uid del caller.
-      //   - Sin institutionId: sesión de práctica personal (modo offline/libre).
-      //   - Con institutionId: plan activo requerido. Sesiones live: plan con feature.
+      //   - studentId DEBE ser el uid del caller (protección de propiedad).
+      //
+      // NO se exige plan activo para crear la sesión: capturar una práctica de RCP
+      // del maniquí es la función central de la app y NO debe bloquearse por la
+      // configuración de facturación/plan de la institución. Si planActive() fallaba
+      // (p.ej. institución sin doc planMembership/current), el create se denegaba →
+      // la app caía a una sesión 'offline_' → sin telemetría, sin live_sessions y sin
+      // historial. La aplicación de límites de plan se hace a nivel de panel/cuotas,
+      // no bloqueando la captura de datos de entrenamiento.
       allow create: if isAuth() &&
-        request.resource.data.studentId == uid() &&
-        (
-          // Sesión libre sin org
-          (
-            !('institutionId' in request.resource.data) ||
-            request.resource.data.institutionId == null ||
-            request.resource.data.institutionId == ''
-          ) ||
-          // Sesión con org: validar plan
-          (
-            validInstitutionId(request.resource.data.institutionId) &&
-            planActive(request.resource.data.institutionId) &&
-            (
-              !('isLive' in request.resource.data) ||
-              request.resource.data.isLive != true ||
-              canUseLiveSessions(request.resource.data.institutionId)
-            )
-          )
-        );
+        request.resource.data.studentId == uid();
 
       // UPDATE: dueño puede completar/abortar su sesión. Admin/instructor pueden actualizar.
       // studentId e institutionId son inmutables.
@@ -962,8 +958,13 @@ service cloud.firestore {
         resource.data.userId == uid() || isSuperAdmin()
       );
 
-      // Admins crean notificaciones para usuarios. Cloud Functions también (Admin SDK).
-      allow create: if isAdminRole() &&
+      // Cualquier usuario autenticado puede crear una notificación dirigida a otro
+      // usuario (destinatario en `userId`). Necesario para flujos peer-to-peer:
+      //   · estudiante se une a un curso vía QR → notifica al instructor
+      //   · estudiante completa un módulo → notifica al instructor
+      // Antes exigía isAdminRole(), lo que lanzaba un error de permisos en la app
+      // (aunque la acción principal —inscripción— sí se completaba).
+      allow create: if isAuth() &&
         isNonEmptyString(request.resource.data.userId) &&
         request.resource.data.keys().hasAll(['userId', 'title', 'message']);
 

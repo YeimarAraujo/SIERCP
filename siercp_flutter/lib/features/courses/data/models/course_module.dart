@@ -156,6 +156,44 @@ class CourseModule {
     );
   }
 
+  /// Factory para módulos guardados como array en el documento del curso
+  /// (formato web legacy: {title, type, contentType, contentUrl, scenarios, ...}).
+  factory CourseModule.fromArrayEntry(
+      String courseId, int idx, Map<String, dynamic> m) {
+    final type    = _parseType(m['type'] as String?);
+    final cType   = m['contentType'] as String? ?? '';
+    final cUrl    = m['contentUrl']  as String? ?? '';
+    final score   = (m['passingScore'] as num?)?.toInt() ?? 70;
+
+    final String? pdfUrl     = cType == 'pdf'      ? cUrl : null;
+    final String? videoUrl   = cType == 'video'    ? cUrl : null;
+    final String? textContent =
+        (cType == 'external' || cType == 'quiz') ? cUrl : null;
+
+    final scenarios =
+        (m['scenarios'] as List<dynamic>? ?? []).cast<String>();
+    final requiredSessions = type == ModuleType.practica_guiada
+        ? scenarios
+            .map((s) =>
+                RequiredSession(scenarioId: s, count: 1, minScore: score))
+            .toList()
+        : <RequiredSession>[];
+
+    return CourseModule(
+      id:               '${courseId}_$idx',
+      courseId:         courseId,
+      order:            (m['order'] as num?)?.toInt() ?? idx,
+      title:            m['title'] as String? ?? 'Módulo ${idx + 1}',
+      type:             type,
+      pdfUrl:           pdfUrl,
+      videoUrl:         videoUrl,
+      textContent:      textContent,
+      passingScore:     score,
+      questions:        const [],
+      requiredSessions: requiredSessions,
+    );
+  }
+
   static ModuleType _parseType(String? t) {
     switch (t) {
       case 'teoria':

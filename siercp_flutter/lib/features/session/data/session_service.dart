@@ -103,12 +103,17 @@ class SessionService {
     return doc!;
   }
 
+  /// Actualiza el progreso/score del estudiante SOLO en el curso al que pertenece
+  /// la sesión. Si la sesión no tiene curso (práctica libre), no toca ningún curso.
+  ///
+  /// IMPORTANTE: antes iteraba sobre TODOS los cursos inscritos, lo que inflaba el
+  /// avgScore/sessionCount/completedModules en cursos donde el estudiante NO practicó
+  /// (un resultado de un curso aparecía en otro). El score es POR CURSO.
   Future<void> updateCourseProgressAfterSession(
-      String studentId, SessionMetrics metrics) async {
-    final enrolledCourseIds = await _db.getStudentEnrolledCourseIds(studentId);
-    for (final courseId in enrolledCourseIds) {
-      await _db.updateEnrollmentProgress(courseId, studentId, metrics);
-    }
+      String studentId, SessionMetrics metrics, {String? courseId}) async {
+    final id = courseId?.trim() ?? '';
+    if (id.isEmpty) return; // práctica libre → no pertenece a ningún curso
+    await _db.updateEnrollmentProgress(id, studentId, metrics);
   }
 
   Future<List<SessionModel>> getSessions(String studentId, {int limit = 30}) {
