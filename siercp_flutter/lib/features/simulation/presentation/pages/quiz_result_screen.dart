@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/l10n/app_localizations.dart';
+import 'package:siercp/features/simulation/presentation/widgets/result_quiz_dialog_screen.dart';
 
 class QuizResultScreen extends StatefulWidget {
   final String sessionId;
@@ -33,6 +34,22 @@ class _QuizResultScreenState extends State<QuizResultScreen>
     _scoreAnim = Tween<double>(begin: 0, end: score).animate(
         CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
+
+    final result = widget.result;
+    if (result != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+           barrierDismissible: false,
+           builder: (_) => EvaluacionResultadoDialog(
+             score: result.score,
+             xpEarned: result.xpEarned,
+             newLevel: result.newLevel,
+           ),
+         );
+       });
+    }
   }
 
   @override
@@ -151,6 +168,9 @@ class _QuizResultScreenState extends State<QuizResultScreen>
                           // ── XP / Badges ────────────────────────────────
                           if (result.xpEarned > 0) ...[
                             _XpCard(result: result, loc: loc, isDark: isDark),
+                            const SizedBox(height: 16),
+                          ] else ...[
+                            _NoXpHint(isDark: isDark),
                             const SizedBox(height: 16),
                           ],
 
@@ -398,6 +418,42 @@ class _XpCard extends StatelessWidget {
                   .toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NoXpHint extends StatelessWidget {
+  final bool isDark;
+  const _NoXpHint({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: isDark ? 0.12 : 0.06),
+        border: Border.all(
+          color: AppColors.red.withValues(alpha: isDark ? 0.3 : 0.2),
+          width: 0.5,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded,
+              size: 16, color: AppColors.red.withValues(alpha: 0.8)),
+          const SizedBox(width: 8),
+          Text(
+            'Necesitas ≥70% para ganar XP',
+            style: TextStyle(
+              color: AppColors.red.withValues(alpha: 0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

@@ -81,7 +81,7 @@ class TheoreticalHubScreen extends ConsumerWidget {
                         itemBuilder: (_, i) => _TopicCard(
                           topic: topics[i],
                           onTap: () => context.push(
-                            '/simulation/theoretical/quiz/${topics[i].id}',
+                            '/simulation/theoretical/evaluations/${topics[i].id}',
                           ),
                         ),
                       ),

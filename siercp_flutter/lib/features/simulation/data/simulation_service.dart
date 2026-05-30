@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/simulation/data/models/quiz_topic.dart';
 import 'package:siercp/features/simulation/data/models/quiz_question.dart';
 import 'package:siercp/features/simulation/data/models/quiz_session.dart';
@@ -51,20 +52,24 @@ class SimulationService {
 
     return selected.map((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      // Extraer sólo el texto de las opciones — el ID (A/B/C/D) no se expone en UI.
       final rawOpts = d['options'] as List? ?? [];
       final optTexts = rawOpts.map<String>((o) {
         if (o is Map) return (o['text'] ?? '').toString();
         return o.toString();
       }).toList();
 
+      final correctLetter = d['correctOption'] as String? ?? '';
+      final correctIdx   = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
+
       return QuizQuestion(
-        id: doc.id,
-        text: d['text'] as String? ?? '',
-        options: optTexts,
-        level: d['level'] as String? ?? 'basico',
-        source: d['source'] as String? ?? '',
-        imageUrl: d['imageUrl'] as String?,
+        id:                 doc.id,
+        text:               d['text']        as String? ?? '',
+        options:            optTexts,
+        level:              d['level']       as String? ?? 'basico',
+        source:             d['source']      as String? ?? '',
+        imageUrl:           d['imageUrl']    as String?,
+        correctOptionIndex: correctIdx >= 0 ? correctIdx : null,
+        explanation:        d['explanation'] as String? ?? '',
       );
     }).toList();
   }
@@ -208,6 +213,19 @@ class SimulationService {
         .map((doc) => doc.data() as Map<String, dynamic>? ?? {});
   }
 
+  // ── Quiz history ──────────────────────────────────────────────────────────────
+
+  Stream<List<Map<String, dynamic>>> watchQuizHistory(String userId) {
+    return _sessions
+        .where('userId', isEqualTo: userId)
+        .orderBy('completedAt', descending: true)
+        .limit(100)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => {'id': d.id, ...(d.data() as Map<String, dynamic>)})
+            .toList());
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   static const _xpThresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
@@ -230,3 +248,9 @@ final userStatsProvider = StreamProvider.family<Map<String, dynamic>, String>(
   (ref, userId) =>
       ref.watch(simulationServiceProvider).watchUserStats(userId),
 );
+
+final quizHistoryProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return Stream.value([]);
+  return ref.watch(simulationServiceProvider).watchQuizHistory(user.id);
+});
