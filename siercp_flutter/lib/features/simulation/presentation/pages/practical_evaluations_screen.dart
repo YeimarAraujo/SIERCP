@@ -1065,7 +1065,18 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
     }
   }
 
-  static const _xpThresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
+  static const _xpThresholds = [
+    0,
+    100,
+    300,
+    600,
+    1000,
+    1500,
+    2200,
+    3000,
+    4000,
+    5500
+  ];
   static int _calcLevel(int xp) => _xpThresholds.where((t) => xp >= t).length;
 
   Future<void> _awardXp() async {
@@ -1089,12 +1100,15 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
         final currentXp = (data['xp'] as int?) ?? 0;
         final newXp = currentXp + xpEarned;
         newLevel = _calcLevel(newXp);
-        tx.set(statsRef, {
-          'xp': newXp,
-          'level': newLevel,
-          'quizzesCompleted': FieldValue.increment(1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        tx.set(
+            statsRef,
+            {
+              'xp': newXp,
+              'level': newLevel,
+              'quizzesCompleted': FieldValue.increment(1),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
       });
 
       if (mounted) {
@@ -1106,16 +1120,16 @@ class _EvalDetailScreenState extends State<_EvalDetailScreen> {
 
       // Registro histórico sin bloquear la UI
       db.collection('quizSessions').add({
-        'userId':      uid,
-        'topicId':     widget.eval.id,
-        'type':        'practical_eval',
-        'score':       score,
-        'passed':      passed,
-        'xpEarned':    xpEarned,
+        'userId': uid,
+        'topicId': widget.eval.id,
+        'type': 'theoretical',
+        'score': score,
+        'passed': passed,
+        'xpEarned': xpEarned,
         'completedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('[PracticalEval] Error guardando XP: $e');
+      debugPrint('[theoretical] Error guardando XP: $e');
     }
   }
 
