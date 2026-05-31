@@ -81,20 +81,19 @@ class PracticalHubScreen extends ConsumerWidget {
                       description: loc.practicalRcpDesc,
                       color: AppColors.red,
                       enabled: isConnected,
-                      onTap: isConnected
-                          ? () => context.push('/scenarios')
-                          : null,
+                      onTap:
+                          isConnected ? () => context.push('/scenarios') : null,
                       disabledLabel: loc.practicalDeviceRequired,
                     ),
-                    const SizedBox(height: 16),
-                    _PracticeCard(
-                      icon: Icons.emergency_outlined,
-                      title: loc.practicalScenarios,
-                      description: loc.practicalScenariosDesc,
-                      color: AppColors.amber,
-                      enabled: true,
-                      onTap: () => context.push('/scenarios'),
-                    ),
+                    // const SizedBox(height: 16),
+                    // _PracticeCard(
+                    //   icon: Icons.emergency_outlined,
+                    //   title: loc.practicalScenarios,
+                    //   description: loc.practicalScenariosDesc,
+                    //   color: AppColors.amber,
+                    //   enabled: true,
+                    //   onTap: () => context.push('/scenarios'),
+                    // ),
                   ],
                 ),
               ),
@@ -120,7 +119,7 @@ class _BleBanner extends StatelessWidget {
     final label = isConnected ? 'Maniquí conectado' : 'Maniquí no conectado';
     final sub = isConnected
         ? 'Listo para iniciar práctica de RCP'
-        : 'Conecta el maniquí ESP32 para evaluaciones con retroalimentación';
+        : 'Conecta el maniquí para iniciar ';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -135,9 +134,7 @@ class _BleBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isConnected
-                ? Icons.sensors_rounded
-                : Icons.sensors_off_rounded,
+            isConnected ? Icons.sensors_rounded : Icons.sensors_off_rounded,
             color: color,
             size: 20,
           ),
