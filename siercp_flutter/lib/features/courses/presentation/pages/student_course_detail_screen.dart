@@ -186,16 +186,6 @@ class StudentCourseDetailScreen extends ConsumerWidget {
                             style: TextStyle(color: textS, fontSize: 12),
                             maxLines: 3),
                       ],
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            context.push('/student/course-modules/$courseId'),
-                        icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('Ver Hoja de Ruta (Módulos)'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -471,15 +461,24 @@ class StudentCourseDetailScreen extends ConsumerWidget {
                         ),
                       )
                     : ElevatedButton.icon(
-                        onPressed: () => context.go('/scenarios'),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: Text(totalSessions > 0
-                            ? 'Continuar entrenamiento'
-                            : 'Comenzar entrenamiento'),
+                        onPressed: () =>
+                            context.push('/student/course-modules/$courseId'),
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text('Ver Hoja de Ruta (Módulos)'),
                         style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 52),
+                          minimumSize: const Size(double.infinity, 48),
                         ),
                       ),
+                // : ElevatedButton.icon(
+                //     onPressed: () => context.go('/scenarios'),
+                //     icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                //     label: Text(totalSessions > 0
+                //         ? 'Continuar entrenamiento'
+                //         : 'Comenzar entrenamiento'),
+                //     style: ElevatedButton.styleFrom(
+                //       minimumSize: const Size(double.infinity, 52),
+                //     ),
+                //   ),
               ),
             ),
           ],
