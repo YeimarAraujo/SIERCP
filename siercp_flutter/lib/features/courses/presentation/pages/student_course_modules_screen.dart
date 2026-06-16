@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -6,7 +7,7 @@ import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─── Providers ────────────────────────────────────────────────────────────────
 final _studentModulesProvider =
     FutureProvider.family<List<CourseModule>, String>(
   (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
@@ -20,6 +21,7 @@ class StudentCourseModulesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final modulesAsync = ref.watch(_studentModulesProvider(courseId));
+    final progressAsync = ref.watch(studentProgressProvider(courseId));
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
@@ -38,25 +40,35 @@ class StudentCourseModulesScreen extends ConsumerWidget {
                 color: textP, fontSize: 16, fontWeight: FontWeight.w700)),
       ),
       body: modulesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.brand),
-        ),
+        loading: () => const AppLogoLoader(),
         error: (e, _) => Center(
           child: Text('Error: $e', style: TextStyle(color: textS)),
         ),
-        data: (modules) => modules.isEmpty
-            ? _EmptyState()
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-                itemCount: modules.length,
-                itemBuilder: (_, i) => _ModuleRoadmapCard(
-                  module: modules[i],
-                  courseId: courseId,
-                  index: i,
-                  isUnlocked: i == 0, // por ahora solo el primero desbloqueado
-                  isCompleted: false,
-                ),
-              ),
+        data: (modules) {
+          // Obtener el set de módulos completados (vacío si aún no cargó)
+          final completedIds = progressAsync.valueOrNull ?? <String>{};
+
+          if (modules.isEmpty) return _EmptyState();
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+            itemCount: modules.length,
+            itemBuilder: (_, i) {
+              final isCompleted = completedIds.contains(modules[i].id);
+              // Desbloquear si: es el primero, o el anterior ya fue completado
+              final isUnlocked = i == 0 ||
+                  completedIds.contains(modules[i - 1].id);
+
+              return _ModuleRoadmapCard(
+                module: modules[i],
+                courseId: courseId,
+                index: i,
+                isUnlocked: isUnlocked,
+                isCompleted: isCompleted,
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -101,7 +113,14 @@ class _ModuleRoadmapCard extends ConsumerWidget {
           ),
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: ListTile(
+        // Material transparente: ListTile pinta su fondo/ripple sobre este
+        // Material (no sobre el DecoratedBox del Container) y se recorta a las
+        // esquinas redondeadas. Evita el assert "ink splashes may be invisible".
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
           contentPadding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           leading: Container(
             width: 46,
@@ -171,10 +190,11 @@ class _ModuleRoadmapCard extends ConsumerWidget {
               ? null
               : () {
                   final user = ref.read(currentUserProvider);
-                  final extra = {
-                    'module': module,
-                    'courseId': this.courseId,
+                  final extra = <String, dynamic>{
+                    'module': module.toMap(),
+                    'courseId': courseId,
                     'studentId': user?.id ?? '',
+                    'isCompleted': isCompleted,
                   };
 
                   switch (module.type) {
@@ -185,9 +205,12 @@ class _ModuleRoadmapCard extends ConsumerWidget {
                     case ModuleType.evaluacion_teorica:
                       context.push('/student/quiz', extra: extra);
                     case ModuleType.certificacion:
-                      context.push('/student/certificacion', extra: extra);
+                      // S6.2 — certificados Tipo A retirados; la competencia se
+                      // refleja en el Skill Passport.
+                      context.push('/skills');
                   }
                 },
+          ),
         ),
       ),
     );
@@ -226,3 +249,4 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+

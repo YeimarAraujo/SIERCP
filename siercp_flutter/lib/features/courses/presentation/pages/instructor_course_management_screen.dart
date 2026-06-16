@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -7,6 +8,7 @@ import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
+import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 
@@ -379,7 +381,7 @@ class _ModulesTabState extends ConsumerState<_ModulesTab> {
       ),
       body: modulesAsync.when(
         loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            const AppLogoLoader(),
         error: (e, _) => Center(
             child: Text('Error: $e', style: TextStyle(color: textS))),
         data: (modules) => modules.isEmpty
@@ -943,7 +945,7 @@ class _StudentsManagementTabState
       ),
       body: studentsAsync.when(
         loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            const AppLogoLoader(),
         error: (e, _) =>
             Center(child: Text('Error: $e', style: TextStyle(color: textS))),
         data: (students) => students.isEmpty
@@ -1114,37 +1116,148 @@ class _StudentsManagementTabState
   }
 }
 
-// ── Tab 3: Asistencia (reutiliza el existente de course_detail_screen) ─────────
-class _AttendanceTab extends ConsumerWidget {
+// ── Tab 3: Asistencia (funcional, modelo canónico unificado con la Web) ────────
+class _AttendanceTab extends ConsumerStatefulWidget {
   final String courseId;
   const _AttendanceTab({required this.courseId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AttendanceTab> createState() => _AttendanceTabState();
+}
+
+class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
+  DateTime _date = DateTime.now();
+
+  static const _statuses = <String, ({String label, IconData icon, Color color})>{
+    'present': (label: 'Presente', icon: Icons.check_circle, color: AppColors.green),
+    'late': (label: 'Tarde', icon: Icons.schedule, color: AppColors.brand),
+    'excused': (label: 'Justif.', icon: Icons.event_note, color: AppColors.amber),
+    'absent': (label: 'Ausente', icon: Icons.cancel, color: AppColors.red),
+  };
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.how_to_reg_outlined,
-              size: 52,
-              color: theme.colorScheme.outline.withValues(alpha: 0.4)),
-          const SizedBox(height: 12),
-          Text('Gestión de asistencia',
-              style: TextStyle(
-                  color: textS, fontSize: 14, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text('Disponible en la vista detalle del curso',
-              style: TextStyle(color: textS, fontSize: 12)),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.open_in_new_rounded, size: 16),
-            label: const Text('Abrir vista completa'),
-            onPressed: () => context.push('/course-detail/$courseId'),
+    final studentsAsync = ref.watch(courseStudentsProvider(widget.courseId));
+    final attendanceAsync = ref.watch(
+        courseAttendanceProvider((courseId: widget.courseId, date: _date)));
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Clase del ${_fmt(_date)}',
+                  style: TextStyle(
+                      color: textP, fontSize: 15, fontWeight: FontWeight.w800)),
+              IconButton.filledTonal(
+                icon: const Icon(Icons.calendar_month_outlined, size: 20),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _date,
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365)),
+                    lastDate: DateTime.now().add(const Duration(days: 7)),
+                  );
+                  if (picked != null) setState(() => _date = picked);
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: studentsAsync.when(
+            loading: () => const AppLogoLoader(),
+            error: (e, _) =>
+                Center(child: Text('Error: $e', style: TextStyle(color: textS))),
+            data: (students) {
+              if (students.isEmpty) {
+                return Center(
+                    child: Text('Sin estudiantes inscritos',
+                        style: TextStyle(color: textS)));
+              }
+              final marks = <String, String>{
+                for (final r in (attendanceAsync.value ?? const []))
+                  r['studentId'] as String:
+                      (r['status'] as String?) ??
+                          ((r['attended'] == true) ? 'present' : 'absent'),
+              };
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: students.length,
+                itemBuilder: (ctx, i) {
+                  final st = students[i];
+                  final sid = st['studentId'] as String;
+                  final sname = st['studentName'] as String? ?? 'Sin nombre';
+                  final current = marks[sid] ?? 'present';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      border: Border.all(
+                          color: theme.colorScheme.outline
+                              .withValues(alpha: 0.3)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(sname,
+                            style: TextStyle(
+                                color: textP,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: _statuses.entries.map((e) {
+                            final active = current == e.key;
+                            return ChoiceChip(
+                              label: Text(e.value.label,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: active
+                                          ? Colors.white
+                                          : e.value.color)),
+                              avatar: Icon(e.value.icon,
+                                  size: 14,
+                                  color: active ? Colors.white : e.value.color),
+                              selected: active,
+                              selectedColor: e.value.color,
+                              backgroundColor: e.value.color.withValues(alpha: 0.1),
+                              onSelected: (_) {
+                                ref.read(sessionServiceProvider).markAttendance(
+                                      courseId: widget.courseId,
+                                      studentId: sid,
+                                      studentName: sname,
+                                      attended:
+                                          e.key == 'present' || e.key == 'late',
+                                      date: _date,
+                                      status: e.key,
+                                    );
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1163,7 +1276,7 @@ class _ProgressTab extends ConsumerWidget {
 
     return studentsAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+          const AppLogoLoader(),
       error: (e, _) =>
           Center(child: Text('Error: $e', style: TextStyle(color: textS))),
       data: (students) {

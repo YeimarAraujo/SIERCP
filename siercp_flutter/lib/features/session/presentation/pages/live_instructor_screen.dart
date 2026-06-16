@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/constants/constants.dart';
@@ -54,8 +55,7 @@ class _LiveInstructorScreenState extends ConsumerState<LiveInstructorScreen> {
             ),
             Expanded(
               child: activeSessionsAsync.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.brand)),
+                loading: () => const AppLogoLoader(),
                 error: (e, _) => Center(
                     child: Text('Error: $e',
                         style: TextStyle(color: textS))),
@@ -385,15 +385,19 @@ class _RealtimeSessionCardState extends ConsumerState<_RealtimeSessionCard> {
 
   void _startListening(String manikinId) {
     final deviceService = ref.read(deviceServiceProvider);
-    _deviceSub = deviceService.streamDevice(manikinId).listen((device) {
-      if (!mounted || device == null || !device.isActive) return;
-      setState(() {
-        _depthHistory.add(device.profundidadMm);
-        _rateHistory.add(device.frecuenciaCpm.toDouble());
-        if (_depthHistory.length > _maxHistory) _depthHistory.removeAt(0);
-        if (_rateHistory.length > _maxHistory) _rateHistory.removeAt(0);
-      });
-    });
+    _deviceSub = deviceService.streamDevice(manikinId).listen(
+      (device) {
+        if (!mounted || device == null || !device.isActive) return;
+        setState(() {
+          _depthHistory.add(device.profundidadMm);
+          _rateHistory.add(device.frecuenciaCpm.toDouble());
+          if (_depthHistory.length > _maxHistory) _depthHistory.removeAt(0);
+          if (_rateHistory.length > _maxHistory) _rateHistory.removeAt(0);
+        });
+      },
+      onError: (e) =>
+          debugPrint('RTDB streamDevice($manikinId) error: $e'),
+    );
   }
 
   @override

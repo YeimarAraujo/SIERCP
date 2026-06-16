@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -177,9 +178,7 @@ class ScenarioSelectScreen extends ConsumerWidget {
                   final isLandscape = MediaQuery.of(context).orientation ==
                       Orientation.landscape;
                   return scenariosAsync.when(
-                    loading: () => const Center(
-                        child:
-                            CircularProgressIndicator(color: AppColors.brand)),
+                    loading: () => const AppLogoLoader(),
                     error: (_, __) => _OfflineScenarios(loc: loc),
                     data: (scenarios) => scenarios.isEmpty
                         ? _OfflineScenarios(loc: loc)

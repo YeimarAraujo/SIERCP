@@ -137,4 +137,9 @@ class AppConstants {
   // ── App Info ──────────────────────────────────────────────────────────────
   static const String appName    = 'SIERCP';
   static const String appVersion = '2.2.0';
+
+  // ── Backend Vercel (plan Spark: lógica de servidor en Vercel API routes, no
+  //    en Cloud Functions). Endpoints autenticados con Firebase ID token. ──────
+  static const String webBaseUrl = 'https://siercp.com';
+  static const String apiBaseUrl = '$webBaseUrl/api';
 }

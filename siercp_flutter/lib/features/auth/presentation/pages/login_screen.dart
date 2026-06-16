@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/auth/data/firebase_auth_service.dart';
 import 'package:siercp/l10n/app_localizations.dart';
@@ -104,54 +105,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     return Scaffold(
       backgroundColor: bg,
+      // resizeToAvoidBottomInset (true por defecto) encoge el body cuando sale
+      // el teclado; el LayoutBuilder + ConstrainedBox centran el contenido y lo
+      // dejan hacer scroll si el teclado no deja espacio suficiente.
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 56),
-
-              // ── Logo + Branding ──
-              Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Logo + Branding ──
+                    Center(
                 child: Column(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 200,
+                      height: 67,
                       decoration: BoxDecoration(
-                        color: AppColors.brand,
                         borderRadius: BorderRadius.circular(AppRadius.xl),
-                        boxShadow: AppShadows.elevated(isDark),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.xl),
-                        child: Image.asset(
-                          'assets/images/logov3.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.favorite,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                        ),
+                        child: const AppLogo(fit: BoxFit.contain),
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Text(
-                      'SIERCP',
-                      style: TextStyle(
-                        color: textP,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      loc.loginSubtitle,
-                      style: TextStyle(color: textS, fontSize: 12),
-                    ),
                   ],
                 ),
               ),
@@ -299,8 +282,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   Expanded(child: Divider(color: border)),
                 ],
               ),
-              const SizedBox(height: 32),
-            ],
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

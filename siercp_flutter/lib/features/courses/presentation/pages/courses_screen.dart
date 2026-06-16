@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -1143,9 +1144,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                 child: coursesAsync.when(
                   loading: () => const SizedBox(
                     height: 80,
-                    child: Center(
-                        child:
-                            CircularProgressIndicator(color: AppColors.brand)),
+                    child: AppLogoLoader(),
                   ),
                   error: (e, __) => Padding(
                     padding: const EdgeInsets.all(20),
@@ -2737,9 +2736,7 @@ class _StudentsBottomSheet extends ConsumerWidget {
             Divider(color: border, height: 0.5),
             Expanded(
               child: studentsAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.brand),
-                ),
+                loading: () => const AppLogoLoader(),
                 error: (e, _) => Center(
                   child: Text('Error: $e', style: TextStyle(color: textS)),
                 ),

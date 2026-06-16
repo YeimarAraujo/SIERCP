@@ -1,4 +1,6 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/constants/constants.dart';
@@ -136,15 +138,20 @@ class AdminService {
     await removeFromOrg(userId, 'admin-delete');
     await _db.updateUserPrivileged(userId, isActive: false, accountStatus: 'deleted');
 
+    // Borrado duro de la cuenta de Auth vía Vercel (plan Spark — sin Cloud
+    // Functions). Best-effort: si falla, el usuario ya está desactivado en
+    // Firestore y no puede entrar.
     try {
-      await FirebaseFunctions.instance
-          .httpsCallable('deleteAuthUser')
-          .call({'targetUid': userId});
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token != null) {
+        await http.post(
+          Uri.parse('${AppConstants.apiBaseUrl}/admin/delete-user'),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+          body: jsonEncode({'targetUid': userId}),
+        );
+      }
     } catch (e) {
-      // La CF puede no existir en dev o fallar por red.
-      // El usuario ya está desactivado en Firestore — no puede entrar.
-      // Log para auditoria; no relanzar para no interrumpir el flujo de UI.
-      debugPrint('[AdminService] deleteAuthUser CF error (non-fatal): $e');
+      debugPrint('[AdminService] delete-user (non-fatal): $e');
     }
 
     _ref.invalidate(orgUsersProvider);

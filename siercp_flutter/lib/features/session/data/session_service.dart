@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/users/data/models/user.dart';
 import 'package:siercp/features/notifications/data/models/notification.dart';
+import 'package:siercp/features/skills/data/skill_service.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 import 'package:flutter/foundation.dart'; // ← agregar esta línea
 
@@ -99,6 +101,21 @@ class SessionService {
     int durationSeconds,
   ) async {
     await _db.completeSession(sessionId, metrics, durationSeconds);
+
+    // Spark: emitir Skills vía Vercel (/api/skills/evaluate) — best-effort, no
+    // bloquea el resultado. Se omiten sesiones offline (aún no existen en la nube).
+    if (!sessionId.startsWith('offline_') && !sessionId.startsWith('error_')) {
+      unawaited(
+        SkillService().evaluateSession(sessionId).then((issued) {
+          if (issued.isNotEmpty) {
+            debugPrint('🎖️ Skills emitidas: ${issued.join(", ")}');
+          }
+        }).catchError((Object e) {
+          debugPrint('evaluateSession (no-fatal): $e');
+        }),
+      );
+    }
+
     final doc = await _db.getSession(sessionId);
     return doc!;
   }
@@ -262,6 +279,7 @@ class SessionService {
     required String studentName,
     required bool attended,
     required DateTime date,
+    String? status,
   }) {
     return _db.markAttendance(
       courseId: courseId,
@@ -269,6 +287,7 @@ class SessionService {
       studentName: studentName,
       attended: attended,
       date: date,
+      status: status,
     );
   }
 

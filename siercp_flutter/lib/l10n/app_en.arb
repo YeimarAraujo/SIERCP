@@ -334,8 +334,8 @@
     }
   },
 
-  "navSimulation": "Simulation",
-  "simulationTitle": "Simulation",
+  "navSimulation": "Practice",
+  "simulationTitle": "Practice",
   "simulationSubtitle": "Theoretical and practical evaluations",
   "theoreticalEval": "Theoretical Evaluation",
   "theoreticalEvalDesc": "Answer dynamic questions based on AHA and MinSalud guidelines",

@@ -1578,13 +1578,13 @@ abstract class AppLocalizations {
   /// No description provided for @navSimulation.
   ///
   /// In es, this message translates to:
-  /// **'Simulación'**
+  /// **'Práctica'**
   String get navSimulation;
 
   /// No description provided for @simulationTitle.
   ///
   /// In es, this message translates to:
-  /// **'Simulación'**
+  /// **'Práctica'**
   String get simulationTitle;
 
   /// No description provided for @simulationSubtitle.

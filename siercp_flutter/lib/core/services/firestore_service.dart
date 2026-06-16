@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/constants/constants.dart';
@@ -23,6 +24,7 @@ class FirestoreService {
   CollectionReference get _manikins => _db.collection('manikins');
   CollectionReference get _scenarios => _db.collection('scenarios');
   CollectionReference get _notifications => _db.collection('notifications');
+  CollectionReference get _broadcasts => _db.collection('broadcasts');
   CollectionReference get _institutions => _db.collection('institutions');
   CollectionReference get _memberships => _db.collection('memberships');
   CollectionReference get _supportTickets =>
@@ -43,15 +45,27 @@ class FirestoreService {
       final doc = await _users
           .doc(uid)
           .get(const GetOptions(source: Source.serverAndCache))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 8));
       if (!doc.exists) return null;
       return UserModel.fromFirestore(doc);
     } catch (e) {
-      debugPrint('Error obteniendo usuario (usando caché): $e');
-      final doc =
-          await _users.doc(uid).get(const GetOptions(source: Source.cache));
-      if (doc.exists) return UserModel.fromFirestore(doc);
-      return null;
+      debugPrint('Error obteniendo usuario (intentando caché): $e');
+      // Fallback a caché local. `Source.cache` LANZA (no devuelve un doc
+      // inexistente) cuando no hay nada cacheado —p.ej. primer login en red
+      // lenta—. Protegemos esa llamada para no propagar el error crudo y, si
+      // tampoco hay caché, lanzamos un error de red claro en vez de devolver
+      // null (que `login` interpretaría como "perfil no encontrado" y cerraría
+      // la sesión de un usuario legítimo ante una caída transitoria).
+      try {
+        final cached =
+            await _users.doc(uid).get(const GetOptions(source: Source.cache));
+        if (cached.exists) return UserModel.fromFirestore(cached);
+        return null;
+      } catch (_) {
+        throw Exception(
+          'No se pudo cargar tu perfil. Verifica tu conexión e intenta de nuevo.',
+        );
+      }
     }
   }
 
@@ -294,6 +308,53 @@ class FirestoreService {
         .map((snap) => snap.docs.map(NotificationModel.fromFirestore).toList());
   }
 
+  /// Stream del documento crudo del usuario. Necesario para los broadcasts:
+  /// `role` e `institutionId` no están en UserModel, y `lastBroadcastSeenAt`
+  /// determina el estado de lectura de los anuncios.
+  Stream<Map<String, dynamic>> watchUserDocRaw(String userId) {
+    return _users
+        .doc(userId)
+        .snapshots()
+        .map((d) => d.data() as Map<String, dynamic>? ?? <String, dynamic>{});
+  }
+
+  /// Anuncios masivos filtrados por la audiencia del usuario. El filtrado por
+  /// audiencia es en cliente (diseño "doc global + filtro en app").
+  Stream<List<NotificationModel>> watchBroadcasts({
+    String? role,
+    String? institutionId,
+    DateTime? lastSeen,
+  }) {
+    return _broadcasts
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs
+            .where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              final audience = data['audience'];
+              if (audience == 'all') return true;
+              if (audience == 'role') {
+                return role != null && data['role'] == role;
+              }
+              if (audience == 'institution') {
+                return institutionId != null &&
+                    data['institutionId'] == institutionId;
+              }
+              return false;
+            })
+            .map((d) => NotificationModel.fromBroadcast(d, lastSeen: lastSeen))
+            .toList());
+  }
+
+  /// Marca todos los broadcasts como leídos hasta ahora (sello por usuario).
+  Future<void> markBroadcastsSeen(String userId) async {
+    await _users.doc(userId).set(
+      {'lastBroadcastSeenAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+  }
+
   Future<void> markNotificationAsRead(String notificationId) async {
     await _notifications.doc(notificationId).update({'isRead': true});
   }
@@ -429,41 +490,105 @@ class FirestoreService {
 
   String getNewSessionId() => _sessions.doc().id;
 
+  static String _classId(DateTime date) =>
+      "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  /// Marca la asistencia de un estudiante en una clase (fecha).
+  ///
+  /// MODELO CANÓNICO unificado con la Web: un doc PLANO por (estudiante, clase)
+  /// en `courses/{courseId}/attendance/{studentId}__{classId}` con `status`
+  /// (present/absent/late/excused). Tras marcar, recalcula `attendanceRate` en la
+  /// matrícula, que alimenta el gating de certificación (igual que el servidor).
   Future<void> markAttendance({
     required String courseId,
     required String studentId,
     required String studentName,
     required bool attended,
     required DateTime date,
+    String? status, // 'present'|'absent'|'late'|'excused' (anula `attended`)
   }) async {
-    final dateStr =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final classId = _classId(date);
+    final st = status ?? (attended ? 'present' : 'absent');
     final ref = _courses
         .doc(courseId)
         .collection('attendance')
-        .doc(dateStr)
-        .collection('records')
-        .doc(studentId);
+        .doc('${studentId}__$classId');
 
     await ref.set({
+      'courseId': courseId,
+      'classId': classId,
+      'classLabel': 'Clase $classId',
       'studentId': studentId,
       'studentName': studentName,
-      'attended': attended,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+      'status': st,
+      'attended': st == 'present' || st == 'late', // compat de lectura
+      'mode': 'presencial',
+      'date': Timestamp.fromDate(date),
+      'markedBy': FirebaseAuth.instance.currentUser?.uid ?? '',
+      'markedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _recomputeAttendanceSummary(courseId, studentId);
+  }
+
+  /// Recalcula y persiste el resumen de asistencia del estudiante en su matrícula.
+  /// present+late cuentan; excused se excluye del denominador; absent penaliza.
+  Future<void> _recomputeAttendanceSummary(
+      String courseId, String studentId) async {
+    final snap = await _courses
+        .doc(courseId)
+        .collection('attendance')
+        .where('studentId', isEqualTo: studentId)
+        .get();
+    int present = 0, late = 0, absent = 0, excused = 0;
+    for (final d in snap.docs) {
+      switch ((d.data())['status']) {
+        case 'present':
+          present++;
+          break;
+        case 'late':
+          late++;
+          break;
+        case 'excused':
+          excused++;
+          break;
+        default:
+          absent++;
+      }
+    }
+    final attended = present + late;
+    final total = present + late + absent; // excused excluido
+    final rate = total > 0 ? ((attended / total) * 100).round() : 100;
+    await _courses.doc(courseId).collection('enrollments').doc(studentId).set({
+      'attendanceRate': rate,
+      'attendancePresent': attended,
+      'attendanceTotal': total,
+      'attendanceExcused': excused,
+      'attendanceUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Stream<List<Map<String, dynamic>>> watchAttendance(
       String courseId, DateTime date) {
-    final dateStr =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final classId = _classId(date);
     return _courses
         .doc(courseId)
         .collection('attendance')
-        .doc(dateStr)
-        .collection('records')
+        .where('classId', isEqualTo: classId)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => d.data()).toList());
+        .map((snap) => snap.docs.map((d) {
+              final m = d.data();
+              final status = (m['status'] as String?) ??
+                  ((m['attended'] == true) ? 'present' : 'absent');
+              return {
+                'studentId': m['studentId'],
+                'studentName': m['studentName'],
+                'status': status,
+                'attended':
+                    m['attended'] ?? (status == 'present' || status == 'late'),
+              };
+            }).toList());
   }
 
   Stream<List<Map<String, dynamic>>> watchCourseAttendanceHistory(
@@ -471,10 +596,10 @@ class FirestoreService {
     return _courses
         .doc(courseId)
         .collection('attendance')
-        .orderBy(FieldPath.documentId, descending: true)
+        .orderBy('date', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => {'date': d.id, ...d.data()}).toList());
+        .map(
+            (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
   }
 
   Future<String> createSession({
@@ -547,14 +672,28 @@ class FirestoreService {
     return SessionModel.fromFirestore(doc);
   }
 
-  Future<List<SessionModel>> getStudentSessions(String studentId,
-      {int limit = 30}) async {
-    final snap = await _sessions
-        .where('studentId', isEqualTo: studentId)
-        .orderBy('startedAt', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs.map(SessionModel.fromFirestore).toList();
+  Future<List<SessionModel>> getStudentSessions(
+    String studentId, {
+    int limit = 30,
+  }) async {
+    try {
+      final snap = await _sessions
+          .where('studentId', isEqualTo: studentId)
+          .orderBy('startedAt', descending: true)
+          .limit(limit)
+          .get();
+
+      return snap.docs.map(SessionModel.fromFirestore).toList();
+    } catch (e, st) {
+      // Degradar a lista vacía en vez de propagar. Dos casos reales:
+      //  1) Logout: el provider sigue vivo un instante sin auth → PERMISSION_DENIED.
+      //  2) Instructor-por-membership (rol global USUARIO) viendo las sesiones de
+      //     un alumno: las rules §11 exigen rol global instructor/admin.
+      // En ambos, una pantalla de historial vacía es preferible a una excepción.
+      debugPrint('getStudentSessions sin permiso/error (degradado a []): $e');
+      debugPrintStack(stackTrace: st);
+      return const [];
+    }
   }
 
   Future<List<SessionModel>> getCourseSessions(String courseId,
@@ -643,6 +782,14 @@ class FirestoreService {
       'title': title,
       'description': description ?? '',
       'instructorId': instructorId,
+      // `createdBy` e `instructorIds` (modelo nuevo) son los campos que las
+      // Firestore rules §10 exigen para autorizar la CREACIÓN por un instructor
+      // (`createdBy == uid()`) y la ruta de UPDATE del dueño. Sin ellos un
+      // instructor-por-membership (rol global USUARIO) no podía crear ni editar
+      // su propio curso. `isInstructorOfCourse` también los usa para autorizar
+      // asistencia e inscripciones.
+      'createdBy': instructorId,
+      'instructorIds': [instructorId],
       'instructorName': instructorName,
       'inviteCode': inviteCode.toUpperCase(),
       'requiredScore': requiredScore,
@@ -698,6 +845,11 @@ class FirestoreService {
   }
 
   /// Elimina la inscripción de un alumno en un curso.
+  ///
+  /// El conteo de alumnos se deriva en vivo (count() sobre la subcolección
+  /// enrollments) en los paneles de la web, por lo que NO decrementamos el
+  /// contador denormalizado studentCount: hacerlo lo volvía negativo, ya que
+  /// las inscripciones por QR no lo incrementan pero las bajas sí restaban.
   Future<void> unenrollStudent(String courseId, String studentId) async {
     await _db
         .collection(AppConstants.colCourses)
@@ -705,11 +857,6 @@ class FirestoreService {
         .collection(AppConstants.subColEnrollments)
         .doc(studentId)
         .delete();
-    // Decrementar contador de alumnos en el curso
-    await _courses.doc(courseId).update({
-      'studentCount': FieldValue.increment(-1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
   }
 
   /// Asigna un instructor a un curso.
@@ -851,9 +998,14 @@ class FirestoreService {
         .collection('enrollments')
         .orderBy('studentName')
         .snapshots()
-        .asyncMap((snap) async {
-      final enrollments = snap.docs.map((d) => d.data()).toList();
-      return enrollments;
+        .map((snap) => snap.docs.map((d) => d.data()).toList())
+        // La lista de inscritos es OPCIONAL para la UI: si el caller no está
+        // asignado al curso (rules §11: no es admin/instructor del curso) o el
+        // doc del curso es antiguo y carece de createdBy/instructorIds, la query
+        // a /enrollments lanza PERMISSION_DENIED. Degradamos a vacío en vez de
+        // propagar al árbol de widgets (mismo patrón que watchUsersStatus).
+        .handleError((Object e) {
+      debugPrint('watchCourseStudents sin permiso/error (degradado a []): $e');
     });
   }
 
@@ -864,7 +1016,14 @@ class FirestoreService {
     return _users
         .where(FieldPath.documentId, whereIn: userIds.take(30).toList())
         .snapshots()
-        .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
+        .map((snap) => snap.docs.map(UserModel.fromFirestore).toList())
+        // La presencia (punto "en línea") es OPCIONAL. Un instructor-por-
+        // membership (rol global USUARIO) no puede leer /users de otros por las
+        // rules §7; durante el logout tampoco hay auth. En ambos casos emitimos
+        // vacío en lugar de propagar PERMISSION_DENIED al árbol de widgets.
+        .handleError((Object e) {
+          debugPrint('watchUsersStatus sin permiso/error (sin presencia): $e');
+        });
   }
 
   Future<List<String>> getStudentEnrolledCourseIds(String studentId) async {

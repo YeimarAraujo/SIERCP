@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -114,9 +115,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: const Center(
-          child: CircularProgressIndicator(color: AppColors.brand),
-        ),
+        body: const AppLogoLoader(),
       );
     }
 

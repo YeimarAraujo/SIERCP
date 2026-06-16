@@ -84,6 +84,7 @@ class _ModuleQuizScreenState extends State<ModuleQuizScreen> {
                               moduleId: widget.module.id,
                               studentId: widget.studentId,
                             );
+                        ref.invalidate(studentProgressProvider(widget.courseId));
                         if (context.mounted) context.pop();
                       },
                       style: ElevatedButton.styleFrom(

@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
-import 'package:siercp/features/guides/data/models/guide.dart';
+import 'package:siercp/features/courses/data/models/course_module.dart';
+import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
-import 'package:siercp/features/guides/presentation/providers/guide_provider.dart';
 import 'package:siercp/core/theme/theme.dart';
-import 'package:siercp/core/widgets/guide_progress_card.dart';
-import 'package:siercp/core/widgets/guide_list_tile.dart';
-import 'package:siercp/core/widgets/category_filter_chips.dart';
 import 'package:siercp/core/services/bulk_upload_service.dart';
 import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/features/users/data/models/user.dart';
@@ -71,6 +69,14 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               pinned: true,
               stretch: true,
               backgroundColor: theme.scaffoldBackgroundColor,
+              actions: [
+                IconButton(
+                  tooltip: 'Guías y material',
+                  icon: const Icon(Icons.menu_book_outlined),
+                  onPressed: () =>
+                      context.push('/courses/${widget.courseId}/guides'),
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 background: _InstructorHeaderCard(course: course),
               ),
@@ -104,8 +110,8 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
         body: TabBarView(
           controller: _tabCtrl,
           children: [
-            // ── Tab 1: Guías ─────────────────────────────────────────────────
-            _GuidesTab(courseId: widget.courseId, canEdit: canEdit),
+            // ── Tab 1: Módulos (por tipo) ────────────────────────────────────
+            _ModulesTab(courseId: widget.courseId, canEdit: canEdit),
 
             // ── Tab 2: Estudiantes ────────────────────────────────────────────
             _StudentsTab(courseId: widget.courseId, canEdit: canEdit),
@@ -287,86 +293,208 @@ class _MetaBadge extends StatelessWidget {
   }
 }
 
-// ─── Tab Guías ────────────────────────────────────────────────────────────────
-class _GuidesTab extends ConsumerWidget {
+// ─── Tab Módulos (por tipo) ─────────────────────────────────────────────────
+// Muestra los módulos REALES del curso (courses/{id}/modules) clasificados por
+// tipo: Teoría · Evaluación teórica · Práctica guiada · Certificación. La gestión
+// completa (alta/edición con configuración por tipo, borrado, reordenamiento)
+// vive en CourseEditorScreen (`/course-editor/:id`), la única fuente de verdad.
+class _ModulesTab extends ConsumerWidget {
   final String courseId;
   final bool canEdit;
-  const _GuidesTab({required this.courseId, required this.canEdit});
+  const _ModulesTab({required this.courseId, required this.canEdit});
+
+  IconData _iconForType(ModuleType t) {
+    switch (t) {
+      case ModuleType.teoria:
+        return Icons.menu_book_outlined;
+      case ModuleType.evaluacion_teorica:
+        return Icons.quiz_outlined;
+      case ModuleType.practica_guiada:
+        return Icons.monitor_heart_outlined;
+      case ModuleType.certificacion:
+        return Icons.workspace_premium_outlined;
+    }
+  }
+
+  Color _colorForType(ModuleType t) {
+    switch (t) {
+      case ModuleType.teoria:
+        return AppColors.brand;
+      case ModuleType.evaluacion_teorica:
+        return AppColors.amber;
+      case ModuleType.practica_guiada:
+        return AppColors.red;
+      case ModuleType.certificacion:
+        return AppColors.green;
+    }
+  }
+
+  // Resumen de la configuración del módulo según su tipo, para que el instructor
+  // vea de un vistazo que las opciones correctas están cargadas.
+  String _subtitleForModule(CourseModule m) {
+    switch (m.type) {
+      case ModuleType.teoria:
+        final parts = <String>[
+          if (m.pdfUrl != null && m.pdfUrl!.isNotEmpty) 'PDF',
+          if (m.videoUrl != null && m.videoUrl!.isNotEmpty) 'Video',
+          if (m.textContent != null && m.textContent!.isNotEmpty) 'Texto',
+        ];
+        return parts.isEmpty ? 'Sin contenido aún' : parts.join(' · ');
+      case ModuleType.evaluacion_teorica:
+        return '${m.questions.length} pregunta(s) · ${m.passingScore}% para aprobar';
+      case ModuleType.practica_guiada:
+        return m.requiredSessions.isEmpty
+            ? 'Sesiones de RCP en el simulador'
+            : '${m.requiredSessions.length} sesión(es) requerida(s)';
+      case ModuleType.certificacion:
+        return 'Certificado automático al completar';
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user          = ref.watch(currentUserProvider);
-    final guidesAsync   = ref.watch(courseGuidesProvider(courseId));
-    final progressAsync = ref.watch(userGuideProgressProvider(user?.id ?? ''));
-    final selectedCat   = ref.watch(selectedGuideCategoryProvider);
+    final modulesAsync = ref.watch(courseModulesProvider(courseId));
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
-    return guidesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
-      error:   (e, _) => Center(child: Text('Error: $e')),
-      data: (guides) {
-        final progressMap = progressAsync.value ?? {};
-        final required    = guides.where((g) => g.required).length;
-        final completed   = guides.where((g) => progressMap[g.id]?.completed ?? false).length;
-        final reqDone     = guides.where((g) => g.required && (progressMap[g.id]?.completed ?? false)).length;
-        final summary     = GuideProgressSummary(
-          totalGuides: guides.length, completedGuides: completed,
-          requiredGuides: required, requiredCompleted: reqDone,
-        );
-        final filtered = selectedCat == null
-            ? guides
-            : guides.where((g) => g.category == selectedCat).toList();
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await context.push('/course-editor/$courseId');
+                ref.invalidate(courseModulesProvider(courseId));
+              },
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Gestionar módulos'),
+            )
+          : null,
+      body: modulesAsync.when(
+        loading: () =>
+            const AppLogoLoader(),
+        error: (e, _) =>
+            Center(child: Text('Error: $e', style: TextStyle(color: textS))),
+        data: (modules) {
+          if (modules.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.layers_outlined,
+                      size: 52,
+                      color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+                  const SizedBox(height: 12),
+                  Text('Este curso aún no tiene módulos',
+                      style: TextStyle(color: textS, fontSize: 13)),
+                  if (canEdit) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Crear primer módulo'),
+                      onPressed: () async {
+                        await context.push('/course-editor/$courseId');
+                        ref.invalidate(courseModulesProvider(courseId));
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }
 
-        return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(courseGuidesProvider(courseId)),
-          color: AppColors.brand,
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(child: GuideProgressCard(summary: summary)),
-              const SliverToBoxAdapter(child: SizedBox(height: 4)),
-              const SliverToBoxAdapter(child: CategoryFilterChips()),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              if (filtered.isEmpty)
-                SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.menu_book_outlined, size: 48,
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4)),
-                        const SizedBox(height: 12),
-                        Text(
-                          guides.isEmpty ? 'Aún no hay guías en este curso' : 'Sin guías en esta categoría',
-                          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13),
+          return RefreshIndicator(
+            color: AppColors.brand,
+            onRefresh: () async => ref.invalidate(courseModulesProvider(courseId)),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              itemCount: modules.length,
+              itemBuilder: (ctx, i) {
+                final m = modules[i];
+                final color = _colorForType(m.type);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                        width: 0.5),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      contentPadding:
+                          const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      leading: Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
-                        if (canEdit && guides.isEmpty) ...[
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.add_rounded, size: 16),
-                            label: const Text('Agregar primera guía'),
-                            onPressed: () => context.push('/courses/$courseId/add-guide'),
+                        child: Icon(_iconForType(m.type), color: color, size: 22),
+                      ),
+                      title: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                        ],
-                      ],
+                          child: Text('M${i + 1}',
+                              style: TextStyle(
+                                  color: color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(m.title,
+                              style: TextStyle(
+                                  color: textP,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ]),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(m.type.label,
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(_subtitleForModule(m),
+                                style: TextStyle(color: textS, fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                      trailing: canEdit
+                          ? Icon(Icons.edit_outlined, size: 18, color: textS)
+                          : null,
+                      onTap: canEdit
+                          ? () async {
+                              await context.push('/course-editor/$courseId');
+                              ref.invalidate(courseModulesProvider(courseId));
+                            }
+                          : null,
                     ),
                   ),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => GuideListTile(
-                      guide: filtered[i],
-                      progress: progressMap[filtered[i].id],
-                      canManage: canEdit,
-                      onTap: () => context.push('/guides/${filtered[i].id}/view', extra: filtered[i]),
-                    ),
-                    childCount: filtered.length,
-                  ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
-          ),
-        );
-      },
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -485,7 +613,7 @@ class _StudentsTab extends ConsumerWidget {
           ),
         Expanded(
           child: studentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            loading: () => const AppLogoLoader(),
             error:   (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textS))),
             data: (students) => students.isEmpty
                 ? Center(
@@ -705,11 +833,11 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
 
         Expanded(
           child: studentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+            loading: () => const AppLogoLoader(),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (students) {
               return attendanceAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+                loading: () => const AppLogoLoader(),
                 error: (e, _) => Center(child: Text('Error al cargar asistencia: $e')),
                 data: (records) {
                   final attendanceMap = {for (var r in records) r['studentId'] as String: r['attended'] as bool};
@@ -795,7 +923,7 @@ class _ScenariosTab extends ConsumerWidget {
     final textS          = Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return scenariosAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+      loading: () => const AppLogoLoader(),
       error:   (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textS))),
       data: (scenarios) => GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -877,7 +1005,7 @@ class _StatsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(courseStudentsProvider(courseId));
     return studentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+      loading: () => const AppLogoLoader(),
       error:   (e, _) => Center(child: Text('Error: $e')),
       data: (students) {
         final count    = students.length;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,7 +18,7 @@ class UserDetailScreen extends ConsumerWidget {
 
     return usersAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.brand)),
+        body: AppLogoLoader(),
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Error')),
@@ -484,8 +485,7 @@ class _CertReviewSectionState extends ConsumerState<_CertReviewSection> {
         if (snap.connectionState == ConnectionState.waiting && docs.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-                child: CircularProgressIndicator(color: AppColors.brand)),
+            child: AppLogoLoader(),
           );
         }
         if (docs.isEmpty) return const SizedBox.shrink();

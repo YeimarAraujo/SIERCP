@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -103,8 +105,28 @@ class WompiTransaction {
 //   7. Client watches transactions/{transactionId} for status APPROVED.
 //
 class PaymentService {
-  final FirebaseFunctions _fn = FirebaseFunctions.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final http.Client _client = http.Client();
+
+  /// POST autenticado a las Vercel API routes (plan Spark — sin Cloud Functions).
+  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) {
+      throw Exception('Debes iniciar sesión para realizar un pago.');
+    }
+    final res = await _client.post(
+      Uri.parse('${AppConstants.apiBaseUrl}$path'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    final data = res.body.isNotEmpty
+        ? jsonDecode(res.body) as Map<String, dynamic>
+        : <String, dynamic>{};
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception((data['error'] as String?) ?? 'Error de pago (${res.statusCode}).');
+    }
+    return data;
+  }
 
   // ── Plan subscription ──────────────────────────────────────────────────────
 
@@ -117,24 +139,15 @@ class PaymentService {
     required PlanType plan,
     required String institutionId,
   }) async {
-    try {
-      final result = await _fn
-          .httpsCallable('createWompiPlanTransaction')
-          .call<Map<Object?, Object?>>({
-        'planType': plan.name,
-        'institutionId': institutionId,
-      });
-
-      final data = Map<String, dynamic>.from(result.data as Map);
-      return WompiTransaction(
-        transactionId: data['transactionId'] as String,
-        redirectUrl: data['redirectUrl'] as String,
-        amountCents: (data['amountCents'] as num).toInt(),
-      );
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('[PaymentService] initiatePlanPayment error: ${e.code} ${e.message}');
-      throw _mapFunctionError(e);
-    }
+    final data = await _post('/checkout/plan-subscription', {
+      'planType': plan.name,
+      'institutionId': institutionId,
+    });
+    return WompiTransaction(
+      transactionId: data['transactionId'] as String,
+      redirectUrl: data['redirectUrl'] as String,
+      amountCents: (data['amountCents'] as num).toInt(),
+    );
   }
 
   // ── Course enrollment ──────────────────────────────────────────────────────
@@ -150,27 +163,18 @@ class PaymentService {
     String? templateId,
     String? institutionId,
   }) async {
-    try {
-      final result = await _fn
-          .httpsCallable('createWompiCourseTransaction')
-          .call<Map<Object?, Object?>>({
-        'cursoSlug': cursoSlug,
-        if (cohortId != null) 'cohortId': cohortId,
-        if (templateId != null) 'templateId': templateId,
-        if (institutionId != null) 'institutionId': institutionId,
-      });
-
-      final data = Map<String, dynamic>.from(result.data as Map);
-      return WompiTransaction(
-        transactionId: data['transactionId'] as String,
-        redirectUrl: data['redirectUrl'] as String,
-        amountCents: (data['amountCents'] as num).toInt(),
-        courseTitle: data['courseTitle'] as String?,
-      );
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('[PaymentService] initiateCoursePayment error: ${e.code} ${e.message}');
-      throw _mapFunctionError(e);
-    }
+    final data = await _post('/checkout/course', {
+      'cursoSlug': cursoSlug,
+      if (cohortId != null) 'cohortId': cohortId,
+      if (templateId != null) 'templateId': templateId,
+      if (institutionId != null) 'institutionId': institutionId,
+    });
+    return WompiTransaction(
+      transactionId: data['transactionId'] as String,
+      redirectUrl: data['redirectUrl'] as String,
+      amountCents: (data['amountCents'] as num).toInt(),
+      courseTitle: data['courseTitle'] as String?,
+    );
   }
 
   // ── Open payment URL ───────────────────────────────────────────────────────
@@ -209,19 +213,4 @@ class PaymentService {
     return TransactionStatus.fromString(snap.data()?['status'] as String?);
   }
 
-  // ── Error mapping ──────────────────────────────────────────────────────────
-
-  Exception _mapFunctionError(FirebaseFunctionsException e) {
-    return switch (e.code) {
-      'unauthenticated' => Exception('Debes iniciar sesión para realizar un pago.'),
-      'permission-denied' =>
-        Exception('No tienes permiso para gestionar esta suscripción.'),
-      'not-found' => Exception('Curso o plan no encontrado. Verifica los datos e intenta de nuevo.'),
-      'already-exists' => Exception('Ya tienes una inscripción activa para este curso.'),
-      'invalid-argument' => Exception('Datos de pago inválidos: ${e.message}'),
-      'resource-exhausted' => Exception('Demasiados intentos. Espera un momento e intenta de nuevo.'),
-      'internal' => Exception('Error en el servidor de pagos. Intenta más tarde.'),
-      _ => Exception('Error de pago: ${e.message}'),
-    };
-  }
 }

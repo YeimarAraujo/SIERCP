@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -40,7 +41,7 @@ class ModulePracticaScreen extends ConsumerWidget {
         ),
       ),
       body: sessionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AppLogoLoader(),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (sessions) {
           // Filtrar sesiones completadas de este curso y este alumno
@@ -158,6 +159,7 @@ class ModulePracticaScreen extends ConsumerWidget {
                             moduleId: module.id,
                             studentId: user?.id ?? '',
                           );
+                      ref.invalidate(studentProgressProvider(courseId));
                       if (context.mounted) {
                         context.pop();
                         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,12 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 
 final courseModulesProvider = FutureProvider.family<List<CourseModule>, String>(
   (ref, courseId) => ref.read(courseServiceProvider).getModules(courseId),
 );
 
 final courseServiceProvider = Provider((ref) => CourseService());
+
+/// Conjunto de IDs de módulos completados por el usuario actual en un curso.
+/// Se invalida (`ref.invalidate`) cada vez que el estudiante completa un módulo
+/// para refrescar el desbloqueo secuencial del roadmap.
+final studentProgressProvider =
+    FutureProvider.family<Set<String>, String>((ref, courseId) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return <String>{};
+  return ref.read(courseServiceProvider).getStudentProgress(courseId, user.id);
+});
 
 class CourseService {
   final _db = FirebaseFirestore.instance;

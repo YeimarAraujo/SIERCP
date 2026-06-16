@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
-import 'package:siercp/features/users/data/models/user.dart' show CertVerificationStatus;
+import 'package:siercp/features/users/data/models/user.dart'
+    show CertVerificationStatus;
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/core/widgets/metric_card.dart';
@@ -24,18 +25,21 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user    = ref.watch(currentUserProvider);
-    final orgCtx  = ref.watch(orgContextProvider);
-    final loc     = AppLocalizations.of(context)!;
+    final user = ref.watch(currentUserProvider);
+    final orgCtx = ref.watch(orgContextProvider);
+    final loc = AppLocalizations.of(context)!;
     // Detecta instructor por asignación directa en curso
     final isInstructorOnCourse =
         ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
     // Usar membership como primario; si no, detectar por asignación de curso
-    final isAdmin      = orgCtx.isAdmin || (user?.isAdmin ?? false);
+    final isAdmin = orgCtx.isAdmin || (user?.isAdmin ?? false);
     final isInstructor = !isAdmin &&
-        (orgCtx.isInstructor || (user?.isInstructor ?? false) || isInstructorOnCourse);
-    final isUsuario    = !isAdmin && !isInstructor;
-    final certApproved = user?.certVerification == CertVerificationStatus.approved;
+        (orgCtx.isInstructor ||
+            (user?.isInstructor ?? false) ||
+            isInstructorOnCourse);
+    final isUsuario = !isAdmin && !isInstructor;
+    final certApproved =
+        user?.certVerification == CertVerificationStatus.approved;
     final theme = Theme.of(context);
 
     // BLE State
@@ -72,7 +76,7 @@ class HomeScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'SIERCP'.toUpperCase(),
+                                    'SICAP'.toUpperCase(),
                                     style: TextStyle(
                                       color: theme.colorScheme.primary
                                           .withValues(alpha: 0.6),
@@ -84,8 +88,10 @@ class HomeScreen extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     isAdmin
-                                        ? (orgCtx.activeOrgName ?? loc.adminDashboardTitle)
-                                        : loc.welcomeName(user?.firstName ?? loc.user),
+                                        ? (orgCtx.activeOrgName ??
+                                            loc.adminDashboardTitle)
+                                        : loc.welcomeName(
+                                            user?.firstName ?? loc.user),
                                     style: TextStyle(
                                       color: theme.textTheme.bodyLarge?.color,
                                       fontSize: 26,
@@ -169,12 +175,12 @@ class HomeScreen extends ConsumerWidget {
                     // ── Metrics / Activity (Ocultar para Admin si se prefiere) ───
                     if (!isAdmin) ...[
                       // XP / Level strip
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(24, 24, 24, 0),
-                          child: XpStrip(),
-                        ),
-                      ),
+                      // const SliverToBoxAdapter(
+                      //   child: Padding(
+                      //     padding: EdgeInsets.fromLTRB(24, 24, 24, 0),
+                      //     child: XpStrip(),
+                      //   ),
+                      // ),
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
@@ -202,10 +208,10 @@ class HomeScreen extends ConsumerWidget {
                               return GridView.count(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                crossAxisCount: isLandscape ? 4 : 2,
+                                crossAxisCount: isLandscape ? 4 : 4,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
-                                childAspectRatio: isLandscape ? 1.4 : 1.5,
+                                childAspectRatio: isLandscape ? 1.6 : 1.2,
                                 children: [
                                   MetricCard(
                                     label: loc.sessionsToday,
@@ -408,7 +414,8 @@ class _CalendarBannerTile extends StatelessWidget {
                     loc.calendarBannerSubtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.55),
                     ),
                   ),
                 ],
@@ -451,11 +458,14 @@ class _AdminDashboard extends StatelessWidget {
                   value: '...',
                   icon: Icons.people_outline,
                   color: AppColors.brand,
-                  stream: ref.watch(orgUsersProvider).whenData(
-                      (members) => members.where((m) =>
-                          m.role == AppConstants.roleUsuario ||
-                          m.role == AppConstants.roleUsuarioProfesional ||
-                          m.role == AppConstants.roleUsuarioSST).length.toString()),
+                  stream: ref.watch(orgUsersProvider).whenData((members) =>
+                      members
+                          .where((m) =>
+                              m.role == AppConstants.roleUsuario ||
+                              m.role == AppConstants.roleUsuarioProfesional ||
+                              m.role == AppConstants.roleUsuarioSST)
+                          .length
+                          .toString()),
                 ),
                 const SizedBox(width: 12),
                 _AdminStatPill(
@@ -543,24 +553,24 @@ class _AdminOrgChart extends StatelessWidget {
   const _AdminOrgChart({required this.ref});
 
   static const _roleColors = {
-    AppConstants.roleInstructor:         AppColors.accent,
-    AppConstants.roleUsuario:            AppColors.brand,
+    AppConstants.roleInstructor: AppColors.accent,
+    AppConstants.roleUsuario: AppColors.brand,
     AppConstants.roleUsuarioProfesional: AppColors.cyan,
-    AppConstants.roleUsuarioSST:         AppColors.green,
-    AppConstants.roleAdmin:              AppColors.amber,
+    AppConstants.roleUsuarioSST: AppColors.green,
+    AppConstants.roleAdmin: AppColors.amber,
   };
 
   static const _roleLabels = {
-    AppConstants.roleInstructor:         'Instructor',
-    AppConstants.roleUsuario:            'Participante',
+    AppConstants.roleInstructor: 'Instructor',
+    AppConstants.roleUsuario: 'Participante',
     AppConstants.roleUsuarioProfesional: 'Profesional',
-    AppConstants.roleUsuarioSST:         'SST',
-    AppConstants.roleAdmin:              'Admin',
+    AppConstants.roleUsuarioSST: 'SST',
+    AppConstants.roleAdmin: 'Admin',
   };
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final membersAsync = ref.watch(orgUsersProvider);
 
@@ -587,8 +597,8 @@ class _AdminOrgChart extends StatelessWidget {
           Text(
             'Distribución de roles',
             style: TextStyle(
-              color:      theme.textTheme.bodyLarge?.color,
-              fontSize:   14,
+              color: theme.textTheme.bodyLarge?.color,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -625,13 +635,13 @@ class _AdminOrgChart extends StatelessWidget {
               final sections = counts.entries.map((e) {
                 final color = _roleColors[e.key] ?? AppColors.textSecondary;
                 return PieChartSectionData(
-                  value:          e.value.toDouble(),
-                  color:          color,
-                  radius:         48,
-                  title:          '${e.value}',
+                  value: e.value.toDouble(),
+                  color: color,
+                  radius: 48,
+                  title: '${e.value}',
                   titleStyle: const TextStyle(
-                    color:      Colors.white,
-                    fontSize:   12,
+                    color: Colors.white,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 );
@@ -641,12 +651,12 @@ class _AdminOrgChart extends StatelessWidget {
                 children: [
                   SizedBox(
                     height: 160,
-                    width:  160,
+                    width: 160,
                     child: PieChart(
                       PieChartData(
-                        sections:         sections,
+                        sections: sections,
                         centerSpaceRadius: 40,
-                        sectionsSpace:    3,
+                        sectionsSpace: 3,
                         startDegreeOffset: -90,
                       ),
                     ),
@@ -658,16 +668,15 @@ class _AdminOrgChart extends StatelessWidget {
                       children: counts.entries.map((e) {
                         final color =
                             _roleColors[e.key] ?? AppColors.textSecondary;
-                        final label =
-                            _roleLabels[e.key] ?? e.key;
-                        final pct =
-                            (e.value / members.length * 100).round();
+                        final label = _roleLabels[e.key] ?? e.key;
+                        final pct = (e.value / members.length * 100).round();
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             children: [
                               Container(
-                                width: 10, height: 10,
+                                width: 10,
+                                height: 10,
                                 decoration: BoxDecoration(
                                     color: color, shape: BoxShape.circle),
                               ),
@@ -684,8 +693,8 @@ class _AdminOrgChart extends StatelessWidget {
                               Text(
                                 '$pct%',
                                 style: TextStyle(
-                                  color:      color,
-                                  fontSize:   12,
+                                  color: color,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -1089,7 +1098,8 @@ class _InstructorCourseCard extends ConsumerWidget {
                             height: 10,
                             child: CircularProgressIndicator(
                                 strokeWidth: 1.5, color: AppColors.brand)),
-                        error: (_, __) => Text(loc.studentsCount(course.studentCount ?? 0),
+                        error: (_, __) => Text(
+                            loc.studentsCount(course.studentCount ?? 0),
                             style: TextStyle(color: textS, fontSize: 11)),
                         data: (list) => Text(loc.studentsCount(list.length),
                             style: TextStyle(color: textS, fontSize: 11)),
@@ -1302,7 +1312,8 @@ class _StudentCourseHero extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(loc.approvedAndSessions(approved, requiredCount, totalDone),
+                Text(
+                    loc.approvedAndSessions(approved, requiredCount, totalDone),
                     style:
                         const TextStyle(color: Colors.white54, fontSize: 10)),
                 Text('${(progress * 100).toInt()}%',
@@ -1435,10 +1446,12 @@ class _StudentDashboard extends StatelessWidget {
                   children: [
                     SectionLabel(loc.continueLearning),
                     const SizedBox(height: 12),
-                    ...courses.take(2).map((c) => _StudentCourseHero(
-                          course: c,
-                          isConnected: isConnected,
-                        )),
+                    ...courses
+                        .take(2)
+                        .map((c) => _StudentCourseHero(
+                              course: c,
+                              isConnected: isConnected,
+                            )),
                   ],
                 ),
               )
@@ -1456,10 +1469,10 @@ class _StudentDashboard extends StatelessWidget {
 class _InstructorCtaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1475,7 +1488,7 @@ class _InstructorCtaCard extends StatelessWidget {
                   AppColors.brand.withValues(alpha: 0.04),
                 ],
           begin: Alignment.topLeft,
-          end:   Alignment.bottomRight,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
@@ -1488,7 +1501,7 @@ class _InstructorCtaCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color:        AppColors.accent.withValues(alpha: 0.12),
+              color: AppColors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: const Icon(Icons.school_outlined,
@@ -1501,11 +1514,12 @@ class _InstructorCtaCard extends StatelessWidget {
               children: [
                 Text('¿Quieres ser Instructor?',
                     style: TextStyle(
-                        color:      textP,
+                        color: textP,
                         fontWeight: FontWeight.w800,
-                        fontSize:   14)),
+                        fontSize: 14)),
                 const SizedBox(height: 3),
-                Text('Sube tu licencia SST y certificados profesionales '
+                Text(
+                    'Sube tu licencia SST y certificados profesionales '
                     'para operar de forma independiente.',
                     style: TextStyle(color: textS, fontSize: 11, height: 1.4)),
               ],
@@ -1516,8 +1530,7 @@ class _InstructorCtaCard extends StatelessWidget {
             onPressed: () => context.go('/instructor-apply'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accent,
-              padding:         const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md)),
             ),

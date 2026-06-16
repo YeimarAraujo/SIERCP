@@ -1,5 +1,6 @@
 // lib/screens/scenario_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -419,7 +420,7 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
         context.go('/session?scenario=${widget.scenarioId}');
       });
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: const AppLogoLoader(),
       );
     }
     final theme = Theme.of(context);
@@ -637,11 +638,10 @@ class _PatientCard extends StatelessWidget {
                         color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'PACIENTE',
                         style: TextStyle(
-                          color: Colors
-                              .red, // generic but placeholder-ish, better use 'color'
+                          color: color,
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
@@ -1055,7 +1055,8 @@ class _BottomActionState extends ConsumerState<_BottomAction> {
                       onPressed: () {
                         if (ConnectionGuard.checkConnection(context, ref)) {
                           _player.stop();
-                          context.go('/session?scenario=${widget.scenario.id}');
+                          context.go(
+                              '/scenario-guide?scenario=${widget.scenario.id}');
                         }
                       },
                       icon: const Icon(Icons.play_arrow_rounded, size: 18),

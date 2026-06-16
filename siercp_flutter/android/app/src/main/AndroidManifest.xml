@@ -10,6 +10,9 @@
     <!-- CÁMARA — requerido para mobile_scanner (QR) -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- NOTIFICACIONES — requerido en Android 13+ (API 33) para FCM/local -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- BLUETOOTH — Requerido para flutter_blue_plus -->
     <!-- Android 11 y anteriores -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
@@ -22,9 +25,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
-        android:label="siercp"
+        android:label="Sicap"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/logo">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -43,9 +46,24 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Ícono por defecto para notificaciones FCM (usa el launcher del app).
+             No fijamos un channel_id propio: si no existe, el SDK de Firebase
+             crea un canal por defecto automáticamente, así no hace falta código
+             nativo ni paquetes extra para mostrar la notificación. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/launcher_icon" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Desactiva Impeller (Vulkan): algunas GPU Mali tienen drivers Vulkan
+             defectuosos que provocan pantalla en blanco y "Lost connection to
+             device". Con esto se usa el render clásico (Skia/OpenGL). -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 
     <queries>

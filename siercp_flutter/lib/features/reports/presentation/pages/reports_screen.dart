@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
@@ -240,8 +241,7 @@ class _GenerateTab extends ConsumerWidget {
     final canGenerate = user?.isInstructor == true || user?.isAdmin == true;
 
     return coursesAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.brand)),
+      loading: () => const AppLogoLoader(),
       error: (e, _) =>
           Center(child: Text('Error: $e', style: TextStyle(color: textS))),
       data: (courses) {
@@ -305,8 +305,7 @@ class _GenerateTab extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(
-          child: CircularProgressIndicator(color: AppColors.brand)),
+      builder: (ctx) => const AppLogoLoader(),
     );
 
     try {

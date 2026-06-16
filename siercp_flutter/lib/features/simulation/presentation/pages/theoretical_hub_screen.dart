@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -51,9 +52,7 @@ class TheoreticalHubScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Expanded(
               child: topicsAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.brand),
-                ),
+                loading: () => const AppLogoLoader(),
                 error: (e, _) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

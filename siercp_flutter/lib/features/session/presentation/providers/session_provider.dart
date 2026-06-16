@@ -49,6 +49,11 @@ final courseActiveSessionsProvider = StreamProvider.family<List<SessionModel>, S
 });
 
 final studentSessionsProvider = FutureProvider.family<List<SessionModel>, String>((ref, studentId) {
+  // Evita PERMISSION_DENIED al cerrar sesión: el provider sigue vivo un instante
+  // tras el logout. Sin usuario autenticado no consultamos Firestore.
+  if (ref.watch(currentUserProvider) == null) {
+    return Future.value(const <SessionModel>[]);
+  }
   return ref.read(firestoreServiceProvider).getStudentSessions(studentId);
 });
 
@@ -817,6 +822,14 @@ final courseAttendanceHistoryProvider = StreamProvider.family<List<Map<String, d
 
 // ─── Users Status ────────────────────────────────────────────────────────────
 final usersStatusProvider = StreamProvider.family<List<UserModel>, List<String>>((ref, userIds) {
+  // Solo admin/instructor pueden leer /users de otros (firestore.rules §7:
+  // isOwner || isAdminRole || isInstructorRole). Para un USUARIO la query whereIn
+  // sobre /users lanzaría PERMISSION_DENIED; ni abrimos el stream para evitar el
+  // error repetido y el spam de logs. Tampoco sin usuario (p.ej. durante logout).
+  final user = ref.watch(currentUserProvider);
+  if (user == null || !user.isInstructor) {
+    return Stream.value(const <UserModel>[]);
+  }
   return ref.read(sessionServiceProvider).watchUsersStatus(userIds);
 });
 
