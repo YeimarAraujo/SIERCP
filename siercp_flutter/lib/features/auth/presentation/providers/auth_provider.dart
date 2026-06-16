@@ -125,10 +125,24 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     if (uid != null) {
       await ref.read(firestoreServiceProvider).updateUserPresence(uid, false);
     }
-    // Limpiar contexto de org
+
+    // Orden crítico para evitar el spam de PERMISSION_DENIED al cerrar sesión:
+    // primero desmontamos el estado de sesión (auth + org) MIENTRAS el token
+    // sigue siendo válido. Esto hace que `currentUserProvider` pase a null, que
+    // todos los stream providers dependientes de la sesión (notifications,
+    // broadcasts, userStats, sessions…) se reconstruyan a streams vacíos y
+    // cancelen sus listeners de Firestore, y que el router navegue a login
+    // desmontando las pantallas autenticadas.
     ref.read(orgContextProvider.notifier).reset();
-    await authService.logout();
     state = const AsyncData(AuthState());
+
+    // Cedemos un frame para que Riverpod propague la disposición y se cancelen
+    // las suscripciones nativas antes de revocar el token de Firebase.
+    await Future<void>.delayed(Duration.zero);
+
+    // Recién ahora revocamos el token. Para entonces ya no quedan listeners
+    // activos que puedan disparar PERMISSION_DENIED.
+    await authService.logout();
   }
 
   Future<void> sendPasswordReset(String email) async {
@@ -152,6 +166,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
 
       final user = UserModel.fromFirestore(doc);
+
+      // SECURITY: cuentas administrativas (ADMIN / SUPER_ADMIN) son solo del
+      // panel web. Si una sesión persistida pertenece a un admin, la cerramos
+      // en vez de activarla (defensa en profundidad junto al check de login).
+      if (user.isAdmin) {
+        await FirebaseAuth.instance.signOut();
+        return const AuthState(
+          error: 'Las cuentas de administrador deben usar el panel web.',
+        );
+      }
 
       if (!user.isActive) {
         await FirebaseAuth.instance.signOut();
