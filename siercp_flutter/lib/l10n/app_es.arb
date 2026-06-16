@@ -337,8 +337,8 @@
     }
   },
 
-  "navSimulation": "Simulación",
-  "simulationTitle": "Simulación",
+  "navSimulation": "Práctica",
+  "simulationTitle": "Práctica",
   "simulationSubtitle": "Evaluaciones teóricas y prácticas",
   "theoreticalEval": "Evaluación Teórica",
   "theoreticalEvalDesc": "Responde preguntas dinámicas basadas en AHA y MinSalud",

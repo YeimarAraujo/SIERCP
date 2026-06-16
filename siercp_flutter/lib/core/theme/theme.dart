@@ -4,12 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   AppColors._();
 
-  // Marca - Más vibrante y profesional
-  static const brand = Color(0xFF1E40AF); // Blue-800
-  static const brand2 = Color(0xFF3B82F6); // Blue-500
-  static const brand3 = Color(0xFF1E3A8A); // Blue-900
-  static const brandLight = Color(0xFFDBEAFE); // Blue-100
-  static const brandBg = Color(0x1A1E40AF);
+  // Marca - Alineada a la web (--clr-primary: #1800ad)
+  static const brand = Color(0xFF1800AD); // Principal #1800AD
+  static const brand2 = Color(0xFF4338CA); // Hover / primary-light web (#4338ca)
+  static const brand3 = Color(0xFF12007F); // Indigo profundo (depth)
+  static const brandLight = Color(0xFFE0E7FF); // Indigo-100
+  static const brandBg = Color(0x1A1800AD); // Marca al ~10%
 
   // Semánticos
   static const green = Color(0xFF00E676);
@@ -43,15 +43,15 @@ class AppColors {
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightSurface2 = Color(0xFFF8FAFC);
   static const lightCard = Color(0xFFFFFFFF);
-  static const lightBorder = Color(0xFFE5E7F0);
+  static const lightBorder = Color(0xFFE2E8F0); // --clr-border web
 
   // Light Mode — Texto
   static const lightTextPrimary = Color(0xFF0F172A);
   static const lightTextSecondary = Color(0xFF334155);
   static const lightTextTertiary = Color(0xFF64748B);
 
-  // Acento compartido
-  static const accent = Color(0xFF8B7CF8);
+  // Acento compartido (--clr-accent web: #6d4aff)
+  static const accent = Color(0xFF6D4AFF);
 
   // Alias para compatibilidad legado
   static const bg = darkBg;

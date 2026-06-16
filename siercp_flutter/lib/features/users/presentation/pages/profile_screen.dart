@@ -11,15 +11,18 @@ import 'package:siercp/core/widgets/section_label.dart';
 import 'package:siercp/core/widgets/xp_strip.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 import 'package:siercp/core/theme/locale_provider.dart';
-import 'package:siercp/features/users/data/models/user.dart' show CertVerificationStatus;
+import 'package:siercp/features/users/data/models/user.dart'
+    show CertVerificationStatus;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  void _showLanguageSelector(BuildContext context, WidgetRef ref, AppLocalizations loc) {
+  void _showLanguageSelector(
+      BuildContext context, WidgetRef ref, AppLocalizations loc) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return SafeArea(
           child: Column(
@@ -27,19 +30,25 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(loc.selectLanguage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text(loc.selectLanguage,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               ListTile(
                 title: const Text('Español'),
                 onTap: () {
-                  ref.read(localeControllerProvider.notifier).setLocale(const Locale('es'));
+                  ref
+                      .read(localeControllerProvider.notifier)
+                      .setLocale(const Locale('es'));
                   Navigator.pop(ctx);
                 },
               ),
               ListTile(
                 title: const Text('English'),
                 onTap: () {
-                  ref.read(localeControllerProvider.notifier).setLocale(const Locale('en'));
+                  ref
+                      .read(localeControllerProvider.notifier)
+                      .setLocale(const Locale('en'));
                   Navigator.pop(ctx);
                 },
               ),
@@ -52,12 +61,18 @@ class ProfileScreen extends ConsumerWidget {
 
   String _translateRole(String role, AppLocalizations loc) {
     switch (role.toUpperCase()) {
-      case 'SUPER_ADMIN':        return 'Super Admin';
-      case 'ADMIN':              return loc.admin;
-      case 'INSTRUCTOR':         return loc.instructor;
-      case 'USUARIO_SST':        return 'Usuario SST';
-      case 'USUARIO_PROFESIONAL': return 'Profesional';
-      default:                   return 'Usuario';
+      case 'SUPER_ADMIN':
+        return 'Super Admin';
+      case 'ADMIN':
+        return loc.admin;
+      case 'INSTRUCTOR':
+        return loc.instructor;
+      case 'USUARIO_SST':
+        return 'Usuario SST';
+      case 'USUARIO_PROFESIONAL':
+        return 'Profesional';
+      default:
+        return 'Usuario';
     }
   }
 
@@ -68,7 +83,8 @@ class ProfileScreen extends ConsumerWidget {
         final loc = AppLocalizations.of(ctx)!;
         return AlertDialog(
           title: Text(loc.privacyPolicyTitle,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Text(
               loc.privacyPolicyContent,
@@ -93,12 +109,13 @@ class ProfileScreen extends ConsumerWidget {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final loc = AppLocalizations.of(context)!;
     final currentLocale = ref.watch(localeControllerProvider);
-    
+
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final cardColor = theme.inputDecorationTheme.fillColor ?? AppColors.card;
     final borderColor = theme.dividerTheme.color ?? AppColors.cardBorder;
-    final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final secondaryTextColor =
+        theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return Scaffold(
       body: SafeArea(
@@ -114,13 +131,14 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     IconButton(
                       onPressed: () => context.push('/profile/edit'),
-                      icon: const Icon(Icons.edit_note_rounded, color: AppColors.brand),
+                      icon: const Icon(Icons.edit_note_rounded,
+                          color: AppColors.brand),
                       tooltip: loc.editProfile,
                     ),
                   ],
                 ),
               ),
-              
+
               // Avatar + info
               Center(
                 child: Column(
@@ -145,21 +163,23 @@ class ProfileScreen extends ConsumerWidget {
                                 offset: const Offset(0, 8),
                               ),
                             ],
-                            image: user?.avatarUrl != null 
-                                ? DecorationImage(image: NetworkImage(user!.avatarUrl!), fit: BoxFit.cover)
+                            image: user?.avatarUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(user!.avatarUrl!),
+                                    fit: BoxFit.cover)
                                 : null,
                           ),
-                          child: user?.avatarUrl == null 
-                            ? Center(
-                                child: Text(
-                                  user?.initials ?? 'A',
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w800),
-                                ),
-                              )
-                            : null,
+                          child: user?.avatarUrl == null
+                              ? Center(
+                                  child: Text(
+                                    user?.initials ?? 'A',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w800),
+                                  ),
+                                )
+                              : null,
                         ),
                         if (user?.isOnline == true)
                           Positioned(
@@ -171,7 +191,9 @@ class ProfileScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.green,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                                border: Border.all(
+                                    color: theme.scaffoldBackgroundColor,
+                                    width: 3),
                               ),
                             ),
                           ),
@@ -192,7 +214,9 @@ class ProfileScreen extends ConsumerWidget {
                     Text(
                       user?.email ?? '',
                       style: TextStyle(
-                          color: secondaryTextColor, fontSize: 13, fontWeight: FontWeight.w500),
+                          color: secondaryTextColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -208,15 +232,19 @@ class ProfileScreen extends ConsumerWidget {
                                       ? AppColors.accent
                                       : AppColors.cyan,
                           bg: ((user?.isSuperAdmin ?? false)
-                              ? const Color(0xFFa855f7)
-                              : (user?.isAdmin ?? false)
-                                  ? AppColors.amber
-                                  : (user?.isInstructor ?? false)
-                                      ? AppColors.accent
-                                      : AppColors.cyan).withValues(alpha: 0.12),
+                                  ? const Color(0xFFa855f7)
+                                  : (user?.isAdmin ?? false)
+                                      ? AppColors.amber
+                                      : (user?.isInstructor ?? false)
+                                          ? AppColors.accent
+                                          : AppColors.cyan)
+                              .withValues(alpha: 0.12),
                         ),
                         const SizedBox(width: 8),
-                        const _Badge(label: 'SIERCP v2.0', color: AppColors.brand, bg: AppColors.brandBg),
+                        const _Badge(
+                            label: 'SIERCP v2.0',
+                            color: AppColors.brand,
+                            bg: AppColors.brandBg),
                       ],
                     ),
                   ],
@@ -242,7 +270,7 @@ class ProfileScreen extends ConsumerWidget {
                       final isLandscape = MediaQuery.of(context).orientation ==
                           Orientation.landscape;
                       return GridView.count(
-                        crossAxisCount: isLandscape ? 4 : 2,
+                        crossAxisCount: isLandscape ? 4 : 4,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                         childAspectRatio: isLandscape ? 2.2 : 1.9,
@@ -297,9 +325,11 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: _NavTile(
                     label: 'Certificados Profesionales',
-                    value: user?.certVerification == CertVerificationStatus.approved
+                    value: user?.certVerification ==
+                            CertVerificationStatus.approved
                         ? 'Verificado'
-                        : user?.certVerification == CertVerificationStatus.pending
+                        : user?.certVerification ==
+                                CertVerificationStatus.pending
                             ? 'En revisión'
                             : 'Subir certificado',
                     textColor: textColor,
@@ -326,13 +356,30 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _ToggleTile(label: loc.darkMode, value: isDark, onChanged: (v) {
-                        ref.read(themeModeProvider.notifier).toggleTheme(v);
-                      }, textColor: textColor, trackColor: borderColor),
+                      _ToggleTile(
+                          label: loc.darkMode,
+                          value: isDark,
+                          onChanged: (v) {
+                            ref.read(themeModeProvider.notifier).toggleTheme(v);
+                          },
+                          textColor: textColor,
+                          trackColor: borderColor),
                       Divider(color: borderColor, height: 0.5),
-                      _ToggleTile(label: loc.alerts, value: true, onChanged: (_) {}, textColor: textColor, trackColor: borderColor),
+                      _ToggleTile(
+                          label: loc.alerts,
+                          value: true,
+                          onChanged: (_) {},
+                          textColor: textColor,
+                          trackColor: borderColor),
                       Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: loc.language, value: currentLocale.languageCode == 'en' ? 'English' : 'Español', onTap: () => _showLanguageSelector(context, ref, loc), textColor: textColor, secondaryColor: secondaryTextColor),
+                      _NavTile(
+                          label: loc.language,
+                          value: currentLocale.languageCode == 'en'
+                              ? 'English'
+                              : 'Español',
+                          onTap: () => _showLanguageSelector(context, ref, loc),
+                          textColor: textColor,
+                          secondaryColor: secondaryTextColor),
                     ],
                   ),
                 ),
@@ -356,14 +403,21 @@ class ProfileScreen extends ConsumerWidget {
                     child: Column(
                       children: [
                         Consumer(builder: (context, ref, child) {
-                          final devices = ref.watch(devicesStreamProvider).valueOrNull ?? [];
-                          final connectedCount = devices.where((d) => d.status == 'online').length;
+                          final devices =
+                              ref.watch(devicesStreamProvider).valueOrNull ??
+                                  [];
+                          final connectedCount =
+                              devices.where((d) => d.status == 'online').length;
                           return _NavTile(
                             label: loc.manikinsLabel,
-                            value: connectedCount > 0 ? loc.devicesConnectedCount(connectedCount) : loc.disconnected,
+                            value: connectedCount > 0
+                                ? loc.devicesConnectedCount(connectedCount)
+                                : loc.disconnected,
                             onTap: () => context.push('/admin/devices'),
                             textColor: textColor,
-                            secondaryColor: connectedCount > 0 ? AppColors.green : secondaryTextColor,
+                            secondaryColor: connectedCount > 0
+                                ? AppColors.green
+                                : secondaryTextColor,
                             icon: Icons.developer_board,
                           );
                         }),
@@ -389,13 +443,23 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _NavTile(label: loc.appVersion, value: '2.0.0',
-                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () {}),
+                      _NavTile(
+                          label: loc.appVersion,
+                          value: '2.0.0',
+                          textColor: textColor,
+                          secondaryColor: secondaryTextColor,
+                          onTap: () {}),
                       Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: loc.ahaGuidelines, value: '',
-                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () async {
-                            final url = Uri.parse('https://cpr.heart.org/-/media/cpr-files/cpr-guidelines-files/highlights/hghlghts_2020eccguidelines_spanish.pdf');
-                            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                      _NavTile(
+                          label: loc.ahaGuidelines,
+                          value: '',
+                          textColor: textColor,
+                          secondaryColor: secondaryTextColor,
+                          onTap: () async {
+                            final url = Uri.parse(
+                                'https://cpr.heart.org/-/media/cpr-files/cpr-guidelines-files/highlights/hghlghts_2020eccguidelines_spanish.pdf');
+                            if (!await launchUrl(url,
+                                mode: LaunchMode.externalApplication)) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(loc.errorOpeningLink)),
@@ -404,8 +468,12 @@ class ProfileScreen extends ConsumerWidget {
                             }
                           }),
                       Divider(color: borderColor, height: 0.5),
-                      _NavTile(label: loc.privacyPolicy, value: '',
-                          textColor: textColor, secondaryColor: secondaryTextColor, onTap: () => _showPrivacyPolicy(context)),
+                      _NavTile(
+                          label: loc.privacyPolicy,
+                          value: '',
+                          textColor: textColor,
+                          secondaryColor: secondaryTextColor,
+                          onTap: () => _showPrivacyPolicy(context)),
                     ],
                   ),
                 ),
@@ -444,10 +512,13 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-    child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        child: Text(label,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      );
 }
 
 class _StatCard extends StatelessWidget {
@@ -455,22 +526,37 @@ class _StatCard extends StatelessWidget {
   final Color color;
   final Color? cardColor;
   final Color? borderColor;
-  const _StatCard({required this.label, required this.value, required this.color, this.cardColor, this.borderColor});
+  const _StatCard(
+      {required this.label,
+      required this.value,
+      required this.color,
+      this.cardColor,
+      this.borderColor});
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: cardColor ?? AppColors.card,
-      border: Border.all(color: borderColor ?? AppColors.cardBorder, width: 0.5),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary, fontSize: 11)),
-      const Spacer(),
-      Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'SpaceMono')),
-    ]),
-  );
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardColor ?? AppColors.card,
+          border: Border.all(
+              color: borderColor ?? AppColors.cardBorder, width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color ??
+                      AppColors.textSecondary,
+                  fontSize: 11)),
+          const Spacer(),
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'SpaceMono')),
+        ]),
+      );
 }
 
 class _ToggleTile extends StatefulWidget {
@@ -479,7 +565,12 @@ class _ToggleTile extends StatefulWidget {
   final ValueChanged<bool> onChanged;
   final Color? textColor;
   final Color? trackColor;
-  const _ToggleTile({required this.label, required this.value, required this.onChanged, this.textColor, this.trackColor});
+  const _ToggleTile(
+      {required this.label,
+      required this.value,
+      required this.onChanged,
+      this.textColor,
+      this.trackColor});
 
   @override
   State<_ToggleTile> createState() => _ToggleTileState();
@@ -489,28 +580,42 @@ class _ToggleTileState extends State<_ToggleTile> {
   late bool _val;
 
   @override
-  void initState() { super.initState(); _val = widget.value; }
+  void initState() {
+    super.initState();
+    _val = widget.value;
+  }
 
   @override
-  void didUpdateWidget(_ToggleTile old) { super.didUpdateWidget(old); if (old.value != widget.value) _val = widget.value; }
+  void didUpdateWidget(_ToggleTile old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) _val = widget.value;
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(widget.label, style: TextStyle(color: widget.textColor ?? AppColors.textPrimary, fontSize: 13)),
-        Switch(
-          value: _val,
-          onChanged: (v) { setState(() => _val = v); widget.onChanged(v); },
-          activeThumbColor: AppColors.brand,
-          trackColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected) ? AppColors.brand.withValues(alpha: 0.4) : (widget.trackColor ?? AppColors.cardBorder)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(widget.label,
+                style: TextStyle(
+                    color: widget.textColor ?? AppColors.textPrimary,
+                    fontSize: 13)),
+            Switch(
+              value: _val,
+              onChanged: (v) {
+                setState(() => _val = v);
+                widget.onChanged(v);
+              },
+              activeThumbColor: AppColors.brand,
+              trackColor: WidgetStateProperty.resolveWith((s) =>
+                  s.contains(WidgetState.selected)
+                      ? AppColors.brand.withValues(alpha: 0.4)
+                      : (widget.trackColor ?? AppColors.cardBorder)),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _NavTile extends StatelessWidget {
@@ -519,33 +624,49 @@ class _NavTile extends StatelessWidget {
   final Color? textColor;
   final Color? secondaryColor;
   final IconData? icon;
-  const _NavTile({required this.label, required this.value, required this.onTap, this.textColor, this.secondaryColor, this.icon});
+  const _NavTile(
+      {required this.label,
+      required this.value,
+      required this.onTap,
+      this.textColor,
+      this.secondaryColor,
+      this.icon});
 
   @override
   Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: textColor?.withValues(alpha: 0.7) ?? AppColors.textPrimary.withValues(alpha: 0.7)),
-                const SizedBox(width: 12),
-              ],
-              Text(label, style: TextStyle(color: textColor ?? AppColors.textPrimary, fontSize: 13)),
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon,
+                        size: 18,
+                        color: textColor?.withValues(alpha: 0.7) ??
+                            AppColors.textPrimary.withValues(alpha: 0.7)),
+                    const SizedBox(width: 12),
+                  ],
+                  Text(label,
+                      style: TextStyle(
+                          color: textColor ?? AppColors.textPrimary,
+                          fontSize: 13)),
+                ],
+              ),
+              Row(children: [
+                if (value.isNotEmpty)
+                  Text(value,
+                      style: TextStyle(
+                          color: secondaryColor ?? AppColors.accent,
+                          fontSize: 12)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: secondaryColor ?? AppColors.textTertiary),
+              ]),
             ],
           ),
-          Row(children: [
-            if (value.isNotEmpty)
-              Text(value, style: TextStyle(color: secondaryColor ?? AppColors.accent, fontSize: 12)),
-            const SizedBox(width: 4),
-            Icon(Icons.arrow_forward_ios, size: 12, color: secondaryColor ?? AppColors.textTertiary),
-          ]),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }

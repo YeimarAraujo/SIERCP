@@ -4,6 +4,34 @@ enum InstitutionStatus { active, suspended, pending }
 
 enum InstitutionType { university, hospital, company, government, ngo, other }
 
+/// Nivel del tenant en el modelo de 3 niveles
+/// (JOMAR Group › SIERCP SaaS › Instituciones):
+///   owner   — institución operada por la empresa dueña del SaaS (JOMAR Academy).
+///   partner — institución aliada (puede destacarse en "Aliadas").
+///   client  — institución cliente estándar (default).
+/// Solo SUPER_ADMIN puede cambiar el tier (enforced en firestore.rules).
+enum InstitutionTier { owner, partner, client }
+
+extension InstitutionTierExt on InstitutionTier {
+  String get wire => switch (this) {
+        InstitutionTier.owner   => 'OWNER',
+        InstitutionTier.partner => 'PARTNER',
+        InstitutionTier.client  => 'CLIENT',
+      };
+
+  String get label => switch (this) {
+        InstitutionTier.owner   => 'Propietaria',
+        InstitutionTier.partner => 'Aliada',
+        InstitutionTier.client  => 'Cliente',
+      };
+
+  static InstitutionTier fromString(String? s) => switch (s) {
+        'OWNER'   => InstitutionTier.owner,
+        'PARTNER' => InstitutionTier.partner,
+        _         => InstitutionTier.client,
+      };
+}
+
 extension InstitutionTypeExt on InstitutionType {
   String get label => switch (this) {
         InstitutionType.university => 'Universidad',
@@ -51,6 +79,16 @@ class InstitutionModel {
   /// Configuración flexible por tenant (colores, límites custom, integraciones).
   final Map<String, dynamic> config;
 
+  // ── Modelo de 3 niveles ────────────────────────────────────────────────────
+  /// Nivel del tenant. Default [InstitutionTier.client]. Solo SUPER_ADMIN lo cambia.
+  final InstitutionTier tier;
+
+  /// Si aparece en la sección pública "Instituciones Aliadas". Default false.
+  final bool showcase;
+
+  /// UID responsable de facturación (Nivel 1 para OWNER).
+  final String? billingOwnerUid;
+
   const InstitutionModel({
     required this.id,
     required this.name,
@@ -70,6 +108,9 @@ class InstitutionModel {
     required this.createdAt,
     this.updatedAt,
     this.config = const {},
+    this.tier = InstitutionTier.client,
+    this.showcase = false,
+    this.billingOwnerUid,
   });
 
   bool get isActive    => status == InstitutionStatus.active;
@@ -103,6 +144,9 @@ class InstitutionModel {
       createdAt:  (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt:  (d['updatedAt'] as Timestamp?)?.toDate(),
       config:     (d['config'] as Map<String, dynamic>?) ?? {},
+      tier:       InstitutionTierExt.fromString(d['tier']),
+      showcase:   d['showcase'] as bool? ?? false,
+      billingOwnerUid: d['billingOwnerUid'] as String?,
     );
   }
 
@@ -124,6 +168,9 @@ class InstitutionModel {
         'createdAt':          Timestamp.fromDate(createdAt),
         'updatedAt':          FieldValue.serverTimestamp(),
         'config':             config,
+        'tier':               tier.wire,
+        'showcase':           showcase,
+        'billingOwnerUid':    billingOwnerUid,
       };
 
   InstitutionModel copyWith({
@@ -142,6 +189,9 @@ class InstitutionModel {
     int? activeCoursesCount,
     int? totalSessionsCount,
     Map<String, dynamic>? config,
+    InstitutionTier? tier,
+    bool? showcase,
+    String? billingOwnerUid,
   }) =>
       InstitutionModel(
         id:                 id,
@@ -162,6 +212,9 @@ class InstitutionModel {
         createdAt:          createdAt,
         updatedAt:          DateTime.now(),
         config:             config ?? this.config,
+        tier:               tier ?? this.tier,
+        showcase:           showcase ?? this.showcase,
+        billingOwnerUid:    billingOwnerUid ?? this.billingOwnerUid,
       );
 
   static InstitutionStatus _parseStatus(String? s) => switch (s) {

@@ -794,10 +794,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get navSimulation => 'Simulation';
+  String get navSimulation => 'Practice';
 
   @override
-  String get simulationTitle => 'Simulation';
+  String get simulationTitle => 'Practice';
 
   @override
   String get simulationSubtitle => 'Theoretical and practical evaluations';

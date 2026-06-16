@@ -6,6 +6,7 @@
 // Al finalizar, el alumno puede marcar el módulo como completado.
 
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -147,6 +148,7 @@ class _StudentModuleViewerScreenState
             moduleId: widget.module.id,
             studentId: widget.studentId,
           );
+      ref.invalidate(studentProgressProvider(widget.courseId));
       setState(() {
         _completed = true;
         _marking = false;
@@ -369,9 +371,7 @@ class _StudentModuleViewerScreenState
       );
     }
     if (_localPdfPath == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.brand),
-      );
+      return const AppLogoLoader();
     }
     return PDFView(
       filePath: _localPdfPath!,

@@ -797,10 +797,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get navSimulation => 'Simulación';
+  String get navSimulation => 'Práctica';
 
   @override
-  String get simulationTitle => 'Simulación';
+  String get simulationTitle => 'Práctica';
 
   @override
   String get simulationSubtitle => 'Evaluaciones teóricas y prácticas';

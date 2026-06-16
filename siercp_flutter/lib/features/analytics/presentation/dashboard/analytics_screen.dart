@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:screenshot/screenshot.dart';
@@ -92,7 +93,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
 
                 // KPIs
                 kpisAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () => const AppLogoLoader(),
                   error: (e, st) => Text('Error: $e'),
                   data: (kpis) => _buildKPIsGrid(kpis),
                 ),
@@ -100,7 +101,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
 
                 // Gráficas
                 chartsAsync.when(
-                  loading: () => const SizedBox(height: 300, child: Center(child: CircularProgressIndicator())),
+                  loading: () => const SizedBox(height: 300, child: AppLogoLoader()),
                   error: (e, st) => Text('Error: $e'),
                   data: (data) => _buildCharts(data),
                 ),

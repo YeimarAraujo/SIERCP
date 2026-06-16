@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -75,7 +76,7 @@ class DeviceStatusScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               Expanded(
                 child: maniquisAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+                  loading: () => const AppLogoLoader(),
                   error: (e, st) => Center(child: Text('Error al cargar datos:\n$e', style: TextStyle(color: AppColors.red))),
                   data: (maniquis) {
                     if (maniquis.isEmpty) {

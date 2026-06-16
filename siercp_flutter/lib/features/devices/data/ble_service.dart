@@ -76,21 +76,24 @@ class BleService extends ChangeNotifier {
 
       // Escuchar desconexiones con reconnect automático
       _connectionSub?.cancel();
-      _connectionSub = device.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.disconnected) {
-          debugPrint("Dispositivo BLE desconectado");
-          _rssiSub?.cancel();
-          _rssiSub = null;
-          _rssi = null;
-          _telemetryChar = null;
-          _audioChar = null;
-          _connectedDevice = null;
-          notifyListeners();
-          if (!_intentionalDisconnect) {
-            _scheduleReconnect(device);
+      _connectionSub = device.connectionState.listen(
+        (state) {
+          if (state == BluetoothConnectionState.disconnected) {
+            debugPrint("Dispositivo BLE desconectado");
+            _rssiSub?.cancel();
+            _rssiSub = null;
+            _rssi = null;
+            _telemetryChar = null;
+            _audioChar = null;
+            _connectedDevice = null;
+            notifyListeners();
+            if (!_intentionalDisconnect) {
+              _scheduleReconnect(device);
+            }
           }
-        }
-      });
+        },
+        onError: (e) => debugPrint("BLE connectionState error: $e"),
+      );
 
       final services = await device.discoverServices();
       for (var service in services) {
@@ -110,11 +113,14 @@ class BleService extends ChangeNotifier {
       if (_telemetryChar != null) {
         await _telemetryChar!.setNotifyValue(true);
         // Usar onValueReceived para asegurar que recibimos el flujo constante
-        _notifySub = _telemetryChar!.onValueReceived.listen((value) {
-          if (value.isNotEmpty) {
-            _parsePayload(value);
-          }
-        });
+        _notifySub = _telemetryChar!.onValueReceived.listen(
+          (value) {
+            if (value.isNotEmpty) {
+              _parsePayload(value);
+            }
+          },
+          onError: (e) => debugPrint("BLE onValueReceived error: $e"),
+        );
 
         debugPrint("Conexión establecida y notificaciones activadas");
         notifyListeners(); // Notificar a la UI

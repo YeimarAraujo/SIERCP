@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -69,12 +70,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
               unselectedLabelColor: textS,
               indicatorColor: AppColors.brand,
               indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+              labelStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               unselectedLabelStyle: const TextStyle(fontSize: 13),
               tabs: const [
-                Tab(text: 'Sesiones RCP'),
-                Tab(text: 'Evaluaciones'),
+                Tab(text: 'Sesiones'),
+                Tab(text: 'Evaluaciones Teóricas'),
               ],
             ),
             Expanded(
@@ -103,15 +104,13 @@ class _CprHistoryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionsAsync = ref.watch(sessionsHistoryProvider);
     return sessionsAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.brand)),
+      loading: () => const AppLogoLoader(),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.signal_wifi_statusbar_connected_no_internet_4_outlined,
-                size: 36,
-                color: Theme.of(context).textTheme.bodyMedium?.color),
+                size: 36, color: Theme.of(context).textTheme.bodyMedium?.color),
             const SizedBox(height: 12),
             Text(loc.historyLoadError,
                 style: TextStyle(
@@ -178,8 +177,7 @@ class _CprHistoryBody extends ConsumerWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content:
-                                  Text(loc.exportError(e.toString())),
+                              content: Text(loc.exportError(e.toString())),
                               backgroundColor: AppColors.red),
                         );
                       }
@@ -206,8 +204,8 @@ class _CprHistoryBody extends ConsumerWidget {
                     ),
                   ],
                   icon: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       border: Border.all(
                           color: AppColors.brand.withValues(alpha: 0.35),
@@ -238,10 +236,10 @@ class _CprHistoryBody extends ConsumerWidget {
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverGrid.count(
-            crossAxisCount: isLandscape ? 4 : 2,
+            crossAxisCount: isLandscape ? 4 : 4,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: isLandscape ? 2.4 : 1.7,
+            childAspectRatio: isLandscape ? 2.4 : 1.9,
             children: [
               _SummaryCard(
                 icon: Icons.analytics_outlined,
@@ -330,8 +328,7 @@ class _CprHistoryBody extends ConsumerWidget {
                             .toList()
                             .asMap()
                             .entries
-                            .map((e) =>
-                                FlSpot(e.key.toDouble(), e.value))
+                            .map((e) => FlSpot(e.key.toDouble(), e.value))
                             .toList(),
                         isCurved: true,
                         color: AppColors.brand,
@@ -380,11 +377,9 @@ class _CprHistoryBody extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.history_outlined,
-                            size: 48,
-                            color: textS.withValues(alpha: 0.3)),
+                            size: 48, color: textS.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text(loc.noSessions,
-                            style: TextStyle(color: textS)),
+                        Text(loc.noSessions, style: TextStyle(color: textS)),
                       ],
                     ),
                   ),
@@ -394,8 +389,8 @@ class _CprHistoryBody extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, i) => _SessionTile(
-                        session: sessions[i], isDark: isDark),
+                    (context, i) =>
+                        _SessionTile(session: sessions[i], isDark: isDark),
                     childCount: sessions.length,
                   ),
                 ),
@@ -418,8 +413,7 @@ class _QuizHistoryTab extends ConsumerWidget {
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     return historyAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.brand)),
+      loading: () => const AppLogoLoader(),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -455,8 +449,7 @@ class _QuizHistoryBody extends StatelessWidget {
             Icon(Icons.quiz_outlined,
                 size: 48, color: textS.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
-            Text('Aún no tienes evaluaciones',
-                style: TextStyle(color: textS)),
+            Text('Aún no tienes evaluaciones', style: TextStyle(color: textS)),
             const SizedBox(height: 4),
             Text('Completa una evaluación teórica o práctica',
                 style: TextStyle(color: textS, fontSize: 11)),
@@ -468,8 +461,7 @@ class _QuizHistoryBody extends StatelessWidget {
     // Resumen XP total
     final totalXp = sessions.fold<int>(
         0, (sum, s) => sum + ((s['xpEarned'] as num?)?.toInt() ?? 0));
-    final totalPassed =
-        sessions.where((s) => s['passed'] == true).length;
+    final totalPassed = sessions.where((s) => s['passed'] == true).length;
 
     return CustomScrollView(
       slivers: [
@@ -480,7 +472,7 @@ class _QuizHistoryBody extends StatelessWidget {
             crossAxisCount: 3,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 1.6,
+            childAspectRatio: 2.4,
             children: [
               _QuizSummaryCard(
                 icon: Icons.bolt_rounded,
@@ -518,8 +510,8 @@ class _QuizHistoryBody extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (ctx, i) => _QuizSessionTile(
-                  session: sessions[i], isDark: isDark),
+              (ctx, i) =>
+                  _QuizSessionTile(session: sessions[i], isDark: isDark),
               childCount: sessions.length,
             ),
           ),
@@ -547,64 +539,69 @@ class _QuizSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border:
-            Border.all(color: theme.colorScheme.outline, width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const Spacer(),
-          Text(value,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border.all(color: theme.colorScheme.outline, width: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: isDark ? null : AppShadows.card(false),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              value,
               style: TextStyle(
                 color: color,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'SpaceMono',
-              )),
-          Text(label,
-              style: TextStyle(
-                color: theme.textTheme.bodyMedium?.color,
-                fontSize: 10,
-              )),
-        ],
-      ),
-    );
+              ),
+            ),
+          ],
+        ));
   }
 }
 
 class _QuizSessionTile extends StatelessWidget {
   final Map<String, dynamic> session;
   final bool isDark;
-  const _QuizSessionTile(
-      {required this.session, required this.isDark});
+  const _QuizSessionTile({required this.session, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS =
-        theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
 
     final type = session['type'] as String? ?? 'theoretical';
     final score = (session['score'] as num?)?.toDouble() ?? 0.0;
     final passed = session['passed'] as bool? ?? false;
-    final xpEarned =
-        (session['xpEarned'] as num?)?.toInt() ?? 0;
+    final xpEarned = (session['xpEarned'] as num?)?.toInt() ?? 0;
     final completedAt = session['completedAt'];
 
     final isPractical = type == 'practical_eval';
     final color = passed ? AppColors.green : AppColors.red;
-    final icon = isPractical
-        ? Icons.favorite_outline_rounded
-        : Icons.quiz_outlined;
+    final icon =
+        isPractical ? Icons.favorite_outline_rounded : Icons.quiz_outlined;
     final typeLabel =
         isPractical ? 'Evaluación práctica' : 'Evaluación teórica';
 
@@ -626,8 +623,7 @@ class _QuizSessionTile extends StatelessWidget {
         boxShadow: isDark ? null : AppShadows.card(false),
       ),
       child: Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
             Container(
@@ -720,8 +716,7 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border:
-            Border.all(color: theme.colorScheme.outline, width: 0.5),
+        border: Border.all(color: theme.colorScheme.outline, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: isDark ? null : AppShadows.card(false),
       ),
@@ -767,8 +762,7 @@ class _SessionTile extends StatelessWidget {
     final approved = session.metrics?.approved ?? false;
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS =
-        theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
 
@@ -799,8 +793,7 @@ class _SessionTile extends StatelessWidget {
           onTap: () => context.go('/session-result/${session.id}'),
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
                 Container(
@@ -808,8 +801,7 @@ class _SessionTile extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.sm),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(icon, color: color, size: 20),
                 ),
@@ -836,9 +828,7 @@ class _SessionTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      score != null
-                          ? '${score.toStringAsFixed(0)}%'
-                          : '--',
+                      score != null ? '${score.toStringAsFixed(0)}%' : '--',
                       style: TextStyle(
                         color: color,
                         fontSize: 16,

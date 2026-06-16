@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -71,7 +72,7 @@ class _InstructorStudentsScreenState extends ConsumerState<InstructorStudentsScr
 
           Expanded(
             child: studentsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.brand)),
+              loading: () => const AppLogoLoader(),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (students) {
                 final filtered = students.where((s) {

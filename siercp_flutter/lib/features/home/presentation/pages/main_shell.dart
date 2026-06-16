@@ -29,68 +29,81 @@ class MainShell extends ConsumerWidget {
     final isAdminRole = orgCtx.isAdmin || (user?.isAdmin == true);
     if (isAdminRole) {
       return [
-        NavItem(loc.navDashboard, Icons.dashboard_outlined,     Icons.dashboard,     '/home'),
-        NavItem('En vivo',        Icons.live_tv_outlined,        Icons.live_tv,       '/instructor/students'),
-        NavItem('Cursos',         Icons.menu_book_outlined,      Icons.menu_book,     '/courses'),
-        NavItem(loc.navUsers,     Icons.group_outlined,          Icons.group,         '/admin/users'),
-        NavItem(loc.navProfile,   Icons.person_outline,          Icons.person,        '/profile'),
+        NavItem(loc.navDashboard, Icons.dashboard_outlined, Icons.dashboard,
+            '/home'),
+        const NavItem('En vivo', Icons.live_tv_outlined, Icons.live_tv,
+            '/instructor/students'),
+        const NavItem(
+            'Cursos', Icons.menu_book_outlined, Icons.menu_book, '/courses'),
+        NavItem(
+            loc.navUsers, Icons.group_outlined, Icons.group, '/admin/users'),
+        NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     }
     // Instructor: por membership, por rol global, O por asignación directa en un curso
-    final isInstructor = orgCtx.isInstructor || (user?.isInstructor == true) || isInstructorOnCourse;
+    final isInstructor = orgCtx.isInstructor ||
+        (user?.isInstructor == true) ||
+        isInstructorOnCourse;
     if (isInstructor) {
       return [
-        NavItem(loc.navHome,       Icons.home_outlined,           Icons.home,          '/home'),
-        NavItem('En vivo',         Icons.live_tv_outlined,        Icons.live_tv,       '/instructor/students'),
-        NavItem('Mis cursos',      Icons.menu_book_outlined,      Icons.menu_book,     '/courses'),
-        NavItem(loc.navSimulation, Icons.psychology_outlined,     Icons.psychology,    '/simulation'),
-        NavItem(loc.navProfile,    Icons.person_outline,          Icons.person,        '/profile'),
+        NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
+        const NavItem('En vivo', Icons.live_tv_outlined, Icons.live_tv,
+            '/instructor/students'),
+        const NavItem('Mis cursos', Icons.menu_book_outlined, Icons.menu_book,
+            '/courses'),
+        NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology,
+            '/simulation'),
+        NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     }
     return [
-      NavItem(loc.navHome,       Icons.home_outlined,       Icons.home,       '/home'),
-      NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology, '/simulation'),
-      NavItem(loc.navHistory,    Icons.show_chart_outlined, Icons.show_chart, '/history'),
-      NavItem(loc.navCourses,    Icons.menu_book_outlined,  Icons.menu_book,  '/courses'),
-      NavItem(loc.navProfile,    Icons.person_outline,      Icons.person,     '/profile'),
+      NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
+      NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology,
+          '/simulation'),
+      NavItem(loc.navCourses, Icons.menu_book_outlined, Icons.menu_book,
+          '/courses'),
+      const NavItem('Passport', Icons.workspace_premium_outlined,
+          Icons.workspace_premium, '/skills'),
+      NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
     ];
   }
 
   String _getTitleForRoute(String location) {
-    if (location.startsWith('/admin/users'))              return 'Gestión de Usuarios';
-    if (location.startsWith('/analytics'))                return 'Analíticas';
-    if (location.startsWith('/reports'))                  return 'Reportes';
-    if (location.startsWith('/instructor/students'))      return 'Sesiones en Vivo';
-    if (location.startsWith('/live'))                     return 'Monitor en Vivo';
-    if (location.startsWith('/courses'))                  return 'Cursos';
-    if (location.startsWith('/simulation'))               return 'Simulación';
-    if (location.startsWith('/history'))                  return 'Historial';
-    if (location.startsWith('/profile/certificados'))     return 'Mis Certificados';
-    if (location.startsWith('/profile'))                  return 'Mi Perfil';
-    if (location.startsWith('/notifications'))            return 'Notificaciones';
-    if (location.startsWith('/home'))                     return 'Inicio';
+    if (location.startsWith('/admin/users')) return 'Gestión de Usuarios';
+    if (location.startsWith('/analytics')) return 'Analíticas';
+    if (location.startsWith('/reports')) return 'Reportes';
+    if (location.startsWith('/instructor/students')) return 'Sesiones en Vivo';
+    if (location.startsWith('/live')) return 'Monitor en Vivo';
+    if (location.startsWith('/courses')) return 'Cursos';
+    if (location.startsWith('/simulation')) return 'Práctica';
+    if (location.startsWith('/history')) return 'Historial';
+    if (location.startsWith('/profile/certificados')) return 'Mis Certificados';
+    if (location.startsWith('/skills')) return 'Mi Skill Passport';
+    if (location.startsWith('/profile')) return 'Mi Perfil';
+    if (location.startsWith('/notifications')) return 'Notificaciones';
+    if (location.startsWith('/home')) return 'Inicio';
     return 'SIERCP';
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user    = ref.watch(currentUserProvider);
-    final orgCtx  = ref.watch(orgContextProvider);
-    final loc     = AppLocalizations.of(context)!;
+    final user = ref.watch(currentUserProvider);
+    final orgCtx = ref.watch(orgContextProvider);
+    final loc = AppLocalizations.of(context)!;
     // Detecta instructor por asignación directa en curso (puede ser async)
     final isInstructorOnCourse =
         ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
     final navItems = _getNavItems(user, orgCtx, isInstructorOnCourse, loc);
 
     final location = GoRouterState.of(context).matchedLocation;
-    int index = navItems.indexWhere(
-        (item) => location == item.route || location.startsWith('${item.route}/'));
+    int index = navItems.indexWhere((item) =>
+        location == item.route || location.startsWith('${item.route}/'));
     if (index == -1) {
       index = navItems.indexWhere((item) => location.startsWith(item.route));
     }
     if (index == -1) index = 0;
 
-    final theme      = Theme.of(context);
+    final theme = Theme.of(context);
     final navBgColor = theme.navigationBarTheme.backgroundColor;
     final borderColor = theme.dividerTheme.color ?? AppColors.cardBorder;
     final isLandscape =
@@ -105,14 +118,12 @@ class MainShell extends ConsumerWidget {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(_getTitleForRoute(location)),
-          centerTitle: false,
-        ),
+        appBar: null,
         body: Row(
           children: [
             if (isLandscape)
               Container(
+                key: const ValueKey('main-shell-rail'),
                 width: 100,
                 decoration: BoxDecoration(
                   color: navBgColor,
@@ -140,20 +151,21 @@ class MainShell extends ConsumerWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                     size: 24,
                   ),
-                  selectedLabelTextStyle: theme.navigationBarTheme.labelTextStyle
+                  selectedLabelTextStyle: theme
+                      .navigationBarTheme.labelTextStyle
                       ?.resolve({WidgetState.selected}),
                   unselectedLabelTextStyle:
                       theme.navigationBarTheme.labelTextStyle?.resolve({}),
                   destinations: navItems
                       .map((d) => NavigationRailDestination(
-                            icon:         Icon(d.icon),
+                            icon: Icon(d.icon),
                             selectedIcon: Icon(d.selectedIcon),
-                            label:        Text(d.label),
+                            label: Text(d.label),
                           ))
                       .toList(),
                 ),
               ),
-            Expanded(child: child),
+            Expanded(key: const ValueKey('main-shell-body'), child: child),
           ],
         ),
         bottomNavigationBar: isLandscape
@@ -182,9 +194,9 @@ class MainShell extends ConsumerWidget {
                   onDestinationSelected: (i) => context.go(navItems[i].route),
                   destinations: navItems
                       .map((d) => NavigationDestination(
-                            icon:         Icon(d.icon),
+                            icon: Icon(d.icon),
                             selectedIcon: Icon(d.selectedIcon),
-                            label:        d.label,
+                            label: d.label,
                           ))
                       .toList(),
                 ),

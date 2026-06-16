@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
@@ -49,8 +50,7 @@ class _CourseEditorScreenState extends ConsumerState<CourseEditorScreen> {
         ],
       ),
       body: modulesAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.brand)),
+        loading: () => const AppLogoLoader(),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (modules) => modules.isEmpty
             ? _EmptyModulesState(onAdd: _showAddModuleSheet)

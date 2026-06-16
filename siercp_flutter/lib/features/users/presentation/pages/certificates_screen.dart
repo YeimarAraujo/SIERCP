@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
@@ -201,7 +202,7 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
   final _issueDateCtrl = TextEditingController();
   final _expiryDateCtrl = TextEditingController();
 
-  String _selectedType = 'PROFESIONAL';
+  String _selectedType = 'BLS_AHA';
   PlatformFile? _selectedFile;
   bool _uploading = false;
   double _uploadProgress = 0;
@@ -213,8 +214,11 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
   void initState() {
     super.initState();
     _loadCertificates();
-    // Pre-fill issuer from selected type
-    _issuerCtrl.text = _kCertTypesFallback.firstWhere((t) => t.value == _selectedType).issuer;
+    // Pre-fill issuer from selected type (orElse evita "Bad state: No element"
+    // si el tipo por defecto no existe en la lista).
+    _issuerCtrl.text = _kCertTypesFallback
+        .firstWhere((t) => t.value == _selectedType, orElse: () => _kCertTypesFallback.first)
+        .issuer;
   }
 
   @override
@@ -334,6 +338,17 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
     ));
   }
 
+  /// Abre/descarga el archivo del certificado del propio usuario.
+  Future<void> _openCertificate(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || url.isEmpty) {
+      _showSnack('Enlace del certificado no válido', isError: true);
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) _showSnack('No se pudo abrir el certificado', isError: true);
+  }
+
   Future<void> _pickDate(TextEditingController ctrl, {DateTime? firstDate, DateTime? lastDate}) async {
     final picked = await showDatePicker(
       context: context,
@@ -380,6 +395,10 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // Certificados de cursos (Tipo A) retirados — reemplazados por el
+            // Skill Passport. Esta pantalla queda solo para CREDENCIALES
+            // profesionales (user_certificates) que el usuario sube para verificación.
 
             // ── Info banner ────────────────────────────────────────────
             Container(
@@ -712,6 +731,24 @@ class _CertificatesScreenState extends ConsumerState<CertificatesScreen> {
                               ],
                             ),
                           ),
+                          if ((cert['fileUrl'] as String?)?.isNotEmpty ?? false) ...[
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () => _openCertificate(cert['fileUrl'] as String),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.download_rounded, size: 15, color: AppColors.brand),
+                                  const SizedBox(width: 3),
+                                  Text('Ver / descargar',
+                                      style: TextStyle(
+                                        color: AppColors.brand,
+                                        fontSize: 11, fontWeight: FontWeight.w700,
+                                      )),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],

@@ -194,6 +194,42 @@ class CourseModule {
     );
   }
 
+  /// Serializa el módulo a un mapa plano. Se usa para pasar el módulo como
+  /// `extra` en la navegación de GoRouter (que requiere objetos serializables
+  /// para sobrevivir a deep links / restauración de estado).
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'courseId': courseId,
+        'order': order,
+        'title': title,
+        'type': type.toString().split('.').last,
+        'pdfUrl': pdfUrl,
+        'videoUrl': videoUrl,
+        'textContent': textContent,
+        'passingScore': passingScore,
+        'questions': questions.map((q) => q.toMap()).toList(),
+        'requiredSessions': requiredSessions.map((s) => s.toMap()).toList(),
+      };
+
+  /// Reconstruye un módulo desde el mapa producido por [toMap].
+  factory CourseModule.fromMap(Map<String, dynamic> m) => CourseModule(
+        id: m['id'] ?? '',
+        courseId: m['courseId'] ?? '',
+        order: (m['order'] as num?)?.toInt() ?? 0,
+        title: m['title'] ?? '',
+        type: _parseType(m['type'] as String?),
+        pdfUrl: m['pdfUrl'],
+        videoUrl: m['videoUrl'],
+        textContent: m['textContent'],
+        passingScore: (m['passingScore'] as num?)?.toInt() ?? 80,
+        questions: (m['questions'] as List<dynamic>? ?? [])
+            .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
+            .toList(),
+        requiredSessions: (m['requiredSessions'] as List<dynamic>? ?? [])
+            .map((s) => RequiredSession.fromMap(Map<String, dynamic>.from(s)))
+            .toList(),
+      );
+
   static ModuleType _parseType(String? t) {
     switch (t) {
       case 'teoria':
