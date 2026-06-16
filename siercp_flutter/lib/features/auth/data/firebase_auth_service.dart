@@ -32,12 +32,15 @@ class FirebaseAuthService {
       await _auth.signOut();
       throw Exception('Perfil de usuario no encontrado en la base de datos.');
     }
-    // M4: super admin access is web-panel only — never via the mobile app.
-    if (user.isSuperAdmin) {
+    // M4 / SECURITY: las cuentas administrativas (ADMIN y SUPER_ADMIN) operan
+    // exclusivamente desde el panel web. Nunca deben iniciar sesión en la app
+    // móvil — si lo hicieran caerían en la pantalla "Institución no asignada".
+    // `isAdmin` es true para ADMIN y SUPER_ADMIN.
+    if (user.isAdmin) {
       await _auth.signOut();
       throw Exception(
-        'Esta cuenta no tiene acceso desde la aplicación móvil. '
-        'Usa el panel de administración web.',
+        'Las cuentas de administrador no tienen acceso desde la aplicación '
+        'móvil. Usa el panel de administración web.',
       );
     }
     if (!user.isActive) {

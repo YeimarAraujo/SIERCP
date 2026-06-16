@@ -229,9 +229,15 @@ service cloud.firestore {
     // Soporta tanto instructorId (singular, legacy) como instructorIds (array, nuevo modelo).
     function isInstructorOfCourse(courseId) {
       let d = get(/databases/$(database)/documents/courses/$(courseId)).data;
-      return isInstructorRole() && (
-        d.instructorId == uid() ||
-        uid() in d.get('instructorIds', [])
+      // La autoridad es la ASIGNACIÓN del curso, no el rol GLOBAL del usuario.
+      // Un instructor puede serlo solo por membership (rol global 'USUARIO') y aun
+      // así debe gestionar SU curso. Antes se exigía isInstructorRole() (rol global),
+      // lo que denegaba enrollments/attendance a instructores-por-membership.
+      // .get(campo, default) evita errores si el documento no tiene el campo.
+      return isAuth() && (
+        d.get('instructorId', '') == uid() ||
+        uid() in d.get('instructorIds', []) ||
+        d.get('createdBy', '') == uid()
       );
     }
 
@@ -310,7 +316,10 @@ service cloud.firestore {
           && isNonEmptyString(request.resource.data.email)
           && isNonEmptyString(request.resource.data.firstName)
           && isNonEmptyString(request.resource.data.lastName)
-          && !request.resource.data.keys().hasAny(['isSuperAdmin', 'accountStatus'])
+          // SEC A-2: el usuario no puede auto-otorgarse campos de confianza al crear:
+          // ni flags de cuenta, ni credencial verificada, ni contadores de ranking.
+          && !request.resource.data.keys().hasAny(['isSuperAdmin', 'accountStatus', 'skillsCount', 'publicProfile', 'publicSlug'])
+          && request.resource.data.get('certVerification', 'NONE') == 'NONE'
           && (
             // Caso A: registro normal
             request.resource.data.role == 'USUARIO'
@@ -343,7 +352,15 @@ service cloud.firestore {
         get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.primaryAdminId == uid() &&
         notChanging(['certVerification', 'isActive', 'accountStatus', 'isSuperAdmin'])
       ) || (
-        isAdminRole() && notChanging(['role', 'certVerification', 'isSuperAdmin'])
+        // Caso 3: Admin update — SOLO sobre usuarios de SU MISMA institución.
+        // SECURITY (tenant-scoping): antes cualquier ADMIN podía modificar a
+        // CUALQUIER usuario de CUALQUIER institución (cross-tenant). Ahora exige
+        // isAdminOf(institución del usuario objetivo). Además 'institutionId'
+        // queda inmutable aquí para impedir mover usuarios entre instituciones.
+        // (SuperAdmin sigue cubierto por el bypass de §6.)
+        isAdminRole() &&
+        isAdminOf(resource.data.institutionId) &&
+        notChanging(['role', 'certVerification', 'isSuperAdmin', 'institutionId'])
       );
 
       // ── DELETE ─────────────────────────────────────────────────────────────
@@ -380,20 +397,28 @@ service cloud.firestore {
       // SuperAdmin puede crear sin restricciones.
       // Checkout web corporativo: usuario autenticado crea su propia institución.
       // El primaryAdminId debe ser el uid del creador.
+      // SEC A-1: el cliente solo puede crear instituciones 'pending' y CLIENT.
+      // La activación (status 'active') y los tiers OWNER/PARTNER + showcase
+      // los aplica exclusivamente una Cloud Function (Admin SDK) tras pago, o el
+      // SUPER_ADMIN. Evita auto-aprovisionar una institución activa + auto-ADMIN.
       allow create: if isSuperAdmin() || (
         isAuth()
         && request.resource.data.primaryAdminId == uid()
         && isNonEmptyString(request.resource.data.name)
         && isNonEmptyString(request.resource.data.contactEmail)
-        && request.resource.data.status in ['active', 'pending']
+        && request.resource.data.status == 'pending'
+        && request.resource.data.get('tier', 'CLIENT') == 'CLIENT'
+        && request.resource.data.get('showcase', false) == false
       );
 
       // Solo el admin primario de la institución puede actualizarla.
       // No puede cambiar status (SuperAdmin lo hace), ni primaryAdminId (evita secuestro).
+      // Modelo de 3 niveles: tier / showcase / billingOwnerUid SOLO los toca SUPER_ADMIN
+      // (un ADMIN no puede auto-promoverse a OWNER ni autopublicarse en "Aliadas").
       allow update: if isSuperAdmin() || (
         isAdminRole() &&
         resource.data.primaryAdminId == uid() &&
-        notChanging(['status', 'primaryAdminId', 'createdAt'])
+        notChanging(['status', 'primaryAdminId', 'createdAt', 'tier', 'showcase', 'billingOwnerUid'])
       );
 
       // Soft-delete vía campo status. Delete físico solo SuperAdmin (§6).
@@ -406,6 +431,173 @@ service cloud.firestore {
         allow read: if isSuperAdmin() || isAdminOf(institutionId);
         allow write: if isSuperAdmin();
       }
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §8b. PLATAFORMA  /platform/{docId}   (singleton del SaaS — Nivel 2)
+    //
+    // Modelo de 3 niveles (JOMAR Group › SIERCP SaaS › Instituciones):
+    //   platform/config contiene catálogo de planes, branding global y feature
+    //   flags del producto. Lectura para cualquier autenticado (los planes deben
+    //   ser visibles en checkout/UI); escritura SOLO SUPER_ADMIN (Nivel 1).
+    //   platform/metrics y platform/* las escriben Cloud Functions (Admin SDK).
+    // ═════════════════════════════════════════════════════════════════════════
+    match /platform/{docId} {
+      allow read:  if isAuth();
+      allow write: if isSuperAdmin();
+    }
+
+    // KPIs ejecutivos (S5) — lectura SUPER_ADMIN; escritura solo Cloud Functions.
+    match /platformMetrics/{docId} {
+      allow read:  if isSuperAdmin();
+      allow write: if false;
+    }
+
+    // Trabajos de importación masiva (S5) — lee el creador SA o admin de la org.
+    // Escritura solo vía API routes con Admin SDK (bypassa reglas).
+    match /importJobs/{jobId} {
+      allow read:  if isSuperAdmin() || (isAdminRole() && isAdminOf(resource.data.institutionId));
+      allow write: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §8d. JOMAR SEGURIDAD — e-commerce de cursos (app JOMAR-WEB, dominio aparte).
+    //
+    // Colecciones jomar_* separadas de las de SIERCP. Pedidos e inscripciones los
+    // escribe SOLO el Admin SDK (API routes de JOMAR-WEB); el cliente solo LEE lo
+    // suyo. Comparten este proyecto Firebase (mismo Auth → SSO opcional).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Perfil del usuario JOMAR — cada quien gestiona el suyo.
+    match /jomar_users/{userId} {
+      allow read:           if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.email is string
+        && request.resource.data.nombre is string;
+      allow delete:         if false;
+    }
+
+    // Pedidos — lectura del dueño; escritura solo Admin SDK (API routes JOMAR).
+    match /jomar_orders/{orderId} {
+      allow read:  if isAuth() && resource.data.userId == uid();
+      allow write: if false;
+    }
+
+    // Inscripciones — lectura del dueño; escritura solo Admin SDK (webhook Wompi).
+    match /jomar_enrollments/{enrId} {
+      allow read:  if isAuth() && resource.data.userId == uid();
+      allow write: if false;
+    }
+
+    // Leads de contacto — creación pública (formulario), nadie lee desde cliente.
+    match /jomar_leads/{leadId} {
+      allow create: if request.resource.data.email is string
+        && request.resource.data.nombre is string
+        && request.resource.data.mensaje is string
+        && request.resource.data.mensaje.size() < 5000;
+      allow read, update, delete: if false;
+    }
+
+    // PQRS — radicación pública (formulario); gestión solo en consola/Admin SDK.
+    match /jomar_pqrs/{id} {
+      allow create: if request.resource.data.tipo is string
+        && request.resource.data.email is string
+        && request.resource.data.mensaje is string
+        && request.resource.data.mensaje.size() < 5000;
+      allow read, update, delete: if false;
+    }
+
+    // Reseñas — el usuario envía (queda 'pendiente'); moderación en consola.
+    match /jomar_resenas/{id} {
+      allow create: if request.resource.data.nombre is string
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() < 2000
+        && request.resource.data.estado == 'pendiente';
+      allow read, update, delete: if false;
+    }
+
+    // Avisos de la empresa JOMAR — los lee cualquier usuario autenticado;
+    // escritura solo desde la consola/Admin SDK.
+    match /jomar_notificaciones/{id} {
+      allow read:  if isAuth();
+      allow write: if false;
+    }
+
+    // Administradores JOMAR — acceso SOLO Admin SDK / consola (panel verifica
+    // admin server-side; el cliente nunca lee esto).
+    match /jomar_admins/{adminUid} {
+      allow read, write: if false;
+    }
+
+    // Overrides de cursos JOMAR (precio/disponibilidad) — lectura pública;
+    // escritura solo vía API admin (Admin SDK).
+    match /jomar_curso_overrides/{slug} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §8c. COMPETENCY INTELLIGENCE ENGINE (S2)
+    //
+    //   skillCategories · skills · learningPaths · badges  → catálogos (público)
+    //   userSkills · userBadges                            → Skill Wallet (CF only)
+    //   skillVerifications                                 → verificación PÚBLICA
+    //
+    // Invariante: userSkills/userBadges/skillVerifications los escribe SOLO el
+    // Admin SDK (Cloud Functions). El cliente nunca otorga skills.
+    // S2: emisión solo de skills de plataforma (issuerType PLATFORM, SUPER_ADMIN).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /skillCategories/{id} {
+      allow read:  if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /skills/{id} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin()
+        || (isAdminRole()
+            && request.resource.data.issuerType == 'INSTITUTION'
+            && isAdminOf(request.resource.data.issuerInstitutionId));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /badges/{id} {
+      allow read:  if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /learningPaths/{id} {
+      allow read: if true;
+      allow write: if isSuperAdmin()
+        || (isAdminRole() && isAdminOf(resource.data.institutionId));
+    }
+
+    // Skill Wallet — dueño + admin de la institución emisora + SUPER_ADMIN leen.
+    // Escritura exclusiva de Cloud Functions.
+    match /userSkills/{id} {
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isSuperAdmin() ||
+        (resource.data.issuedByInstitutionId != null
+         && isAdminOf(resource.data.issuedByInstitutionId))
+      );
+      allow write: if false;
+    }
+
+    match /userBadges/{id} {
+      allow read: if isAuth() && (resource.data.userId == uid() || isSuperAdmin());
+      allow write: if false;
+    }
+
+    // Verificación pública — lectura SIN auth (reclutadores). Escritura solo CF.
+    match /skillVerifications/{code} {
+      allow read:  if true;
+      allow write: if false;
     }
 
 
@@ -471,6 +663,16 @@ service cloud.firestore {
         && request.resource.data.status == 'approved'
         && request.resource.data.isActive == true
         && request.resource.data.planType in ['pyme', 'business', 'corporate']
+        // SECURITY (MED-04): el cliente puede declarar planType, pero NUNCA los
+        // campos financieros/cuota autoritativos del servidor (saldo de créditos,
+        // licencia SST verificada, contadores de uso, expiración). Esos solo los
+        // escribe el Admin SDK tras pago. Sin este guard, un usuario podía
+        // auto-otorgarse creditBalance/sstLicenseVerified al crear su membership.
+        && !request.resource.data.keys().hasAny([
+          'creditBalance', 'sstLicenseVerified', 'sstLicenseExpiresAt',
+          'usageCurrentUsers', 'usageCurrentCourses', 'usageCertificatesThisMonth',
+          'planExpiresAt'
+        ])
       );
       // ── UPDATE ─────────────────────────────────────────────────────────────
       // Admin puede actualizar memberships de su org, con restricciones:
@@ -562,10 +764,35 @@ service cloud.firestore {
         allow update: if isSuperAdmin()
           || isAdminOf(courseOrgId(courseId))
           || isInstructorOfCourse(courseId)
-          || (isOwner(studentId) && notChanging(['studentId', 'enrolledAt']));
+          // El estudiante NO puede tocar los campos de GATING: asistencia ni la
+          // nota AUTORITATIVA del servidor. Solo el servidor los escribe.
+          // (`avgScore` sigue siendo escribible por la app para mostrar progreso,
+          //  pero el gating de certificación usa `avgScoreServer`, no ese.)
+          || (isOwner(studentId) && notChanging([
+                'studentId', 'enrolledAt',
+                'attendanceRate', 'attendancePresent', 'attendanceTotal', 'attendanceExcused',
+                'avgScoreServer', 'scoreSource', 'scoreUpdatedAt',
+              ]));
 
         allow delete: if isSuperAdmin()
           || isAdminOf(courseOrgId(courseId));
+      }
+
+      // ── SUBCOLLECCIÓN: courses/{courseId}/attendance/{recordId} ────────────
+      // Asistencia (Fase 2). id determinístico `${studentId}__${classId}`.
+      // Escritura solo de staff (instructor/admin de la org) o servidor (adminDb).
+      // El estudiante puede leer su propia asistencia.
+      match /attendance/{recordId} {
+        allow read: if isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId)
+          || (isAuth() && resource.data.studentId == uid());
+        allow create, update: if isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId);
+        allow delete: if isSuperAdmin()
+          || isAdminOf(courseOrgId(courseId))
+          || isInstructorOfCourse(courseId);
       }
 
       // ── SUBCOLLECCIÓN: courses/{courseId}/modules/{moduleId} ───────────────
@@ -723,23 +950,16 @@ service cloud.firestore {
         isAdminRole() || isInstructorRole()
       );
 
-      // Solo instructores/admins de la institución, con plan activo y cuota.
-      allow create: if (isAdminRole() || isInstructorRole()) &&
-        validInstitutionId(request.resource.data.institutionId) &&
-        isInstructorOf(request.resource.data.institutionId) &&
-        planActive(request.resource.data.institutionId) &&
-        withinCertLimit(request.resource.data.institutionId) &&
-        isNonEmptyString(request.resource.data.userId) &&
-        request.resource.data.keys().hasAll(['userId', 'institutionId', 'issuedBy']) &&
-        request.resource.data.issuedBy == uid();
-
-      // Admin de la institución puede revocar o corregir. No puede cambiar userId.
-      allow update: if isSuperAdmin() || (
-        isAdminOf(resource.data.institutionId) &&
-        notChanging(['userId', 'institutionId', 'createdAt'])
-      );
-
-      allow delete: if isSuperAdmin() || isAdminOf(resource.data.institutionId);
+      // ── S6.2 · RETIRO de certificados Tipo A (logro) ───────────────────────
+      // Los certificados de LOGRO se deprecan y se reemplazan por el sistema de
+      // Skills + Skill Passport (verificación por skillCode). NO se permite nueva
+      // emisión desde cliente. La lectura histórica se conserva; la limpieza y la
+      // migración a userSkills las realiza SUPER_ADMIN / script con Admin SDK.
+      // NOTA: esto NO afecta a `user_certificates` (§13), que son credenciales
+      // profesionales subidas para verificación de rol y se CONSERVAN.
+      allow create: if false;
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
 
@@ -869,15 +1089,10 @@ service cloud.firestore {
     // ═════════════════════════════════════════════════════════════════════════
 
     match /guides/{guideId} {
-      // Guías sin licencia SST: acceso libre para autenticados.
-      // Guías con requiresSstLicense: la verificación se delega a la app que
-      // conoce el contexto de org activa y la configuración del plan SST.
-      // Admins e instructores siempre pueden leer.
-      allow read: if isAuth() && (
-        isAdminRole() ||
-        isInstructorRole() ||
-        !resource.data.requiresSstLicense
-      );
+      // Lectura abierta a autenticados: el gating SST/visibilidad se aplica en la
+      // app (que conoce el contexto de org activa). El gating por reglas denegaba
+      // la lista de guías a instructores-por-membership y a estudiantes con licencia.
+      allow read: if isAuth();
 
       allow create, update: if isAdminRole() || isInstructorRole();
       allow delete: if isSuperAdmin() || isAdminRole();
@@ -906,6 +1121,25 @@ service cloud.firestore {
         notChanging(['userId', 'createdAt']);
 
       allow delete: if isSuperAdmin();
+
+      // ── SUBCOLECCIÓN: guideProgress/{userId}/guides/{guideId} ──────────────
+      // Modelo REAL usado por la app (GuideService.streamUserGuideProgress /
+      // markGuideAsCompleted): el progreso de CADA guía se guarda como documento
+      // en esta subcollección, con el docId del padre (progressId) == userId del
+      // dueño. Sin esta regla, el stream de progreso (course_detail _GuidesTab,
+      // guide_list_screen) caía al default-deny §34 → PERMISSION_DENIED, y la
+      // pantalla del curso se renderizaba completamente en rojo.
+      // El gating por curso/SST se aplica en la app (que tiene el contexto de org).
+      match /guides/{guideId} {
+        // El dueño lee su propio progreso; staff (instructor/admin) lo lee para
+        // los paneles de seguimiento de estudiantes.
+        allow read: if isAuth() && (
+          progressId == uid() || isAdminRole() || isInstructorRole()
+        );
+        // Solo el dueño escribe su propio progreso de lectura de guías.
+        allow create, update: if isAuth() && progressId == uid();
+        allow delete: if isSuperAdmin() || (isAuth() && progressId == uid());
+      }
     }
 
 
@@ -1146,6 +1380,28 @@ service cloud.firestore {
 
 
     // ═════════════════════════════════════════════════════════════════════════
+    // §28b. USER STATS  /userStats/{userId}
+    //
+    // Gamificación: XP, nivel, badges, promedios de quiz. docId = userId.
+    // Escrito por el propio usuario vía transacción cliente (SimulationService).
+    // No contiene campos de dinero ni de privilegio, por lo que la auto-escritura
+    // del dueño es aceptable. Admin/instructor leen para paneles de seguimiento.
+    //
+    // Corrección: esta colección no tenía regla → caía al deny por defecto y la
+    // app recibía PERMISSION_DENIED al leer userStats/{uid} (xp_strip, home,
+    // profile) y al actualizar XP tras un quiz.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /userStats/{userId} {
+      allow read: if isAuth() && (
+        isOwner(userId) || isAdminRole() || isInstructorRole()
+      );
+      allow create, update: if isOwner(userId);
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
     // §29. PLATFORM ENROLLMENTS  /platform_enrollments/{enrollmentId}
     //
     // Inscripciones a cursos de la plataforma pública (post-pago).
@@ -1296,8 +1552,17 @@ service cloud.firestore {
         isAdminRole() ||
         resource.data.userId == uid()
       );
-      // Permitir al propio usuario crear su orden (client-side fallback cuando CF no disponible)
-      allow create: if isAuth() && request.resource.data.userId == uid();
+      // El propio usuario crea su orden, pero NUNCA marcada como pagada.
+      // SECURITY: antes podía crear la orden con cualquier `status` (incl. 'paid')
+      // y 'manual', lo que permitía falsificar un pedido "pagado" que el panel
+      // super-admin/pedidos podría despachar (maniquí/licencia SST) sin pago real.
+      // El estado pagado solo lo asigna el servidor (webhook Wompi / Admin SDK) o
+      // el SuperAdmin (cubierto por §6). Los checkouts legítimos crean
+      // 'pending_payment'.
+      allow create: if isAuth()
+        && request.resource.data.userId == uid()
+        && request.resource.data.get('status', 'pending_payment') in ['pending_payment', 'pending']
+        && request.resource.data.get('manual', false) == false;
       allow update, delete: if isSuperAdmin();
     }
 
@@ -1380,13 +1645,10 @@ service cloud.firestore {
         )
       );
 
-      // Solo el admin de la institución (o SuperAdmin) puede crear sedes.
-      allow create: if isSuperAdmin() || (
-        isAdminOf(request.resource.data.institutionId) &&
-        isNonEmptyString(request.resource.data.name) &&
-        validInstitutionId(request.resource.data.institutionId) &&
-        request.resource.data.isActive == true
-      );
+      // Creación SOLO vía Admin SDK (POST /api/admin/sedes), que valida el
+      // límite de sedes del plan en el servidor. El cliente no puede crear
+      // sedes directamente para que el límite por plan no sea evadible.
+      allow create: if false;
 
       // Admin de la institución puede actualizar sedes (no puede cambiar institutionId).
       allow update: if isSuperAdmin() || (
@@ -1409,7 +1671,7 @@ service cloud.firestore {
 
     match /userStats/{userId} {
       allow read: if isAuth() && (isOwner(userId) || isAdminRole() || isInstructorRole());
-      allow write: if false;
+      allow write: if isAuth() && isOwner(userId);
     }
 
 
@@ -1422,6 +1684,117 @@ service cloud.firestore {
     // ═════════════════════════════════════════════════════════════════════════
 
     match /quizTopics/{topicId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §41. NOTIFICACIONES PROGRAMADAS  /scheduled_notifications/{id}
+    //
+    // Recordatorios push diferidos (clase en vivo, vencimiento de certificado,
+    // renovación a 2 años, etc.). El Cloudflare Worker gratuito los procesa con
+    // su Cron Trigger usando la cuenta de servicio (Admin REST bypassa reglas).
+    // Aquí solo autorizamos a admins a programarlos/consultarlos desde el panel.
+    //
+    // Doc: { topic | tokens[], title, body, link, sendAt(Timestamp), sent(bool) }
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /scheduled_notifications/{id} {
+      allow read: if isAdminRole();
+      // Al crear, sent debe iniciar en false para que el Cron lo recoja.
+      allow create: if isAdminRole() &&
+        request.resource.data.sent == false &&
+        isNonEmptyString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.body);
+      allow update, delete: if isAdminRole();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §42. BROADCASTS  /broadcasts/{id}
+    //
+    // Anuncios masivos enviados desde el panel SuperAdmin. Un único documento
+    // describe la audiencia (all | role | institution) en lugar de escribir una
+    // notificación por usuario. La app fusiona estos broadcasts con las
+    // notificaciones personales (colección `notifications`) y filtra por
+    // audiencia en el cliente; el estado de lectura es local por dispositivo.
+    //
+    // Doc: { audience: 'all'|'role'|'institution', role?, institutionId?,
+    //        title, message, type, link, createdAt(Timestamp) }
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /broadcasts/{id} {
+      // Cualquier usuario autenticado puede leer (el filtrado por audiencia es
+      // en cliente). Son anuncios, no datos sensibles.
+      allow read: if isAuth();
+
+      // Solo admins crean anuncios. Audiencia y campos requeridos validados.
+      allow create: if isAdminRole() &&
+        request.resource.data.audience in ['all', 'role', 'institution'] &&
+        isNonEmptyString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.message);
+
+      allow update, delete: if isAdminRole();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §43. [DEPRECADO] CERTIFICADOS DE CURSO  /course_certificates/{certId}
+    //
+    // DEPRECADO (jun-2026): unificado en la colección canónica `certificates`
+    // (§12), que ahora comparten Web y Flutter. Se mantiene SOLO-LECTURA para no
+    // romper datos legados; las nuevas emisiones van a `certificates`. Migrar los
+    // documentos existentes con un script y luego eliminar este bloque.
+    // (Histórico) id determinístico '{studentId}_{courseId}', auto-emisión cliente.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /course_certificates/{certId} {
+      allow read: if isAuth() && (
+        resource.data.studentId == uid() ||
+        isAdminRole() ||
+        isInstructorRole()
+      );
+      // El estudiante emite su propio certificado: id = '{uid}_{courseId}',
+      // studentId == uid, y debe tener matrícula en el curso (o ser su
+      // creador/instructor, para cursos propios sin matrícula formal).
+      allow create: if isAuth() &&
+        request.resource.data.studentId == uid() &&
+        certId == uid() + '_' + request.resource.data.courseId && (
+          exists(/databases/$(database)/documents/courses/$(request.resource.data.courseId)/enrollments/$(uid())) ||
+          get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.get('createdBy', '') == uid() ||
+          get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.get('instructorId', '') == uid()
+        );
+      allow update, delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §44. CONSECUTIVO DE CERTIFICADOS  /certificate_counters/{institutionId_year}
+    //
+    // Contador atómico para el número secuencial (p.ej. HS-2025-000001). La regla
+    // solo permite incrementos de +1, evitando saltos o manipulación del folio.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /certificate_counters/{counterId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.seq == 1;
+      allow update: if isAuth() &&
+        request.resource.data.seq == resource.data.seq + 1;
+      allow delete: if isSuperAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // §45. PLANTILLAS GLOBALES DE CERTIFICADO  /certificate_templates/{templateId}
+    //
+    // Plantillas globales (SIERCP, Jomar, …) administradas por el Super Admin.
+    // Lectura para cualquier autenticado (las instituciones las adoptan); la
+    // escritura es exclusiva del Super Admin (vía API con adminDb).
+    // Las plantillas INSTITUCIONALES no viven aquí (van en el doc de institución).
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /certificate_templates/{templateId} {
       allow read: if isAuth();
       allow create, update, delete: if isSuperAdmin();
     }
