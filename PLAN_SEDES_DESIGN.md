@@ -54,12 +54,23 @@ courses/{cid}      { institutionId, sedeId? }            ← curso de una sede
 - `firestore.rules`: `sedes` create = `false` (solo Admin SDK) → el límite ya no es evadible desde el cliente.
 - La UI (`admin/sedes/page.tsx`) ahora llama a la API.
 
-### Pendiente (fase mayor — requiere tu OK, toca varios archivos y Flutter)
-1. **Asignar admin de sede**: en `/admin/sedes/[sedeId]`, elegir un usuario → setear `sede.adminId` + su membership `sedeId` + (opcional) promover a ADMIN-scoped. Endpoint `PUT /api/admin/sedes/[id]/admin`.
-2. **Scoping de lectura/escritura por sede** en reglas: un admin de sede solo lee/edita usuarios/cursos con su `sedeId`. Helper `callerSedeId(inst)` desde la membership.
-3. **Filtros por sede** en paneles de students/instructors/courses (web) y en `OrgContext` (Flutter) para mostrar solo la sede activa.
-4. **Asignar `sedeId`** al crear usuarios/cursos (heredar del admin de sede que los crea).
-5. **Reportes**: agregación por sede en el dashboard.
+### Implementado (fase mayor — backbone)
+1. **Asignar admin de sede** — `PUT /api/admin/sedes/[id]/admin`: vínculo autoritativo
+   `sede.adminId` + `user.sedeId` + `membership.sedeId` (limpia el sedeId del admin
+   anterior). La página `/admin/sedes/[sedeId]` llama a la API. `user.sedeId` ahora
+   se mapea en el auth-store y el tipo `UserModel`.
+2. **Herencia de `sedeId`** al crear instructores (`/api/admin/instructors`): si el
+   admin creador tiene `sedeId`, el nuevo usuario + membership lo heredan.
+3. **Filtro por sede en paneles** (web): students e instructors muestran solo la sede
+   del admin logueado cuando éste tiene `sedeId` (el admin principal ve todo).
+
+### Pendiente (siguiente iteración — requiere tu OK)
+4. **Scoping en `firestore.rules`**: helper `callerSedeId(inst)` para que un admin de
+   sede solo pueda **escribir** sobre entidades de su `sedeId` (hoy el scope de lectura
+   es a nivel UI; la regla aún permite a cualquier ADMIN de la institución).
+5. **`sedeId` en cursos** y en creación de estudiantes (`students/new`, import CSV).
+6. **Flutter**: filtrar `OrgContext`/paneles por sede activa.
+7. **Reportes** por sede en el dashboard.
 
 > Alternativa descartada: "cada sede = institución propia con su plan" (aislamiento total/franquicias).
 > Más caro de operar y factura por separado; no es lo que se quiere aquí.
