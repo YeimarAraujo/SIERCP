@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/l10n/app_localizations.dart';
+import 'package:siercp/features/simulation/presentation/widgets/result_quiz_dialog_screen.dart';
 
 class QuizResultScreen extends StatefulWidget {
   final String sessionId;
@@ -33,6 +34,22 @@ class _QuizResultScreenState extends State<QuizResultScreen>
     _scoreAnim = Tween<double>(begin: 0, end: score).animate(
         CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
+
+    final result = widget.result;
+    if (result != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+           barrierDismissible: false,
+           builder: (_) => EvaluacionResultadoDialog(
+             score: result.score,
+             xpEarned: result.xpEarned,
+             newLevel: result.newLevel,
+           ),
+         );
+       });
+    }
   }
 
   @override
