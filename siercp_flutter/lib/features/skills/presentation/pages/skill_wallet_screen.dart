@@ -1,9 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:siercp/core/services/firestore_service.dart';
 import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:siercp/core/theme/theme.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/user_skill.dart';
 import '../providers/skill_providers.dart';
 
@@ -17,23 +22,56 @@ class SkillWalletScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skillsAsync = ref.watch(userSkillsStreamProvider);
+    final theme = Theme.of(context);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi Skill Passport')),
-      body: skillsAsync.when(
-        loading: () => const AppLogoLoader(),
-        error: (e, _) => Center(child: Text('Error al cargar skills: $e')),
-        data: (skills) => ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _PassportHeader(),
-            const SizedBox(height: 12),
-            const _QuickLinks(),
-            const SizedBox(height: 16),
-            if (skills.isEmpty)
-              const _EmptyState()
-            else
-              ...skills.expand((s) => [_SkillCard(skill: s), const SizedBox(height: 12)]),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(4, 8, 20, 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () =>
+                        context.canPop() ? context.pop() : context.go('/profile'),
+                  ),
+                  const SizedBox(width: 4),
+                  Text('Mis Competencias',
+                      style: TextStyle(
+                          color: textP,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: skillsAsync.when(
+                loading: () => const AppLogoLoader(),
+                error: (e, _) =>
+                    Center(child: Text('Error al cargar skills: $e')),
+                data: (skills) => ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    const _PassportHeader(),
+                    const SizedBox(height: 12),
+                    const _QuickLinks(),
+                    const SizedBox(height: 16),
+                    if (skills.isEmpty)
+                      const _EmptyState()
+                    else
+                      ...skills.expand((s) => [
+                        _SkillCard(skill: s),
+                        const SizedBox(height: 12)
+                      ]),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -86,10 +124,23 @@ class _PassportHeader extends ConsumerStatefulWidget {
 class _PassportHeaderState extends ConsumerState<_PassportHeader> {
   bool _busy = false;
 
+  String _generateSlug() {
+    final random = Random.secure();
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return List.generate(12, (_) => chars[random.nextInt(chars.length)]).join();
+  }
+
   Future<void> _toggle(bool enabled) async {
     setState(() => _busy = true);
     try {
-      await ref.read(skillServiceProvider).setPublicProfile(enabled);
+      final user = ref.read(currentUserProvider);
+      if (user == null) return;
+      final existingSlug = ref.read(publicProfileProvider).valueOrNull?.slug ?? '';
+      final slug = enabled && existingSlug.isEmpty ? _generateSlug() : existingSlug;
+      await ref.read(firestoreServiceProvider).updateUser(user.id, {
+        'publicProfile': enabled,
+        if (slug.isNotEmpty) 'publicSlug': slug,
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,7 +181,7 @@ class _PassportHeaderState extends ConsumerState<_PassportHeader> {
                 ),
                 Text(
                   p.enabled
-                      ? 'Tu Skill Passport es visible públicamente.'
+                      ? 'Tus competencias verificadas son visibles públicamente.'
                       : 'Actívalo para compartir tus competencias verificadas.',
                   style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
                 ),

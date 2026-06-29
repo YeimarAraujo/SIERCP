@@ -6,7 +6,8 @@ class AppColors {
 
   // Marca - Alineada a la web (--clr-primary: #1800ad)
   static const brand = Color(0xFF1800AD); // Principal #1800AD
-  static const brand2 = Color(0xFF4338CA); // Hover / primary-light web (#4338ca)
+  static const brand2 =
+      Color(0xFF4338CA); // Hover / primary-light web (#4338ca)
   static const brand3 = Color(0xFF12007F); // Indigo profundo (depth)
   static const brandLight = Color(0xFFE0E7FF); // Indigo-100
   static const brandBg = Color(0x1A1800AD); // Marca al ~10%
@@ -24,28 +25,32 @@ class AppColors {
   static const orange = Color(0xFFFF8A00);
 
   // Dark Mode — Fondos - Estilo Deep Navy
-  static const darkBg = Color(0xFF020617); // Slate-950
-  static const darkBg2 = Color(0xFF0F172A); // Slate-900
-  static const darkBg3 = Color(0xFF1E293B); // Slate-800
-  static const darkSurface = Color(0xFF1E293B);
-  static const darkSurface2 = Color(0xFF334155);
-  static const darkCard = Color(0xFF1E293B);
-  static const darkBorder = Color(0xFF334155);
+  static const darkBg = Color(0xFF020617); // Slate-950 - fondo principal
+  static const darkBg2 = Color(0xFF0F172A); // Slate-900 - fondo secundario
 
-  // Dark Mode — Texto
-  static const darkTextPrimary = Color(0xFFFFFFFF);
-  static const darkTextSecondary = Color(0xFFB0B8C4);
-  static const darkTextTertiary = Color(0xFF717D8A);
+  static const darkSurface = Color(0xFF111827); // Gray-900 - superficies
+  static const darkSurface2 =
+      Color(0xFF1E293B); // Slate-800 - elementos internos
 
-  // Light Mode — Fondos
+  static const darkCard = Color(0xFF162033); // Card ligeramente elevado
+  static const darkBorder = Color(0xFF334155); // Slate-700
+
+// Dark Mode — Texto
+  static const darkTextPrimary = Color(0xFFF8FAFC);
+  static const darkTextSecondary = Color(0xFFCBD5E1);
+  static const darkTextTertiary = Color(0xFF94A3B8);
+
+// Light Mode — Fondos
   static const lightBg = Color(0xFFF8FAFC); // Slate-50
   static const lightBg2 = Color(0xFFF1F5F9); // Slate-100
+
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightSurface2 = Color(0xFFF8FAFC);
-  static const lightCard = Color(0xFFFFFFFF);
-  static const lightBorder = Color(0xFFE2E8F0); // --clr-border web
 
-  // Light Mode — Texto
+  static const lightCard = Color(0xFFFFFFFF);
+  static const lightBorder = Color(0xFFE2E8F0);
+
+// Light Mode — Texto
   static const lightTextPrimary = Color(0xFF0F172A);
   static const lightTextSecondary = Color(0xFF334155);
   static const lightTextTertiary = Color(0xFF64748B);
@@ -56,12 +61,41 @@ class AppColors {
   // Alias para compatibilidad legado
   static const bg = darkBg;
   static const bg2 = darkBg2;
-  static const bg3 = darkBg3;
+  static const bg3 = Color(0xFF1E293B);
   static const card = darkCard;
   static const cardBorder = darkBorder;
   static const textPrimary = darkTextPrimary;
   static const textSecondary = darkTextSecondary;
   static const textTertiary = darkTextTertiary;
+
+  // ─── Gauge / Estado adaptativo ─────────────────────────────
+
+// ─── Gauge / Estados clínicos ─────────────────────────────
+
+  static Color success(bool isDark) => isDark
+      ? const Color(0xFF00E676) // mantiene tu neon en dark
+      : const Color.fromARGB(255, 18, 204, 105); // verde profesional
+
+  static Color danger(bool isDark) => isDark
+      ? const Color(0xFFFF3B5C)
+      : const Color(0xFFFF3B5C); // rojo sangre médico
+
+  static Color warning(bool isDark) => isDark
+      ? const Color(0xFFFFAB00)
+      : const Color.fromARGB(255, 236, 165, 22); // ámbar sobrio
+
+  static Color info(bool isDark) => isDark
+      ? const Color(0xFF00D4FF)
+      : const Color.fromARGB(255, 1, 120, 184); // azul clínico
+
+  static Color successBg(bool isDark) =>
+      success(isDark).withValues(alpha: isDark ? 0.15 : 0.10);
+
+  static Color dangerBg(bool isDark) =>
+      danger(isDark).withValues(alpha: isDark ? 0.15 : 0.10);
+
+  static Color warningBg(bool isDark) =>
+      warning(isDark).withValues(alpha: isDark ? 0.15 : 0.10);
 }
 
 // ─── Radios ────────────────────────────────────────────────────────────────────
@@ -137,12 +171,17 @@ class AppTheme {
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final surface2 = isDark ? AppColors.darkSurface2 : AppColors.lightSurface2;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final card = isDark ? AppColors.darkCard : AppColors.lightCard;
     final textP =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textS =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final textT =
         isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
+    final textNb = isDark
+        ? AppColors.darkTextTertiary
+        : const Color.fromARGB(255, 255, 255, 255);
+
     final fillColor = isDark ? AppColors.darkCard : AppColors.lightSurface;
 
     return ThemeData(
@@ -151,10 +190,10 @@ class AppTheme {
       scaffoldBackgroundColor: bg,
       colorScheme: isDark
           ? ColorScheme.dark(
-              primary: AppColors.brand,
+              primary: AppColors.accent,
               secondary: AppColors.cyan,
               surface: surface,
-              surfaceContainerHighest: surface2,
+              surfaceContainerHighest: card,
               error: AppColors.red,
               onPrimary: Colors.white,
               onSurface: textP,
@@ -164,7 +203,7 @@ class AppTheme {
               primary: AppColors.brand,
               secondary: AppColors.brandLight,
               surface: surface,
-              surfaceContainerHighest: surface2,
+              surfaceContainerHighest: card,
               error: AppColors.red,
               onPrimary: Colors.white,
               onSurface: textP,
@@ -240,9 +279,10 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brand,
+          backgroundColor: isDark ? AppColors.accent : AppColors.brand,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.brand.withValues(alpha: 0.4),
+          disabledBackgroundColor: (isDark ? AppColors.accent : AppColors.brand)
+              .withValues(alpha: 0.4),
           minimumSize: const Size(double.infinity, 52),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
@@ -258,8 +298,11 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.brand,
-          side: const BorderSide(color: AppColors.brand, width: 1.5),
+          foregroundColor: isDark ? AppColors.accent : AppColors.brand,
+          side: BorderSide(
+            color: isDark ? AppColors.accent : AppColors.brand,
+            width: 1.5,
+          ),
           minimumSize: const Size(double.infinity, 52),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
@@ -327,8 +370,10 @@ class AppTheme {
         space: 1,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isDark ? AppColors.darkBg2 : AppColors.lightSurface,
-        indicatorColor: AppColors.brand.withValues(alpha: isDark ? 0.35 : 0.1),
+        backgroundColor: isDark ? AppColors.darkBg2 : AppColors.accent,
+        indicatorColor: isDark
+            ? Colors.transparent
+            : const Color.fromARGB(103, 0, 213, 255),
         indicatorShape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -336,8 +381,9 @@ class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return GoogleFonts.dmSans(
-            color:
-                selected ? (isDark ? AppColors.cyan : AppColors.brand) : textT,
+            color: selected
+                ? (isDark ? AppColors.cyan : AppColors.brandLight)
+                : textNb,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             letterSpacing: 0.1,
@@ -347,8 +393,8 @@ class AppTheme {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected
-                ? (isDark ? AppColors.cyan : AppColors.brand)
-                : textT.withValues(alpha: 0.7),
+                ? (isDark ? AppColors.cyan : AppColors.brandLight)
+                : textNb.withValues(alpha: 0.7),
             size: 24,
           );
         }),
@@ -358,7 +404,7 @@ class AppTheme {
             states.contains(WidgetState.selected) ? Colors.white : textT),
         trackColor: WidgetStateProperty.resolveWith((states) =>
             states.contains(WidgetState.selected)
-                ? AppColors.brand
+                ? (isDark ? AppColors.accent : AppColors.brand)
                 : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(

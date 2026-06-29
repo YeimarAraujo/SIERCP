@@ -6,6 +6,7 @@ import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/simulation/data/ecg_scenarios_data.dart';
 import 'package:siercp/features/simulation/data/ecg_signal.dart';
 import 'package:siercp/features/simulation/data/models/ecg_scenario.dart';
+import 'package:siercp/features/simulation/data/aed/ecg_audio_service.dart';
 import 'package:siercp/features/simulation/presentation/widgets/monitor_trace.dart';
 
 // Paleta fija de monitor clínico (independiente del tema claro/oscuro de la app).
@@ -34,8 +35,10 @@ class _EcgMonitorScreenState extends State<EcgMonitorScreen>
   EcgScenario? _scenario;
   late EcgGenerator _ecg;
   late final AnimationController _blink;
+  final EcgAudioService _audio = EcgAudioService();
   bool _running = true;
   bool _showInfo = false;
+  bool _muted = false;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _EcgMonitorScreenState extends State<EcgMonitorScreen>
     final s = _scenario;
     if (s != null) {
       _ecg = EcgGenerator(s.rhythm, s.heartRate > 0 ? s.heartRate.toDouble() : 150);
+      _initAudio(s);
     }
     _blink = AnimationController(
       vsync: this,
@@ -51,9 +55,43 @@ class _EcgMonitorScreenState extends State<EcgMonitorScreen>
     )..repeat(reverse: true);
   }
 
+  Future<void> _initAudio(EcgScenario s) async {
+    await _audio.init();
+    if (!mounted) return;
+    final rhythmType = _mapRhythmToAudio(s.rhythm);
+    _audio.playRhythmLoop(rhythmType);
+  }
+
+  EcgRhythmTypeForAudio _mapRhythmToAudio(EcgRhythm rhythm) {
+    switch (rhythm) {
+      case EcgRhythm.vfib:
+        return EcgRhythmTypeForAudio.fv;
+      case EcgRhythm.vtach:
+      case EcgRhythm.torsades:
+        return EcgRhythmTypeForAudio.tv;
+      case EcgRhythm.asystole:
+        return EcgRhythmTypeForAudio.asistolia;
+      case EcgRhythm.pea:
+        return EcgRhythmTypeForAudio.aesp;
+      case EcgRhythm.svt:
+        return EcgRhythmTypeForAudio.tsv;
+      case EcgRhythm.atrialFibrillation:
+      case EcgRhythm.atrialFlutter:
+        return EcgRhythmTypeForAudio.fa;
+      case EcgRhythm.avBlock1:
+      case EcgRhythm.avBlock2TypeI:
+      case EcgRhythm.avBlock2TypeII:
+      case EcgRhythm.avBlock3:
+        return EcgRhythmTypeForAudio.bav;
+      default:
+        return EcgRhythmTypeForAudio.normal;
+    }
+  }
+
   @override
   void dispose() {
     _blink.dispose();
+    _audio.dispose();
     super.dispose();
   }
 
@@ -230,6 +268,22 @@ class _EcgMonitorScreenState extends State<EcgMonitorScreen>
                   ? Icons.info_rounded
                   : Icons.info_outline_rounded,
               color: _showInfo ? _plethCyan : Colors.white70,
+              size: 20,
+            ),
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _muted = !_muted;
+                _audio.muted = _muted;
+              });
+            },
+            icon: Icon(
+              _muted
+                  ? Icons.volume_off_rounded
+                  : Icons.volume_up_rounded,
+              color: _muted ? Colors.white38 : Colors.white70,
               size: 20,
             ),
             visualDensity: VisualDensity.compact,

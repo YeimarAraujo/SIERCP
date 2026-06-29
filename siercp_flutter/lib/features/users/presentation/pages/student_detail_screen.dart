@@ -22,6 +22,7 @@ class StudentDetailScreen extends ConsumerWidget {
     
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: bg,
@@ -52,7 +53,7 @@ class StudentDetailScreen extends ConsumerWidget {
                 sessionsAsync.when(
                   loading: () => const AppLogoLoader(),
                   error: (e, _) => Text('Error al cargar stats: $e'),
-                  data: (sessions) => _buildStatsGrid(sessions),
+                  data: (sessions) => _buildStatsGrid(sessions, screenWidth),
                 ),
 
                 const SizedBox(height: 24),
@@ -125,7 +126,7 @@ class StudentDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(List<SessionModel> sessions) {
+  Widget _buildStatsGrid(List<SessionModel> sessions, double screenWidth) {
     if (sessions.isEmpty) {
       return const Center(child: Text('Sin sesiones registradas', style: TextStyle(color: AppColors.textSecondary)));
     }
@@ -133,14 +134,15 @@ class StudentDetailScreen extends ConsumerWidget {
     final total = sessions.length;
     final avgScore = sessions.map((s) => s.metrics?.score ?? 0).reduce((a, b) => a + b) / total;
     final approved = sessions.where((s) => s.metrics?.approved ?? false).length;
+    final cols = screenWidth > 600 ? 4 : 2;
 
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: cols,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 1.3,
       children: [
         MetricCard(label: 'Total Sesiones', value: total.toString(), suffix: 'sesiones'),
         MetricCard(label: 'Puntaje Prom.', value: '${avgScore.toStringAsFixed(1)}%', suffix: 'promedio', status: avgScore >= 80 ? MetricStatus.ok : MetricStatus.warning),
@@ -171,7 +173,7 @@ class StudentDetailScreen extends ConsumerWidget {
             border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.1)),
           ),
           child: ListTile(
-            title: Text(s.scenarioTitle ?? 'Sesión RCP', style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.bold)),
+            title: Text(s.scenarioTitle ?? 'Sesión de práctica', style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.bold)),
             subtitle: Text(_formatDate(s.startedAt), style: TextStyle(color: textS, fontSize: 11)),
             trailing: Text(
               '${score.toStringAsFixed(0)}%',

@@ -8,6 +8,7 @@ import 'package:siercp/features/session/presentation/providers/session_provider.
 import 'package:siercp/core/theme/theme_provider.dart';
 import 'package:siercp/features/devices/presentation/providers/device_provider.dart';
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/core/widgets/demo_guard.dart';
 import 'package:siercp/core/widgets/xp_strip.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 import 'package:siercp/core/theme/locale_provider.dart';
@@ -102,13 +103,52 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildDemoProfile(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_outline,
+                  size: 72, color: AppColors.accent.withValues(alpha: 0.5)),
+              const SizedBox(height: 24),
+              Text('Modo Demo',
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: theme.textTheme.bodyLarge?.color)),
+              const SizedBox(height: 32),
+              FilledButton.icon(
+                onPressed: () async {
+                  await ref.read(authStateProvider.notifier).logout();
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Salir modo demo'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDemo = ref.watch(isDemoProvider);
+    if (isDemo) {
+      return _buildDemoProfile(context, ref);
+    }
+
     final user = ref.watch(currentUserProvider);
     final realStats = ref.watch(userStatsProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final loc = AppLocalizations.of(context)!;
     final currentLocale = ref.watch(localeControllerProvider);
+    final accentColor = AppColors.accent;
 
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
@@ -131,8 +171,8 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     IconButton(
                       onPressed: () => context.push('/profile/edit'),
-                      icon: const Icon(Icons.edit_note_rounded,
-                          color: AppColors.brand),
+                      icon: Icon(Icons.edit_note_rounded,
+                          size: 30, color: accentColor),
                       tooltip: loc.editProfile,
                     ),
                   ],
@@ -149,20 +189,8 @@ class ProfileScreen extends ConsumerWidget {
                           width: 100,
                           height: 100,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.brand, AppColors.brand2],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: AppColors.brand,
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.brand.withValues(alpha: 0.3),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
                             image: user?.avatarUrl != null
                                 ? DecorationImage(
                                     image: NetworkImage(user!.avatarUrl!),
@@ -222,29 +250,19 @@ class ProfileScreen extends ConsumerWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _Badge(
-                          label: _translateRole(user?.role ?? 'USUARIO', loc),
-                          color: (user?.isSuperAdmin ?? false)
-                              ? const Color(0xFFa855f7)
-                              : (user?.isAdmin ?? false)
-                                  ? AppColors.amber
-                                  : (user?.isInstructor ?? false)
-                                      ? AppColors.accent
-                                      : AppColors.cyan,
-                          bg: ((user?.isSuperAdmin ?? false)
-                                  ? const Color(0xFFa855f7)
-                                  : (user?.isAdmin ?? false)
-                                      ? AppColors.amber
-                                      : (user?.isInstructor ?? false)
-                                          ? AppColors.accent
-                                          : AppColors.cyan)
-                              .withValues(alpha: 0.12),
-                        ),
+                        if ((user?.isAdmin ?? false) ||
+                            (user?.isInstructor ?? false))
+                          _Badge(
+                            label: _translateRole(user?.role ?? 'USUARIO', loc),
+                            color: (user?.isAdmin ?? false)
+                                ? AppColors.amber
+                                : AppColors.accent,
+                            bg: ((user?.isAdmin ?? false)
+                                    ? AppColors.amber
+                                    : AppColors.accent)
+                                .withValues(alpha: 0.12),
+                          ),
                         const SizedBox(width: 8),
-                        const _Badge(
-                            label: 'SIERCP v2.0',
-                            color: AppColors.brand,
-                            bg: AppColors.brandBg),
                       ],
                     ),
                   ],
@@ -261,59 +279,10 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
               ],
 
-              // Stats grid (Ocultar para Admin)
-              if (user?.isAdmin != true)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Consumer(
-                    builder: (context, ref, child) {
-                      final isLandscape = MediaQuery.of(context).orientation ==
-                          Orientation.landscape;
-                      return GridView.count(
-                        crossAxisCount: isLandscape ? 4 : 4,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: isLandscape ? 2.2 : 1.9,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _StatCard(
-                              label: loc.totalSessions,
-                              value: '${realStats?.totalSessions ?? 0}',
-                              color: textColor,
-                              cardColor: cardColor,
-                              borderColor: borderColor),
-                          _StatCard(
-                              label: loc.averageScore,
-                              value:
-                                  '${(realStats?.averageScore ?? 0).toStringAsFixed(0)}%',
-                              color: AppColors.green,
-                              cardColor: cardColor,
-                              borderColor: borderColor),
-                          _StatCard(
-                              label: loc.practiceHours,
-                              value:
-                                  '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
-                              color: AppColors.cyan,
-                              cardColor: cardColor,
-                              borderColor: borderColor),
-                          _StatCard(
-                              label: loc.currentStreak,
-                              value: '${realStats?.streakDays ?? 0}d',
-                              color: AppColors.amber,
-                              cardColor: cardColor,
-                              borderColor: borderColor),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 24),
-
               // Certificates (visible to all users)
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: SectionLabel('Certificados'),
+                //child: SectionLabel('Certificados'),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -331,7 +300,7 @@ class ProfileScreen extends ConsumerWidget {
                         : user?.certVerification ==
                                 CertVerificationStatus.pending
                             ? 'En revisión'
-                            : 'Subir certificado',
+                            : 'Subir',
                     textColor: textColor,
                     secondaryColor: secondaryTextColor,
                     onTap: () => context.push('/profile/certificados'),
@@ -339,8 +308,64 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _NavTile(
+                    label: 'Competencias',
+                    value: '',
+                    textColor: textColor,
+                    secondaryColor: secondaryTextColor,
+                    onTap: () => context.push('/skills'),
+                    icon: Icons.workspace_premium_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _NavTile(
+                    label: 'Calendario',
+                    value: '',
+                    textColor: textColor,
+                    secondaryColor: secondaryTextColor,
+                    onTap: () => context.push('/calendar'),
+                    icon: Icons.calendar_month_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _NavTile(
+                    label: 'Historial',
+                    value: '',
+                    textColor: textColor,
+                    secondaryColor: secondaryTextColor,
+                    onTap: () => context.go('/history'),
+                    icon: Icons.history,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
-
               // Settings
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -444,13 +469,6 @@ class ProfileScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       _NavTile(
-                          label: loc.appVersion,
-                          value: '2.0.0',
-                          textColor: textColor,
-                          secondaryColor: secondaryTextColor,
-                          onTap: () {}),
-                      Divider(color: borderColor, height: 0.5),
-                      _NavTile(
                           label: loc.ahaGuidelines,
                           value: '',
                           textColor: textColor,
@@ -474,6 +492,13 @@ class ProfileScreen extends ConsumerWidget {
                           textColor: textColor,
                           secondaryColor: secondaryTextColor,
                           onTap: () => _showPrivacyPolicy(context)),
+                      Divider(color: borderColor, height: 0.5),
+                      _NavTile(
+                          label: loc.appVersion,
+                          value: '1.0',
+                          textColor: textColor,
+                          secondaryColor: secondaryTextColor,
+                          onTap: () {}),
                     ],
                   ),
                 ),
@@ -524,39 +549,72 @@ class _Badge extends StatelessWidget {
 class _StatCard extends StatelessWidget {
   final String label, value;
   final Color color;
-  final Color? cardColor;
-  final Color? borderColor;
   const _StatCard(
-      {required this.label,
-      required this.value,
-      required this.color,
-      this.cardColor,
-      this.borderColor});
+      {required this.label, required this.value, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: cardColor ?? AppColors.card,
-          border: Border.all(
-              color: borderColor ?? AppColors.cardBorder, width: 0.5),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyMedium?.color ??
-                      AppColors.textSecondary,
-                  fontSize: 11)),
-          const Spacer(),
-          Text(value,
-              style: TextStyle(
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
+    final cardSurface = isDark ? AppColors.darkCard : Colors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
+      decoration: BoxDecoration(
+        color: cardSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: borderColor, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
                   color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'SpaceMono')),
-        ]),
-      );
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: textT,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                color:
+                    theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ToggleTile extends StatefulWidget {

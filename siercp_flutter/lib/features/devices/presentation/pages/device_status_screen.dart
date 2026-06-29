@@ -120,7 +120,7 @@ class DeviceStatusScreen extends ConsumerWidget {
                                   children: [
                                     Text(m.name, style: TextStyle(color: textP, fontWeight: FontWeight.w600, fontSize: 13)),
                                     const SizedBox(height: 2),
-                                    Text(m.uuid, style: TextStyle(color: textS, fontSize: 10, fontFamily: 'SpaceMono')),
+                                    Text(m.uuid, style: TextStyle(color: textS, fontSize: 10, fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
                                     Text('Visto: $lastSeen', style: TextStyle(color: textS, fontSize: 10)),
                                   ],

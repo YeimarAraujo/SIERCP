@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:siercp/firebase_options.dart';
 
 /// Handler de mensajes recibidos con la app en SEGUNDO PLANO o CERRADA.
 ///
@@ -13,6 +15,10 @@ import 'package:flutter/material.dart';
 /// (recibir notificaciones con la app cerrada).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   debugPrint(
     'FCM background: ${message.messageId} - ${message.notification?.title}',
   );
@@ -41,7 +47,7 @@ class PushNotificationService {
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
 
   /// Lo asigna `main.dart` con `router.go`. Si llega un tap antes, queda pendiente.
   void Function(String route)? _onNavigate;

@@ -1,22 +1,181 @@
 import 'package:flutter/material.dart';
-import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
-import 'package:siercp/features/simulation/data/models/quiz_topic.dart';
-import 'package:siercp/features/simulation/data/simulation_service.dart';
-import 'package:siercp/l10n/app_localizations.dart';
 
-class TheoreticalHubScreen extends ConsumerWidget {
+class TheoreticalHubScreen extends ConsumerStatefulWidget {
   const TheoreticalHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final loc = AppLocalizations.of(context)!;
+  ConsumerState<TheoreticalHubScreen> createState() =>
+      _TheoreticalHubScreenState();
+}
+
+class _TheoreticalHubScreenState
+    extends ConsumerState<TheoreticalHubScreen> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  static const _allTypes = <_EvalType>[
+    _EvalType(
+      id: 'rcp',
+      title: 'RCP',
+      icon: Icons.favorite_outlined,
+      color: Color(0xFFEF4444),
+      desc: 'Reanimación cardiopulmonar en adultos, niños y lactantes',
+      caseIds: ['eval_adulto_rcp', 'eval_pediatrico', 'eval_lactante', 'eval_dos_rescatadores', 'eval_rcp_via_aerea_avanzada', 'eval_rcp_hands_only', 'eval_rcp_dea'],
+    ),
+    _EvalType(
+      id: 'dea',
+      title: 'DEA',
+      icon: Icons.electric_bolt_rounded,
+      color: Color(0xFFF59E0B),
+      desc: 'Desfibrilación externa automática',
+      caseIds: ['eval_dea_fv', 'eval_dea_pediatrico', 'eval_dea_superficie_mojada', 'eval_dea_marcapasos', 'eval_dea_parches', 'eval_dea_vello'],
+    ),
+    _EvalType(
+      id: 'ahogamiento',
+      title: 'Ahogamiento',
+      icon: Icons.water_drop_outlined,
+      color: Color(0xFF06B6D4),
+      desc: 'Rescate y reanimación en víctimas de ahogamiento',
+      caseIds: ['eval_ahogamiento', 'eval_ahogamiento_agua_fria', 'eval_ahogamiento_pediatrico', 'eval_ahogamiento_agua_salada', 'eval_ahogamiento_lesion_cervical', 'eval_ahogamiento_vehiculo'],
+    ),
+    _EvalType(
+      id: 'ovace',
+      title: 'OVACE',
+      icon: Icons.air_rounded,
+      color: Color(0xFF8B5CF6),
+      desc: 'Obstrucción de la vía aérea por cuerpo extraño',
+      caseIds: ['eval_ovace_adulto', 'eval_ovace_lactante', 'eval_ovace_adulto_inconsciente', 'eval_ovace_nino', 'eval_ovace_obesidad', 'eval_ovace_embarazada'],
+    ),
+    _EvalType(
+      id: 'electrocucion',
+      title: 'Electrocución',
+      icon: Icons.bolt_rounded,
+      color: Color(0xFFF97316),
+      desc: 'Lesiones eléctricas y paro cardíaco',
+      caseIds: ['eval_electrocucion', 'eval_electrocucion_alto_voltaje', 'eval_electrocucion_rayo', 'eval_electrocucion_pediatrica', 'eval_electrocucion_banera', 'eval_electrocucion_arco'],
+    ),
+    _EvalType(
+      id: 'sobredosis',
+      title: 'Sobredosis',
+      icon: Icons.medication_outlined,
+      color: Color(0xFFEC4899),
+      desc: 'Sobredosis por opioides y uso de naloxona',
+      caseIds: ['eval_sobredosis', 'eval_sobredosis_benzodiacepinas', 'eval_sobredosis_cocaina', 'eval_sobredosis_opioides', 'eval_sobredosis_triciclicos', 'eval_sobredosis_paracetamol'],
+    ),
+    _EvalType(
+      id: 'infarto',
+      title: 'Infarto',
+      icon: Icons.favorite_border_rounded,
+      color: Color(0xFFB91C1C),
+      desc: 'Reconocimiento y respuesta al infarto agudo de miocardio',
+      caseIds: ['eval_infarto_paro', 'eval_infarto_edema_pulmonar', 'eval_infarto_inferior_bav', 'eval_infarto_anterior', 'eval_infarto_shock_cardiogenico', 'eval_infarto_derecho'],
+    ),
+    _EvalType(
+      id: 'hipotermia',
+      title: 'Hipotermia',
+      icon: Icons.ac_unit_outlined,
+      color: Color(0xFF059669),
+      desc: 'Manejo del paro cardíaco por hipotermia severa',
+      caseIds: ['eval_hipotermia', 'eval_hipotermia_avalancha', 'eval_hipotermia_neonatal'],
+    ),
+    _EvalType(
+      id: 'hemorragia',
+      title: 'Hemorragia',
+      icon: Icons.bloodtype_outlined,
+      color: Color(0xFFDC2626),
+      desc: 'Control de hemorragias y uso de torniquete',
+      caseIds: ['eval_hemorragia', 'eval_hemorragia_tce', 'eval_hemorragia_postparto'],
+    ),
+    _EvalType(
+      id: 'anafilaxia',
+      title: 'Anafilaxia',
+      icon: Icons.vaccines_outlined,
+      color: Color(0xFFD97706),
+      desc: 'Reacción alérgica severa y administración de adrenalina',
+      caseIds: ['eval_anafilaxia', 'eval_anafilaxia_picadura', 'eval_anafilaxia_alimento', 'eval_anafilaxia_ejercicio'],
+    ),
+    _EvalType(
+      id: 'convulsion',
+      title: 'Crisis Convulsiva',
+      icon: Icons.psychology_alt_outlined,
+      color: Color(0xFF6366F1),
+      desc: 'Primeros auxilios durante una crisis convulsiva',
+      caseIds: ['eval_convulsion', 'eval_convulsion_status', 'eval_convulsion_febril'],
+    ),
+    _EvalType(
+      id: 'embarazada',
+      title: 'Embarazada',
+      icon: Icons.pregnant_woman_outlined,
+      color: Color(0xFFEC4899),
+      desc: 'Paro cardíaco y RCP en la paciente gestante',
+      caseIds: ['eval_embarazada', 'eval_embarazada_eclampsia'],
+    ),
+    _EvalType(
+      id: 'presion',
+      title: 'Presión Arterial',
+      icon: Icons.monitor_heart_outlined,
+      color: Color(0xFFE11D48),
+      desc: 'Crisis hipertensiva y shock hipovolémico',
+      caseIds: ['eval_crisis_hipertensiva', 'eval_shock_hipovolemico', 'eval_presion_crisis_embarazo'],
+    ),
+    _EvalType(
+      id: 'infeccion',
+      title: 'Infección',
+      icon: Icons.local_hospital_outlined,
+      color: Color(0xFFD97706),
+      desc: 'Sepsis y shock séptico',
+      caseIds: ['eval_sepsis', 'eval_infeccion_shock_pediatrico', 'eval_infeccion_meningitis', 'eval_infeccion_neumonia', 'eval_infeccion_urosepsis', 'eval_infeccion_endocarditis'],
+    ),
+    _EvalType(
+      id: 'metabolico',
+      title: 'Metabólico',
+      icon: Icons.science_outlined,
+      color: Color(0xFF7C3AED),
+      desc: 'Cetoacidosis diabética y emergencias metabólicas',
+      caseIds: ['eval_cetoacidosis', 'eval_metabolico_hiperosmolar', 'eval_metabolico_hipoglucemia', 'eval_metabolico_acidosis_lactica', 'eval_metabolico_tormenta_tiroidea', 'eval_metabolico_insuficiencia_suprarrenal'],
+    ),
+    _EvalType(
+      id: 'ecg',
+      title: 'ECG',
+      icon: Icons.monitor_heart_outlined,
+      color: Color(0xFF10B981),
+      desc: 'Interpretación de ritmos cardíacos en monitorización',
+      caseIds: ['eval_ecg_fv', 'eval_ecg_tvsp', 'eval_ecg_asistolia', 'eval_ecg_tsv', 'eval_ecg_bav', 'eval_ecg_fa_rvr', 'eval_ritmo_fv', 'eval_ritmo_tv', 'eval_ritmo_asistolia', 'eval_ritmo_aesp', 'eval_ritmo_tsv', 'eval_ritmo_fa'],
+    ),
+    _EvalType(
+      id: 'triage',
+      title: 'Triage',
+      icon: Icons.emergency_outlined,
+      color: Color(0xFFE11D48),
+      desc: 'Clasificación de pacientes según sistema START/ESI',
+      caseIds: [],
+    ),
+  ];
+
+  List<_EvalType> get _filteredTypes {
+    if (_query.isEmpty) return _allTypes;
+    final q = _query.toLowerCase();
+    return _allTypes.where((t) =>
+        t.title.toLowerCase().contains(q) ||
+        t.desc.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final topicsAsync = ref.watch(quizTopicsProvider);
+    final types = _filteredTypes;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -24,67 +183,118 @@ class TheoreticalHubScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18, color: theme.textTheme.bodyLarge?.color),
+            Container(
+              padding: const EdgeInsets.fromLTRB(8, 12, 20, 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    width: 0.5,
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(loc.quizTopicsTitle,
-                          style: TextStyle(
-                              color: textP,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700)),
-                      Text(loc.quizTopicsSubtitle,
-                          style: TextStyle(color: textS, fontSize: 11)),
+                      IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new_rounded,
+                            size: 18, color: textP),
+                        onPressed: () => context.pop(),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Evaluaciones Teóricas',
+                              style: TextStyle(
+                                  color: textP,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Selecciona el tipo de caso clínico',
+                              style: TextStyle(color: textS, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _query = v),
+                    style: TextStyle(color: textP, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar tipo de caso...',
+                      hintStyle: TextStyle(color: textS.withValues(alpha: 0.5), fontSize: 13),
+                      prefixIcon: Icon(Icons.search_rounded, size: 20, color: textS.withValues(alpha: 0.5)),
+                      suffixIcon: _query.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear_rounded, size: 18, color: textS),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() => _query = '');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Expanded(
-              child: topicsAsync.when(
-                loading: () => const AppLogoLoader(),
-                error: (e, _) => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.wifi_off_rounded,
-                          size: 40, color: AppColors.textTertiary),
-                      const SizedBox(height: 12),
-                      Text(loc.quizErrorLoad,
-                          style: TextStyle(color: textS, fontSize: 13),
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      OutlinedButton(
-                        onPressed: () => ref.invalidate(quizTopicsProvider),
-                        child: const Text('Reintentar'),
+              child: types.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off_rounded, size: 48, color: textS.withValues(alpha: 0.3)),
+                          const SizedBox(height: 8),
+                          Text('Sin resultados para "$_query"', style: TextStyle(color: textS, fontSize: 13)),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                data: (topics) => topics.isEmpty
-                    ? _EmptyTopics(loc: loc)
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                        itemCount: topics.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _TopicCard(
-                          topic: topics[i],
-                          onTap: () => context.push(
-                            '/simulation/theoretical/evaluations/${topics[i].id}',
-                          ),
-                        ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.85,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
                       ),
-              ),
+                      itemCount: types.length,
+                      itemBuilder: (_, i) {
+                        final type = types[i];
+                        return _TypeCard(
+                          type: type,
+                          isDark: isDark,
+                          textP: textP,
+                          textS: textS,
+                          onTap: type.id == 'triage'
+                              ? () => context.push('/simulation/theoretical/triage')
+                              : () => context.push(
+                                  '/simulation/theoretical/cases?type=${type.id}'),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -93,216 +303,116 @@ class TheoreticalHubScreen extends ConsumerWidget {
   }
 }
 
-class _EmptyTopics extends StatelessWidget {
-  final AppLocalizations loc;
-  const _EmptyTopics({required this.loc});
+class _EvalType {
+  final String id;
+  final String title;
+  final IconData icon;
+  final Color color;
+  final String desc;
+  final List<String> caseIds;
 
-  @override
-  Widget build(BuildContext context) {
-    final textS = Theme.of(context).textTheme.bodyMedium?.color ??
-        AppColors.textSecondary;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.psychology_outlined,
-              size: 48, color: AppColors.textTertiary),
-          const SizedBox(height: 12),
-          Text('No hay temas disponibles aún.',
-              style: TextStyle(color: textS, fontSize: 13)),
-        ],
-      ),
-    );
-  }
+  const _EvalType({
+    required this.id,
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.desc,
+    required this.caseIds,
+  });
 }
 
-class _TopicCard extends StatelessWidget {
-  final QuizTopic topic;
+class _TypeCard extends StatelessWidget {
+  final _EvalType type;
+  final bool isDark;
+  final Color textP;
+  final Color textS;
   final VoidCallback onTap;
 
-  const _TopicCard({
-    required this.topic,
+  const _TypeCard({
+    required this.type,
+    required this.isDark,
+    required this.textP,
+    required this.textS,
     required this.onTap,
   });
 
-  // Topics with requiresPlan show a badge but are not locked client-side;
-  // the Cloud Function enforces plan access when questions are requested.
-  bool get _isLocked => false;
-
-  Color get _categoryColor {
-    switch (topic.category.toLowerCase()) {
-      case 'rcp':
-        return AppColors.red;
-      case 'trauma':
-        return AppColors.amber;
-      case 'ecg':
-        return AppColors.brand;
-      case 'pediatrico':
-        return AppColors.accent;
-      default:
-        return AppColors.cyan;
-    }
-  }
-
-  IconData get _categoryIcon {
-    switch (topic.category.toLowerCase()) {
-      case 'rcp':
-        return Icons.favorite_outlined;
-      case 'trauma':
-        return Icons.healing_outlined;
-      case 'ecg':
-        return Icons.monitor_heart_outlined;
-      case 'pediatrico':
-        return Icons.child_care_outlined;
-      default:
-        return Icons.medical_services_outlined;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
     final cardBg = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
-    final locked = _isLocked;
-    final color = _categoryColor;
-    final durationMin = (topic.durationSeconds / 60).ceil();
 
-    return GestureDetector(
-      onTap: locked
-          ? () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(
-                  loc.quizPlanRequired(topic.requiresPlan ?? ''),
-                  style: TextStyle(color: theme.colorScheme.onInverseSurface),
-                ),
-                backgroundColor: theme.colorScheme.inverseSurface,
-              ))
-          : onTap,
-      child: Opacity(
-        opacity: locked ? 0.5 : 1.0,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: cardBg,
-            border: Border.all(color: border, width: 0.5),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: isDark ? null : AppShadows.card(false),
+            borderRadius: BorderRadius.circular(16),
+            border:
+                Border.all(color: border.withValues(alpha: 0.2), width: 0.5),
+            boxShadow: isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: locked
-                    ? Icon(Icons.lock_outline_rounded, color: textT, size: 22)
-                    : Icon(_categoryIcon, color: color, size: 24),
-              ),
-              const SizedBox(width: 14),
               Expanded(
+                child: Center(
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: type.color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: type.color.withValues(alpha: 0.2), width: 0.8),
+                    ),
+                    child: Icon(type.icon, color: type.color, size: 28),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            topic.title,
-                            style: TextStyle(
-                              color: textP,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (locked)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              topic.requiresPlan?.toUpperCase() ?? '',
-                              style: const TextStyle(
-                                color: AppColors.amber,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                      ],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        type.title,
+                        style: TextStyle(
+                            color: textP,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800),
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      topic.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: textS, fontSize: 10),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _InfoChip(
-                          icon: Icons.quiz_outlined,
-                          label: '${topic.questionCount} preguntas',
-                          color: textT,
-                        ),
-                        const SizedBox(width: 12),
-                        _InfoChip(
-                          icon: Icons.timer_outlined,
-                          label: '${durationMin} min',
-                          color: textT,
-                        ),
-                        const Spacer(),
-                        Text(
-                          topic.category.toUpperCase(),
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
+                      type.id == 'triage'
+                          ? 'Clasificación'
+                          : '${type.caseIds.length} ${type.caseIds.length == 1 ? 'caso' : 'casos'}',
+                      style: TextStyle(
+                          color: type.color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (!locked)
-                Icon(Icons.chevron_right_rounded, size: 20, color: textT),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _InfoChip(
-      {required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 3),
-          Text(label, style: TextStyle(color: color, fontSize: 10)),
-        ],
-      );
 }

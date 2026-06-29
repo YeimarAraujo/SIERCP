@@ -239,7 +239,7 @@ abstract class AppLocalizations {
   /// No description provided for @emailHint.
   ///
   /// In es, this message translates to:
-  /// **'usuario@siercp.edu.co'**
+  /// **'usuario@sicap.edu.co'**
   String get emailHint;
 
   /// No description provided for @passwordLabel.
@@ -275,7 +275,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgotPassSuccess.
   ///
   /// In es, this message translates to:
-  /// **'📧 Correo de restablecimiento enviado.'**
+  /// **'Correo de restablecimiento enviado.'**
   String get forgotPassSuccess;
 
   /// No description provided for @registerTitle.
@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerSubtitle.
   ///
   /// In es, this message translates to:
-  /// **'Únete a SIERCP y comienza tu entrenamiento'**
+  /// **'Únete a SICAP y comienza tu entrenamiento'**
   String get registerSubtitle;
 
   /// No description provided for @roleStudentLabel.
@@ -467,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @manikinNotDetected.
   ///
   /// In es, this message translates to:
-  /// **'⚠️ Maniquí no detectado. Verificar conexión del ESP32.'**
+  /// **'Maniquí no detectado. Verificar conexión del simulador.'**
   String get manikinNotDetected;
 
   /// No description provided for @adminDashboardTitle.
@@ -475,6 +475,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Panel de Control'**
   String get adminDashboardTitle;
+
+  /// No description provided for @adminLoginWebOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Los administradores deben iniciar sesión desde la versión web.'**
+  String get adminLoginWebOnly;
 
   /// No description provided for @welcomeName.
   ///
@@ -485,7 +491,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminSubtitle.
   ///
   /// In es, this message translates to:
-  /// **'Administrador SIERCP'**
+  /// **'Administrador SICAP'**
   String get adminSubtitle;
 
   /// No description provided for @instructorSubtitle.
@@ -731,7 +737,7 @@ abstract class AppLocalizations {
   /// No description provided for @studentsCedulaHint.
   ///
   /// In es, this message translates to:
-  /// **'Ej: 1234567, 9876543...'**
+  /// **'Ej: 1234567, 9876543..'**
   String get studentsCedulaHint;
 
   /// No description provided for @createSuccess.
@@ -761,7 +767,7 @@ abstract class AppLocalizations {
   /// No description provided for @enrollInfo.
   ///
   /// In es, this message translates to:
-  /// **'El estudiante debe estar registrado en SIERCP con esa cédula.'**
+  /// **'El estudiante debe estar registrado en SICAP con esa cédula.'**
   String get enrollInfo;
 
   /// No description provided for @enrollBtn.
@@ -779,7 +785,7 @@ abstract class AppLocalizations {
   /// No description provided for @cprCertificate.
   ///
   /// In es, this message translates to:
-  /// **'Certificado SIERCP'**
+  /// **'Certificado SICAP'**
   String get cprCertificate;
 
   /// No description provided for @courseDetail.
@@ -1001,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @globalAvg.
   ///
   /// In es, this message translates to:
-  /// **'Promedio global'**
+  /// **'Prom. global'**
   String get globalAvg;
 
   /// No description provided for @bestSession.
@@ -1115,7 +1121,7 @@ abstract class AppLocalizations {
   /// No description provided for @demoTitle1.
   ///
   /// In es, this message translates to:
-  /// **'🏠 Paro cardíaco en casa'**
+  /// **'Paro cardíaco en casa'**
   String get demoTitle1;
 
   /// No description provided for @demoSub1.
@@ -1133,7 +1139,7 @@ abstract class AppLocalizations {
   /// No description provided for @demoTitle2.
   ///
   /// In es, this message translates to:
-  /// **'🚗 Accidente de tránsito'**
+  /// **'Accidente de tránsito'**
   String get demoTitle2;
 
   /// No description provided for @demoSub2.
@@ -1151,7 +1157,7 @@ abstract class AppLocalizations {
   /// No description provided for @demoTitle3.
   ///
   /// In es, this message translates to:
-  /// **'🌊 Ahogamiento en piscina'**
+  /// **'Ahogamiento en piscina'**
   String get demoTitle3;
 
   /// No description provided for @demoSub3.
@@ -1379,13 +1385,13 @@ abstract class AppLocalizations {
   /// No description provided for @shareInviteText.
   ///
   /// In es, this message translates to:
-  /// **'¡Únete a mi curso de RCP en SIERCP!\nCurso: {title}\nCódigo de invitación: {code}\n\nO escanea el QR desde la app.'**
+  /// **'¡Únete a mi curso de RCP en SICAP!\nCurso: {title}\nCódigo de invitación: {code}\n\nO escanea el QR desde la app.'**
   String shareInviteText(String title, String code);
 
   /// No description provided for @shareInviteSubject.
   ///
   /// In es, this message translates to:
-  /// **'Invitación a curso SIERCP'**
+  /// **'Invitación a curso SICAP'**
   String get shareInviteSubject;
 
   /// No description provided for @shareInviteBtn.
@@ -1505,7 +1511,7 @@ abstract class AppLocalizations {
   /// No description provided for @manikinsLabel.
   ///
   /// In es, this message translates to:
-  /// **'Maniquíes SIERCP'**
+  /// **'Maniquíes SICAP'**
   String get manikinsLabel;
 
   /// No description provided for @disconnected.

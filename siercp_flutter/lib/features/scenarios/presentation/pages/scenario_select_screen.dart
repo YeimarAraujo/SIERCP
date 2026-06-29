@@ -219,39 +219,23 @@ class _OfflineScenarios extends StatelessWidget {
   const _OfflineScenarios({required this.loc});
 
   List<_DemoScenario> _getDemos() => [
-    _DemoScenario('paroCardiaco',      'cardiac',           loc.demoTitle1,
-        loc.demoSub1,
-        loc.demoDesc1,
-        false, false),
-    _DemoScenario('accidenteTransito', 'accident',          loc.demoTitle2,
-        loc.demoSub2,
-        loc.demoDesc2,
-        false, false),
-    _DemoScenario('ahogamiento',       'drowning',          loc.demoTitle3,
-        loc.demoSub3,
-        loc.demoDesc3,
-        false, true),
-    _DemoScenario('colapsoEjercicio',  'colapsoEjercicio',  loc.demoTitle4,
-        loc.demoSub4,
-        loc.demoDesc4,
-        false, true),
-    _DemoScenario('atragantamiento',   'atragantamiento',   loc.demoTitle5,
-        loc.demoSub5,
-        loc.demoDesc5,
-        false, false),
-    _DemoScenario('descargaElectrica', 'electrocucion',     loc.demoTitle6,
-        loc.demoSub6,
-        loc.demoDesc6,
-        false, false),
-    _DemoScenario('sobredosis',        'sobredosis',        loc.demoTitle7,
-        loc.demoSub7,
-        loc.demoDesc7,
-        false, false),
-    _DemoScenario('infarto',           'cardiac',           loc.demoTitle8,
-        loc.demoSub8,
-        loc.demoDesc8,
-        false, false),
-  ];
+        _DemoScenario('paroCardiaco', 'cardiac', loc.demoTitle1, loc.demoSub1,
+            loc.demoDesc1, false, false),
+        _DemoScenario('accidenteTransito', 'accident', loc.demoTitle2,
+            loc.demoSub2, loc.demoDesc2, false, false),
+        _DemoScenario('ahogamiento', 'drowning', loc.demoTitle3, loc.demoSub3,
+            loc.demoDesc3, false, true),
+        _DemoScenario('colapsoEjercicio', 'colapsoEjercicio', loc.demoTitle4,
+            loc.demoSub4, loc.demoDesc4, false, true),
+        _DemoScenario('atragantamiento', 'atragantamiento', loc.demoTitle5,
+            loc.demoSub5, loc.demoDesc5, false, false),
+        _DemoScenario('descargaElectrica', 'electrocucion', loc.demoTitle6,
+            loc.demoSub6, loc.demoDesc6, false, false),
+        _DemoScenario('sobredosis', 'sobredosis', loc.demoTitle7, loc.demoSub7,
+            loc.demoDesc7, false, false),
+        _DemoScenario('infarto', 'cardiac', loc.demoTitle8, loc.demoSub8,
+            loc.demoDesc8, false, false),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +349,7 @@ class _ScenarioCardRaw extends StatelessWidget {
                   backgroundColor: theme.colorScheme.inverseSurface,
                 ),
               )
-          : () => context.go('/scenario-detail/$id'),
+          : () => context.go('/simulation/practical/scenario-detail/$id'),
       child: Opacity(
         opacity: locked ? 0.45 : 1.0,
         child: Container(

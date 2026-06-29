@@ -417,7 +417,8 @@ class _ScenarioDetailScreenState extends ConsumerState<ScenarioDetailScreen>
     final scenario = kScenarios[widget.scenarioId];
     if (scenario == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go('/session?scenario=${widget.scenarioId}');
+        context
+            .go('/simulation/practical/session?scenario=${widget.scenarioId}');
       });
       return const Scaffold(
         body: const AppLogoLoader(),
@@ -961,7 +962,6 @@ class _BottomActionState extends ConsumerState<_BottomAction> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Bug 3 — el estado lo maneja onPlayerStateChanged automáticamente
       await _player.play(AssetSource(widget.scenario.audioFile));
     } catch (e) {
       debugPrint('❌ Audio error: $e');
@@ -993,94 +993,188 @@ class _BottomActionState extends ConsumerState<_BottomAction> {
         ),
       ),
       child: isLandscape
-          ? Row(
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _isLoading ? null : _toggleAudio,
-                    child: Container(
-                      height: 44,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.08),
-                        border: Border.all(
-                          color: color.withValues(alpha: 0.25),
-                          width: 0.8,
+                GestureDetector(
+                  onTap: () {
+                    _player.stop();
+                    context.go(
+                      '/simulation/practical/scenario-guide?scenario=${widget.scenario.id}',
+                    );
+                  },
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.08),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.25),
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.video_library_outlined,
+                          color: color,
+                          size: 14,
                         ),
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_isLoading)
-                            SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: color,
-                              ),
-                            )
-                          else
-                            Icon(
-                              _isPlaying
-                                  ? Icons.stop_circle_outlined
-                                  : Icons.volume_up_rounded,
-                              color: color,
-                              size: 16,
-                            ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              _isPlaying ? 'Detener' : 'Escuchar caso',
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Ver guía RCP en video',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (ConnectionGuard.checkConnection(context, ref)) {
-                          _player.stop();
-                          context.go(
-                              '/scenario-guide?scenario=${widget.scenario.id}');
-                        }
-                      },
-                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                      label: const Text(
-                        'Iniciar simulación',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: color,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _isLoading ? null : _toggleAudio,
+                        child: Container(
+                          height: 44,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.08),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.25),
+                              width: 0.8,
+                            ),
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.lg),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_isLoading)
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: color,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  _isPlaying
+                                      ? Icons.stop_circle_outlined
+                                      : Icons.volume_up_rounded,
+                                  color: color,
+                                  size: 16,
+                                ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  _isPlaying
+                                      ? 'Detener'
+                                      : 'Escuchar caso',
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (ConnectionGuard.checkConnection(
+                                context, ref)) {
+                              _player.stop();
+                              context.go(
+                                  '/simulation/practical/session?scenario=${widget.scenario.id}');
+                            }
+                          },
+                          icon: const Icon(Icons.play_arrow_rounded,
+                              size: 18),
+                          label: const Text(
+                            'Iniciar simulación',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: color,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.lg),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             )
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                GestureDetector(
+                  onTap: () {
+                    _player.stop();
+
+                    context.go(
+                      '/simulation/practical/scenario-guide?scenario=${widget.scenario.id}',
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.08),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.25),
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.video_library_outlined,
+                          color: color,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Ver guía RCP en video',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 GestureDetector(
                   onTap: _isLoading ? null : _toggleAudio,
                   child: Container(
@@ -1137,7 +1231,8 @@ class _BottomActionState extends ConsumerState<_BottomAction> {
                     onPressed: () {
                       if (ConnectionGuard.checkConnection(context, ref)) {
                         _player.stop();
-                        context.go('/session?scenario=${widget.scenario.id}');
+                        context.go(
+                            '/simulation/practical/session?scenario=${widget.scenario.id}');
                       }
                     },
                     icon: const Icon(Icons.play_arrow_rounded, size: 20),

@@ -31,7 +31,11 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen>
     (AppConstants.roleAdmin, 'Admins', Icons.admin_panel_settings_outlined),
     (AppConstants.roleInstructor, 'Instructores', Icons.school_outlined),
     (AppConstants.roleUsuarioSST, 'SST', Icons.health_and_safety_outlined),
-    (AppConstants.roleUsuarioProfesional, 'Profesionales', Icons.badge_outlined),
+    (
+      AppConstants.roleUsuarioProfesional,
+      'Profesionales',
+      Icons.badge_outlined
+    ),
     (AppConstants.roleUsuario, 'Usuarios', Icons.person_outline),
   ];
 
@@ -93,36 +97,38 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _OrgHeader(
-                orgName:    orgCtx.activeOrgName ?? 'Mi Organización',
-                isDark:     isDark,
+                orgName: orgCtx.activeOrgName ?? 'Mi Organización',
+                isDark: isDark,
                 isImporting: _isImporting,
-                onImport:   currentUser?.isAdmin == true ? _handleCsvImport : null,
-                onRefresh:  () => ref.invalidate(orgUsersProvider),
-                onBack:     () => context.go('/home'),
+                onImport:
+                    currentUser?.isAdmin == true ? _handleCsvImport : null,
+                onRefresh: () => ref.invalidate(orgUsersProvider),
+                onBack: () => context.go('/home'),
               ),
               _SearchAndFilters(
-                searchCtrl:     _searchCtrl,
-                searchQuery:    _searchQuery,
-                selectedRole:   _selectedRole,
-                roleFilters:    _roleFilters,
-                membersAsync:   membersAsync,
-                onSearchChange: (v) => setState(() => _searchQuery = v.toLowerCase()),
-                onRoleChange:   (r) => setState(() => _selectedRole = r),
-                isDark:         isDark,
+                searchCtrl: _searchCtrl,
+                searchQuery: _searchQuery,
+                selectedRole: _selectedRole,
+                roleFilters: _roleFilters,
+                membersAsync: membersAsync,
+                onSearchChange: (v) =>
+                    setState(() => _searchQuery = v.toLowerCase()),
+                onRoleChange: (r) => setState(() => _selectedRole = r),
+                isDark: isDark,
               ),
               Expanded(
                 child: membersAsync.when(
                   loading: () => const _MembersLoadingSkeleton(),
-                  error:   (e, _) => _ErrorState(
-                    error:     e.toString(),
-                    onRetry:   () => ref.invalidate(orgUsersProvider),
+                  error: (e, _) => _ErrorState(
+                    error: e.toString(),
+                    onRetry: () => ref.invalidate(orgUsersProvider),
                   ),
                   data: (members) {
                     final filtered = _applyFilters(members);
                     if (filtered.isEmpty) {
                       return _EmptyState(
-                        hasFilters: _selectedRole != 'TODOS' ||
-                            _searchQuery.isNotEmpty,
+                        hasFilters:
+                            _selectedRole != 'TODOS' || _searchQuery.isNotEmpty,
                         onInvite: currentUser?.isAdmin == true
                             ? () => context.push('/admin/create-user')
                             : null,
@@ -130,15 +136,15 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen>
                     }
                     return RefreshIndicator(
                       onRefresh: () async => ref.invalidate(orgUsersProvider),
-                      color:     AppColors.brand,
+                      color: AppColors.brand,
                       child: ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                         itemCount: filtered.length,
                         itemBuilder: (_, i) => _MemberCard(
-                          member:   filtered[i],
-                          isDark:   isDark,
-                          canEdit:  currentUser?.isAdmin == true,
-                          onTap:    () => context.push(
+                          member: filtered[i],
+                          isDark: isDark,
+                          canEdit: currentUser?.isAdmin == true,
+                          onTap: () => context.push(
                             '/admin/users/${filtered[i].user.id}',
                           ),
                           onRoleChange: (newRole) => _handleRoleChange(
@@ -168,8 +174,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen>
 
   List<OrgMember> _applyFilters(List<OrgMember> members) {
     return members.where((m) {
-      final matchRole =
-          _selectedRole == 'TODOS' || m.role == _selectedRole;
+      final matchRole = _selectedRole == 'TODOS' || m.role == _selectedRole;
       final q = _searchQuery;
       final matchSearch = q.isEmpty ||
           m.user.fullName.toLowerCase().contains(q) ||
@@ -254,8 +259,7 @@ class _OrgHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: onBack,
-            child: Icon(Icons.arrow_back_ios_new,
-                size: 20, color: textP),
+            child: Icon(Icons.arrow_back_ios_new, size: 20, color: textP),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -283,7 +287,8 @@ class _OrgHeader extends StatelessWidget {
           ),
           if (isImporting)
             const SizedBox(
-              width: 20, height: 20,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(
                   strokeWidth: 2, color: AppColors.brand),
             )
@@ -375,13 +380,13 @@ class _SearchAndFilters extends StatelessWidget {
                       .length;
 
               return _FilterChip(
-                label:    label,
-                icon:     icon,
-                count:    count,
+                label: label,
+                icon: icon,
+                count: count,
                 selected: selected,
-                border:   border,
-                textS:    textS,
-                onTap:    () => onRoleChange(role),
+                border: border,
+                textS: textS,
+                onTap: () => onRoleChange(role),
               );
             },
           ),
@@ -442,8 +447,7 @@ class _FilterChip extends StatelessWidget {
               style: TextStyle(
                 color: selected ? AppColors.brand : textS,
                 fontSize: 11,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
             if (count != null) ...[
@@ -493,29 +497,29 @@ class _MemberCard extends StatelessWidget {
   });
 
   Color get _roleColor => switch (member.role) {
-        AppConstants.roleSuperAdmin      => AppColors.amber,
-        AppConstants.roleAdmin           => AppColors.orange,
-        AppConstants.roleInstructor      => AppColors.accent,
-        AppConstants.roleUsuarioSST      => AppColors.green,
+        AppConstants.roleSuperAdmin => AppColors.amber,
+        AppConstants.roleAdmin => AppColors.orange,
+        AppConstants.roleInstructor => AppColors.accent,
+        AppConstants.roleUsuarioSST => AppColors.green,
         AppConstants.roleUsuarioProfesional => AppColors.cyan,
-        _                                => AppColors.brand2,
+        _ => AppColors.brand2,
       };
 
   IconData get _roleIcon => switch (member.role) {
-        AppConstants.roleSuperAdmin  => Icons.shield_outlined,
-        AppConstants.roleAdmin       => Icons.admin_panel_settings_outlined,
-        AppConstants.roleInstructor  => Icons.school_outlined,
-        AppConstants.roleUsuarioSST  => Icons.health_and_safety_outlined,
-        _                            => Icons.person_outline,
+        AppConstants.roleSuperAdmin => Icons.shield_outlined,
+        AppConstants.roleAdmin => Icons.admin_panel_settings_outlined,
+        AppConstants.roleInstructor => Icons.school_outlined,
+        AppConstants.roleUsuarioSST => Icons.health_and_safety_outlined,
+        _ => Icons.person_outline,
       };
 
   String get _roleLabel => switch (member.role) {
-        AppConstants.roleSuperAdmin       => 'Super Admin',
-        AppConstants.roleAdmin            => 'Admin',
-        AppConstants.roleInstructor       => 'Instructor',
-        AppConstants.roleUsuarioSST       => 'Usuario SST',
+        AppConstants.roleSuperAdmin => 'Super Admin',
+        AppConstants.roleAdmin => 'Admin',
+        AppConstants.roleInstructor => 'Instructor',
+        AppConstants.roleUsuarioSST => 'Usuario SST',
         AppConstants.roleUsuarioProfesional => 'Profesional',
-        _                                 => 'Usuario',
+        _ => 'Usuario',
       };
 
   String _formatLastActive(DateTime? date) {
@@ -575,9 +579,9 @@ class _MemberCard extends StatelessWidget {
                         child: Text(
                           u.initials,
                           style: TextStyle(
-                            color:      _roleColor,
+                            color: _roleColor,
                             fontWeight: FontWeight.w800,
-                            fontSize:   16,
+                            fontSize: 16,
                           ),
                         ),
                       ),
@@ -611,9 +615,9 @@ class _MemberCard extends StatelessWidget {
                       Text(
                         u.fullName.isEmpty ? u.email : u.fullName,
                         style: TextStyle(
-                          color:      textP,
+                          color: textP,
                           fontWeight: FontWeight.w600,
-                          fontSize:   14,
+                          fontSize: 14,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -673,8 +677,8 @@ class _MemberCard extends StatelessWidget {
                           Text(
                             _roleLabel,
                             style: TextStyle(
-                              color:      _roleColor,
-                              fontSize:   10,
+                              color: _roleColor,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -684,9 +688,9 @@ class _MemberCard extends StatelessWidget {
                     if (canEdit) ...[
                       const SizedBox(height: 6),
                       _MemberMenu(
-                        currentRole:  member.role,
+                        currentRole: member.role,
                         onRoleChange: onRoleChange,
-                        onRemove:     onRemove,
+                        onRemove: onRemove,
                       ),
                     ] else
                       const SizedBox(height: 6),
@@ -725,9 +729,7 @@ class _MemberMenu extends StatelessWidget {
         color: Theme.of(context).textTheme.bodySmall?.color,
       ),
       itemBuilder: (_) => [
-        ...AppConstants.assignableRoles
-            .where((r) => r != currentRole)
-            .map(
+        ...AppConstants.assignableRoles.where((r) => r != currentRole).map(
               (r) => PopupMenuItem(
                 value: 'role:$r',
                 child: Row(
@@ -765,11 +767,11 @@ class _MemberMenu extends StatelessWidget {
   }
 
   String _roleLabel(String role) => switch (role) {
-        AppConstants.roleAdmin            => 'Admin',
-        AppConstants.roleInstructor       => 'Instructor',
-        AppConstants.roleUsuarioSST       => 'Usuario SST',
+        AppConstants.roleAdmin => 'Admin',
+        AppConstants.roleInstructor => 'Instructor',
+        AppConstants.roleUsuarioSST => 'Usuario SST',
         AppConstants.roleUsuarioProfesional => 'Profesional',
-        _                                 => 'Usuario',
+        _ => 'Usuario',
       };
 }
 
@@ -783,8 +785,8 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textP = Theme.of(context).textTheme.bodyLarge?.color ??
-        AppColors.textPrimary;
+    final textP =
+        Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = Theme.of(context).textTheme.bodyMedium?.color ??
         AppColors.textSecondary;
 
@@ -814,8 +816,8 @@ class _EmptyState extends StatelessWidget {
                   ? 'Sin resultados'
                   : 'Esta organización no tiene miembros aún',
               style: TextStyle(
-                color:      textP,
-                fontSize:   16,
+                color: textP,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -832,7 +834,7 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: onInvite,
-                icon:  const Icon(Icons.person_add_outlined, size: 18),
+                icon: const Icon(Icons.person_add_outlined, size: 18),
                 label: const Text('Invitar primer miembro'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(200, 44),
@@ -854,7 +856,7 @@ class _MembersLoadingSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final shimmerBase = isDark ? AppColors.darkBg3 : AppColors.lightBg2;
+    final shimmerBase = isDark ? AppColors.darkBg2 : AppColors.lightBg2;
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -874,9 +876,8 @@ class _MembersLoadingSkeleton extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.darkSurface2
-                      : AppColors.lightBorder,
+                  color:
+                      isDark ? AppColors.darkSurface2 : AppColors.lightBorder,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -928,8 +929,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textP = Theme.of(context).textTheme.bodyLarge?.color ??
-        AppColors.textPrimary;
+    final textP =
+        Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = Theme.of(context).textTheme.bodyMedium?.color ??
         AppColors.textSecondary;
 
@@ -943,9 +944,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Error al cargar miembros',
                 style: TextStyle(
-                    color: textP,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15)),
+                    color: textP, fontWeight: FontWeight.w600, fontSize: 15)),
             const SizedBox(height: 4),
             Text(error,
                 style: TextStyle(color: textS, fontSize: 11),
@@ -954,7 +953,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 20),
             OutlinedButton.icon(
               onPressed: onRetry,
-              icon:  const Icon(Icons.refresh, size: 16),
+              icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Reintentar'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(140, 40),
@@ -976,13 +975,13 @@ class _InviteFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed:       onTap,
+      onPressed: onTap,
       backgroundColor: AppColors.brand,
       foregroundColor: Colors.white,
-      elevation:       4,
-      icon:  const Icon(Icons.person_add_outlined),
-      label: const Text('Invitar',
-          style: TextStyle(fontWeight: FontWeight.w700)),
+      elevation: 4,
+      icon: const Icon(Icons.person_add_outlined),
+      label:
+          const Text('Invitar', style: TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -1010,8 +1009,7 @@ class _ConfirmRemoveDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              minimumSize: const Size(80, 40)),
+              backgroundColor: AppColors.red, minimumSize: const Size(80, 40)),
           child: const Text('Quitar'),
         ),
       ],

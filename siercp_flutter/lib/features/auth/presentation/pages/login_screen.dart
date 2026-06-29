@@ -60,12 +60,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _emailCtrl.text.trim(),
             _passCtrl.text,
           );
-      if (mounted) context.go('/home');
+      if (mounted) {
+        context.go('/home');
+        return;
+      }
     } catch (e) {
-      setState(() => _error = FirebaseAuthService.parseAuthError(e));
+      setState(() {
+        final msg = FirebaseAuthService.parseAuthError(e);
+        _error =
+            msg.contains('administradores') || msg.contains('Administrators')
+                ? loc.adminLoginWebOnly
+                : msg;
+      });
       _shakeCtrl.forward(from: 0);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    }
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loginAnonymously() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authStateProvider.notifier).loginAnonymously();
+      if (mounted) {
+        context.go('/home');
+        return;
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = FirebaseAuthService.parseAuthError(e));
+      }
+    }
+    if (mounted) {
+      setState(() => _loading = false);
     }
   }
 
@@ -113,7 +144,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+              constraints:
+                  BoxConstraints(minHeight: constraints.maxHeight - 48),
               child: IntrinsicHeight(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -121,167 +153,171 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   children: [
                     // ── Logo + Branding ──
                     Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 200,
-                      height: 67,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                        child: const AppLogo(fit: BoxFit.contain),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 200,
+                            height: 67,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                              child: const AppLogo(fit: BoxFit.contain),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
+                    const SizedBox(height: 40),
 
-              AnimatedBuilder(
-                animation: _shakeAnim,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(
-                    _shakeCtrl.isAnimating
-                        ? (_shakeCtrl.value < 0.5
-                            ? _shakeAnim.value
-                            : -_shakeAnim.value)
-                        : 0,
-                    0,
-                  ),
-                  child: child,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: surface,
-                    borderRadius: BorderRadius.circular(AppRadius.xl),
-                    border: Border.all(color: border, width: 0.5),
-                    boxShadow: isDark ? null : AppShadows.card(false),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        loc.loginTitle,
-                        style: TextStyle(
-                          color: textP,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                    AnimatedBuilder(
+                      animation: _shakeAnim,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(
+                          _shakeCtrl.isAnimating
+                              ? (_shakeCtrl.value < 0.5
+                                  ? _shakeAnim.value
+                                  : -_shakeAnim.value)
+                              : 0,
+                          0,
                         ),
+                        child: child,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        loc.loginInstruction,
-                        style: TextStyle(color: textS, fontSize: 12),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(color: textP),
-                        decoration: InputDecoration(
-                          labelText: loc.emailLabel,
-                          hintText: loc.emailHint,
-                          prefixIcon: const Icon(Icons.email_outlined),
+                      child: Container(
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: surface,
+                          borderRadius: BorderRadius.circular(AppRadius.xl),
+                          border: Border.all(color: border, width: 0.5),
+                          boxShadow: isDark ? null : AppShadows.card(false),
                         ),
-                        onFieldSubmitted: (_) => _login(),
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _passCtrl,
-                        obscureText: _obscure,
-                        style: TextStyle(color: textP),
-                        decoration: InputDecoration(
-                          labelText: loc.passwordLabel,
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            onPressed: () =>
-                                setState(() => _obscure = !_obscure),
-                            icon: Icon(
-                              _obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              size: 20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              loc.loginTitle,
+                              style: TextStyle(
+                                color: textP,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                        ),
-                        onFieldSubmitted: (_) => _login(),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _forgotPassword,
-                          child: Text(loc.forgotPassword),
-                        ),
-                      ),
-
-                      // Error banner
-                      if (_error != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.redBg,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: AppColors.red.withValues(alpha: 0.3),
+                            const SizedBox(height: 4),
+                            const SizedBox(height: 20),
+                            TextFormField(
+                              controller: _emailCtrl,
+                              keyboardType: TextInputType.emailAddress,
+                              style: TextStyle(color: textP),
+                              decoration: InputDecoration(
+                                labelText: loc.emailLabel,
+                                hintText: loc.emailHint,
+                                prefixIcon: const Icon(Icons.email_outlined),
+                              ),
+                              onFieldSubmitted: (_) => _login(),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  color: AppColors.red, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(
-                                    color: AppColors.red,
-                                    fontSize: 12,
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _passCtrl,
+                              obscureText: _obscure,
+                              style: TextStyle(color: textP),
+                              decoration: InputDecoration(
+                                labelText: loc.passwordLabel,
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  onPressed: () =>
+                                      setState(() => _obscure = !_obscure),
+                                  icon: Icon(
+                                    _obscure
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    size: 20,
                                   ),
                                 ),
                               ),
+                              onFieldSubmitted: (_) => _login(),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _forgotPassword,
+                                child: Text(loc.forgotPassword),
+                              ),
+                            ),
+
+                            // Error banner
+                            if (_error != null) ...[
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.redBg,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.md),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        color: AppColors.red, size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _error!,
+                                        style: const TextStyle(
+                                          color: AppColors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                             ],
+
+                            ElevatedButton(
+                              onPressed: _loading ? null : _login,
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(loc.loginTitle),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Register link
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: TextButton(
+                            onPressed: () => context.push('/register'),
+                            child: Text(loc.noAccountRegister),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        Expanded(child: Divider(color: border)),
                       ],
-
-                      ElevatedButton(
-                        onPressed: _loading ? null : _login,
-                        child: _loading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(loc.loginTitle),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Register link
-              Row(
-                children: [
-                  Expanded(child: Divider(color: border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: TextButton(
-                      onPressed: () => context.push('/register'),
-                      child: Text(loc.noAccountRegister),
                     ),
-                  ),
-                  Expanded(child: Divider(color: border)),
-                ],
-              ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _loading ? null : _loginAnonymously,
+                      label: const Text('Probar Demo'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.accent,
+                        side: BorderSide(color: AppColors.accent),
+                        minimumSize: const Size(double.infinity, 44),
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:siercp/core/widgets/app_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/users/data/admin_service.dart';
+import 'package:siercp/core/widgets/demo_guard.dart';
 import 'package:siercp/features/reports/data/export_service.dart';
 import 'package:siercp/features/session/data/session_service.dart';
 import 'package:siercp/core/services/firestore_service.dart';
@@ -27,6 +30,16 @@ class CoursesScreen extends ConsumerStatefulWidget {
 }
 
 class _CoursesScreenState extends ConsumerState<CoursesScreen> {
+  final _searchInstructorCtrl = TextEditingController();
+  final _searchStudentCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchInstructorCtrl.dispose();
+    _searchStudentCtrl.dispose();
+    super.dispose();
+  }
+
   // ─── Create course bottom sheet ─────────────────────────────────────────────
   void _showCreateDialog() {
     final nameCtrl = TextEditingController();
@@ -52,13 +65,14 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
         final theme = Theme.of(ctx);
         final isDark = theme.brightness == Brightness.dark;
         final currentUser = ref.read(currentUserProvider);
-        final coursesCreated = currentUser?.coursesCreated ?? 0;
+        final coursesCreated = currentUser?.coursesCreatedThisMonth ?? 0;
         final isUsuario = currentUser?.isUsuario ?? false;
+        final accentColor = AppColors.accent;
 
         bool loading = false;
         bool searchingUser = false;
         String? errorMsg;
-        String? selectedOrgId = preselect;
+        String? selectedOrgId = isUsuario ? null : preselect;
 
         // Lista de alumnos pendientes de inscripción: {id, name, cedula}
         final List<Map<String, String>> pendingStudents = [];
@@ -95,11 +109,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF1800AD), Color(0xFF6d4aff)],
-                        ),
+                        color: accentColor.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(children: [
@@ -525,9 +535,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                           'El nombre del curso es requerido');
                                       return;
                                     }
-                                    // Los instructores/admins DEBEN tener una org seleccionada.
-                                    if ((currentUser?.isInstructor == true ||
-                                            currentUser?.isAdmin == true) &&
+                                    if ((currentUser?.isAdmin == true) &&
                                         selectedOrgId == null) {
                                       setSt(() => errorMsg =
                                           'Selecciona la organización del curso');
@@ -537,7 +545,6 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                       loading = true;
                                       errorMsg = null;
                                     });
-                                    // Capturar navigator y messenger antes del await
                                     final nav = Navigator.of(ctx);
                                     final messenger =
                                         ScaffoldMessenger.of(context);
@@ -555,7 +562,6 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                                 currentUser?.fullName ?? '',
                                             institutionId: selectedOrgId,
                                           );
-                                      // Inscribir alumnos pendientes
                                       for (final s in enrolled) {
                                         try {
                                           await ref
@@ -566,9 +572,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                                 instructorId:
                                                     currentUser?.id ?? '',
                                               );
-                                        } catch (_) {
-                                          // No cancelar la creación si falla una inscripción individual
-                                        }
+                                        } catch (_) {}
                                       }
                                       if (mounted) {
                                         nav.pop();
@@ -602,15 +606,17 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                            child: SizedBox(
+                              height: 20,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Opacity(
+                                    opacity: loading ? 0 : 1,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
                                         const Icon(
                                             Icons.add_circle_outline_rounded,
                                             size: 16),
@@ -618,7 +624,19 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                         Text(loc.createBtn,
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w700)),
-                                      ]),
+                                      ],
+                                    ),
+                                  ),
+                                  if (loading)
+                                    const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ]),
@@ -1010,12 +1028,15 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDemo = ref.watch(isDemoProvider);
+    if (isDemo) {
+      return const DemoGuard(featureName: 'Cursos', child: SizedBox());
+    }
+
     final coursesAsync = ref.watch(coursesProvider);
-    final enrolledAsync = ref.watch(enrolledCoursesProvider);
     final currentUser = ref.watch(currentUserProvider);
     final orgCtx = ref.watch(orgContextProvider);
     final loc = AppLocalizations.of(context)!;
-    // Detectar instructor también por asignación directa en curso
     final isInstructorOnCourse =
         ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
     final isAdmin = orgCtx.isAdmin || (currentUser?.isAdmin ?? false);
@@ -1028,24 +1049,208 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final canManage = isInstructor || isAdmin;
     final canCreate = canManage ||
         (isUsuario && (currentUser?.canCreateMoreCourses ?? false));
-    final isAtLimit = isUsuario && !(currentUser?.canCreateMoreCourses ?? true);
-    final coursesCreated = currentUser?.coursesCreated ?? 0;
+    final isAtLimit = !(currentUser?.canCreateMoreCourses ?? true);
+    final coursesCreated = currentUser?.coursesCreatedThisMonth ?? 0;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-
-    // Cursos matriculados como estudiante (para usuarios con doble rol)
-    final enrolledCourses = enrolledAsync.value ?? [];
-    // Solo mostrar sección de inscriptos si el usuario también gestiona cursos
-    // y tiene inscripciones como estudiante en cursos diferentes.
-    final instructorCourseIds = (coursesAsync.value ?? []).map((c) => c.id).toSet();
-    final pureStudentCourses = enrolledCourses
-        .where((c) => !instructorCourseIds.contains(c.id))
-        .toList();
-    final showDualView = canManage && pureStudentCourses.isNotEmpty;
 
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = AppColors.accent;
+
+    // ─── Header ─────────────────────────────────────────────────────
+    Widget buildHeader() => Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                  child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Text(loc.coursesTitle,
+                    style: TextStyle(
+                        color: textP,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700)),
+              )),
+              if (canCreate)
+                isAtLimit
+                    ? Tooltip(
+                        message: 'Límite de 3 cursos alcanzado',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: AppColors.red.withValues(alpha: 0.25),
+                                width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.lock_outline_rounded,
+                                  size: 14,
+                                  color: AppColors.red.withValues(alpha: 0.7)),
+                              const SizedBox(width: 6),
+                              Text('$coursesCreated/3',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.red.withValues(alpha: 0.8),
+                                  )),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: ElevatedButton.icon(
+                          onPressed: _showCreateDialog,
+                          icon: const Icon(Icons.add_rounded, size: 16),
+                          label: Text('Nuevo ($coursesCreated/3)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
+                        ),
+                      ),
+            ],
+          ),
+        );
+
+    // ─── Build a single course list ─────────────────────────────────
+    Widget buildCourseList(List<CourseModel> list,
+            {bool sectionCanManage = false}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: isLandscape
+              ? GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.85,
+                  ),
+                  itemCount: list.length,
+                  itemBuilder: (ctx, i) => sectionCanManage
+                      ? _CourseCard(
+                          course: list[i],
+                          canManage: true,
+                          onEnroll: () => _showEnrollDialog(list[i].id),
+                        )
+                      : _StudentCourseCard(course: list[i]),
+                )
+              : Column(
+                  children: list
+                      .map((c) => sectionCanManage
+                          ? _CourseCard(
+                              course: c,
+                              canManage: true,
+                              onEnroll: () => _showEnrollDialog(c.id),
+                            )
+                          : _StudentCourseCard(course: c))
+                      .toList(),
+                ),
+        );
+
+    // ─── Tab content with search ────────────────────────────────────
+    Widget buildCourseTab(List<CourseModel> courseList,
+        {required bool isInstructorSection}) {
+      final ctrl =
+          isInstructorSection ? _searchInstructorCtrl : _searchStudentCtrl;
+      final query = ctrl.text.toLowerCase().trim();
+      final filtered = query.isEmpty
+          ? courseList
+          : courseList
+              .where((c) =>
+                  c.title.toLowerCase().contains(query) ||
+                  (c.inviteCode?.toLowerCase().contains(query) ?? false))
+              .toList();
+
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: TextField(
+              controller: ctrl,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre o c\u00f3digo',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+                ),
+                filled: true,
+                fillColor: isDark
+                    ? theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.4)
+                    : const Color(0xFFF8FAFC),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      query.isEmpty
+                          ? 'No hay cursos'
+                          : 'Sin resultados para "$query"',
+                      style: TextStyle(color: textS),
+                    ),
+                  )
+                : isLandscape
+                    ? GridView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.85,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => isInstructorSection
+                            ? _CourseCard(
+                                course: filtered[i],
+                                canManage: true,
+                                onEnroll: () =>
+                                    _showEnrollDialog(filtered[i].id),
+                              )
+                            : _StudentCourseCard(course: filtered[i]),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => isInstructorSection
+                            ? Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _CourseCard(
+                                  course: filtered[i],
+                                  canManage: true,
+                                  onEnroll: () =>
+                                      _showEnrollDialog(filtered[i].id),
+                                ),
+                              )
+                            : _StudentCourseCard(course: filtered[i]),
+                      ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -1053,224 +1258,117 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
         child: RefreshIndicator(
           onRefresh: () async => ref.refresh(coursesProvider),
           color: AppColors.brand,
-          child: CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(loc.coursesTitle,
-                              style: TextStyle(
-                                color: textP,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              )),
-                          const SizedBox(height: 2),
-                          Text(
-                            canManage
-                                ? loc.coursesSubtitleManage
-                                : loc.coursesSubtitleStudent,
-                            style: TextStyle(color: textS, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      if (canCreate)
-                        isAtLimit
-                            ? Tooltip(
-                                message: 'Límite de 3 cursos alcanzado',
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        AppColors.red.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: AppColors.red
-                                            .withValues(alpha: 0.25),
-                                        width: 0.8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.lock_outline_rounded,
-                                          size: 14,
-                                          color: AppColors.red
-                                              .withValues(alpha: 0.7)),
-                                      const SizedBox(width: 6),
-                                      Text('$coursesCreated/3',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.red
-                                                .withValues(alpha: 0.8),
-                                          )),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : ElevatedButton.icon(
-                                onPressed: _showCreateDialog,
-                                icon: const Icon(Icons.add_rounded, size: 16),
-                                label: isUsuario
-                                    ? Text('Nuevo ($coursesCreated/3)')
-                                    : Text(loc.newBadge),
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size(0, 38),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14),
-                                ),
-                              ),
-                    ],
-                  ),
+          child: coursesAsync.when(
+            loading: () => CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: buildHeader()),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 80, child: AppLogoLoader()),
                 ),
-              ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                  child: SectionLabel(
-                    canManage ? loc.activeCourses : loc.myCourses,
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: coursesAsync.when(
-                  loading: () => const SizedBox(
-                    height: 80,
-                    child: AppLogoLoader(),
-                  ),
-                  error: (e, __) => Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
-                      child: Text(loc.loadCoursesError(e.toString()),
-                          style: TextStyle(color: textS)),
-                    ),
-                  ),
-                  data: (courses) => courses.isEmpty
-                      ? _EmptyCoursesState(
-                          canManage: canCreate && !isAtLimit,
-                          onCreate: canCreate && !isAtLimit
-                              ? _showCreateDialog
-                              : _showJoinDialog,
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: isLandscape
-                              ? GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 12,
-                                    childAspectRatio: 1.85,
-                                  ),
-                                  itemCount: courses.length,
-                                  itemBuilder: (ctx, i) => _CourseCard(
-                                    course: courses[i],
-                                    canManage: canManage,
-                                    onEnroll: () =>
-                                        _showEnrollDialog(courses[i].id),
-                                  ),
-                                )
-                              : Column(
-                                  children: courses
-                                      .map((c) => _CourseCard(
-                                            course: c,
-                                            canManage: canManage,
-                                            onEnroll: () =>
-                                                _showEnrollDialog(c.id),
-                                          ))
-                                      .toList(),
-                                ),
-                        ),
-                ),
-              ),
-              // ── Sección "Como estudiante" para usuarios con doble rol ──
-              if (showDualView) ...[
+              ],
+            ),
+            error: (e, __) => CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: buildHeader()),
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: AppColors.brand.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.school_outlined,
-                            size: 15,
-                            color: AppColors.brand,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Mis inscripciones como estudiante',
-                                style: TextStyle(
-                                  color: textP,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                '${pureStudentCourses.length} programa${pureStudentCourses.length != 1 ? 's' : ''} matriculado${pureStudentCourses.length != 1 ? 's' : ''}',
-                                style: TextStyle(
-                                  color: textS,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: pureStudentCourses
-                          .map((c) => _CourseCard(
-                                course: c,
-                                canManage: false,
-                                onEnroll: null,
-                              ))
-                          .toList(),
-                    ),
+                  child: Center(
+                    child: Text(loc.loadCoursesError(e.toString()),
+                        style: TextStyle(color: textS)),
                   ),
                 ),
               ],
+            ),
+            data: (courses) {
+              if (courses.isEmpty) {
+                return CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: buildHeader()),
+                    SliverToBoxAdapter(
+                      child: _EmptyCoursesState(
+                        canManage: canCreate && !isAtLimit,
+                        onCreate: canCreate && !isAtLimit
+                            ? _showCreateDialog
+                            : _showJoinDialog,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
+                );
+              }
 
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
+              final userId = currentUser?.id ?? '';
+              final instructorCourses =
+                  courses.where((c) => c.isInstructorOf(userId)).toList();
+              final studentCourses =
+                  courses.where((c) => !c.isInstructorOf(userId)).toList();
+              final showTabs = instructorCourses.isNotEmpty;
+
+              // ── No tabs: solo estudiante ──
+              if (!showTabs) {
+                return CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: buildHeader()),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                        child: SectionLabel(loc.myCourses),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: buildCourseList(courses, sectionCanManage: false),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
+                );
+              }
+
+              // ── Tabs: instructor + estudiante ──
+              return DefaultTabController(
+                length: 2,
+                child: NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                    SliverToBoxAdapter(child: buildHeader()),
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _TabBarDelegate(
+                        TabBar(
+                          labelColor: AppColors.brand,
+                          unselectedLabelColor: textS,
+                          indicatorColor: AppColors.brand,
+                          dividerColor: Colors.transparent,
+                          labelStyle: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13),
+                          tabs: [
+                            Tab(
+                                text:
+                                    'Instructor (${instructorCourses.length})'),
+                            Tab(text: 'Estudiante (${studentCourses.length})'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  body: TabBarView(
+                    children: [
+                      buildCourseTab(instructorCourses,
+                          isInstructorSection: true),
+                      buildCourseTab(studentCourses,
+                          isInstructorSection: false),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
-      floatingActionButton: !canManage
-          ? FloatingActionButton.extended(
-              onPressed: _showJoinDialog,
-              backgroundColor: AppColors.brand,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: Text(loc.joinCourseBtn),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showJoinDialog,
+        backgroundColor: accentColor,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.group_add_rounded),
+        label: Text(loc.joinCourseBtn),
+      ),
     );
   }
 }
@@ -1720,8 +1818,7 @@ class CourseQrDialog extends StatelessWidget {
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      fontFamily: 'SpaceMono',
+                                      fontWeight: FontWeight.w700,
                                       letterSpacing: 4,
                                     ),
                                   ),
@@ -1865,8 +1962,7 @@ class CourseQrDialog extends StatelessWidget {
                               style: const TextStyle(
                                 color: AppColors.accent,
                                 fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                fontFamily: 'SpaceMono',
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: 4,
                               ),
                             ),
@@ -1911,6 +2007,30 @@ class CourseQrDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── TabBar delegate for sticky tab bar ────────────────────────────────────────
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  _TabBarDelegate(this.tabBar);
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  bool shouldRebuild(_TabBarDelegate oldDelegate) => false;
 }
 
 // ─── Empty state ───────────────────────────────────────────────────────────────
@@ -1969,6 +2089,149 @@ class _EmptyCoursesState extends StatelessWidget {
 }
 
 // ─── Course card ───────────────────────────────────────────────────────────────
+// ─── Student Course Card (hero style, read-only) ─────────────────────────
+class _StudentCourseCard extends ConsumerWidget {
+  final CourseModel course;
+  const _StudentCourseCard({required this.course});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final textS = theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7);
+    final user = ref.read(currentUserProvider);
+    final loc = AppLocalizations.of(context)!;
+
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final allSessions = sessionsAsync.value ?? [];
+    final courseSessions = allSessions
+        .where((s) =>
+            s.courseId == course.id && s.status == SessionStatus.completed)
+        .toList();
+    final totalDone = courseSessions.length;
+    final approved =
+        courseSessions.where((s) => s.metrics?.approved == true).length;
+    final requiredCount = course.totalModules > 0 ? course.totalModules : 4;
+    final progress =
+        requiredCount > 0 ? (approved / requiredCount).clamp(0.0, 1.0) : 0.0;
+    final isComplete = approved >= requiredCount;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: () => context.push(
+          '/student/course-detail',
+          extra: {
+            'courseId': course.id,
+            'studentId': user?.id ?? '',
+            'courseTitle': course.title,
+            'instructorName': course.instructorName,
+          },
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isComplete
+                ? AppColors.green.withValues(alpha: 0.08)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: isComplete
+                  ? AppColors.green.withValues(alpha: 0.3)
+                  : theme.dividerTheme.color ?? AppColors.cardBorder,
+              width: 0.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isComplete
+                          ? AppColors.green.withValues(alpha: 0.15)
+                          : AppColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Icon(
+                      isComplete
+                          ? Icons.emoji_events_rounded
+                          : Icons.menu_book_outlined,
+                      color: isComplete ? AppColors.green : AppColors.accent,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(course.title,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: theme.textTheme.bodyLarge?.color),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline_rounded,
+                                size: 12, color: textS ?? Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(course.instructorName,
+                                style: TextStyle(fontSize: 11, color: textS)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: isComplete
+                      ? AppColors.green.withValues(alpha: 0.15)
+                      : theme.dividerTheme.color?.withValues(alpha: 0.3) ??
+                          AppColors.cardBorder.withValues(alpha: 0.3),
+                  valueColor: AlwaysStoppedAnimation(
+                      isComplete ? AppColors.green : AppColors.accent),
+                  minHeight: 5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    loc.approvedAndSessions(approved, requiredCount, totalDone),
+                    style: TextStyle(
+                        color: isComplete
+                            ? AppColors.green
+                            : textS?.withValues(alpha: 0.7),
+                        fontSize: 11),
+                  ),
+                  Text('${(progress * 100).toInt()}%',
+                      style: TextStyle(
+                          color: isComplete ? AppColors.green : textS,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'SpaceMono')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CourseCard extends ConsumerWidget {
   final CourseModel course;
   final bool canManage;
@@ -2015,14 +2278,12 @@ class _CourseCard extends ConsumerWidget {
     final progressColor = isComplete ? AppColors.green : AppColors.brand;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-
     final card = Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: surface,
         border: Border.all(color: border, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: isDark ? null : AppShadows.card(false),
       ),
       child: Column(
         children: [
@@ -2037,19 +2298,7 @@ class _CourseCard extends ConsumerWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: isComplete
-                              ? [
-                                  AppColors.green,
-                                  AppColors.green.withValues(alpha: 0.75),
-                                ]
-                              : [
-                                  AppColors.brand,
-                                  AppColors.brand.withValues(alpha: 0.75),
-                                ],
-                        ),
+                        color: isComplete ? AppColors.green : AppColors.brand,
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Icon(
@@ -2116,7 +2365,6 @@ class _CourseCard extends ConsumerWidget {
                                       color: AppColors.accent,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      fontFamily: 'SpaceMono',
                                     ),
                                   ),
                                 ],
@@ -2431,7 +2679,7 @@ class _CourseCard extends ConsumerWidget {
     CourseModel course,
   ) async {
     final orgCtx = ref.read(orgContextProvider);
-    final orgId  = orgCtx.activeOrgId ?? '';
+    final orgId = orgCtx.activeOrgId ?? '';
     if (orgId.isEmpty) return;
 
     // Buscar usuarios de la org que pueden ser instructores
@@ -2441,12 +2689,12 @@ class _CourseCard extends ConsumerWidget {
       final members = await adminSvc.getOrgUsers();
       orgMembers = members
           .map((m) => {
-                'id':        m.user.id,
-                'uid':       m.user.id,
+                'id': m.user.id,
+                'uid': m.user.id,
                 'firstName': m.user.firstName,
-                'lastName':  m.user.lastName,
-                'email':     m.user.email,
-                'role':      m.role,
+                'lastName': m.user.lastName,
+                'email': m.user.email,
+                'role': m.role,
               })
           .toList();
     } catch (_) {}
@@ -2458,13 +2706,15 @@ class _CourseCard extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _AssignInstructorSheet(
-        course:     course,
+        course: course,
         orgMembers: orgMembers,
-        onAssign:   (uid, name) async {
+        onAssign: (uid, name) async {
           try {
             await ref.read(firestoreServiceProvider).assignInstructor(
-              course.id, uid, name,
-            );
+                  course.id,
+                  uid,
+                  name,
+                );
             ref.invalidate(coursesProvider);
             if (ctx.mounted) Navigator.pop(ctx);
             if (context.mounted) {
@@ -2505,17 +2755,18 @@ class _AssignInstructorSheet extends StatefulWidget {
 
 class _AssignInstructorSheetState extends State<_AssignInstructorSheet> {
   String _search = '';
-  bool   _loading = false;
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
-    final theme   = Theme.of(context);
-    final isDark  = theme.brightness == Brightness.dark;
-    final textP   = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS   = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
 
     final filtered = widget.orgMembers.where((m) {
-      final name  = (m['firstName'] ?? '${m['name'] ?? ''}').toString().toLowerCase();
+      final name =
+          (m['firstName'] ?? '${m['name'] ?? ''}').toString().toLowerCase();
       final email = (m['email'] ?? '').toString().toLowerCase();
       return _search.isEmpty ||
           name.contains(_search.toLowerCase()) ||
@@ -2527,14 +2778,16 @@ class _AssignInstructorSheetState extends State<_AssignInstructorSheet> {
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle
           Container(
             margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 36, height: 4,
+            width: 36,
+            height: 4,
             decoration: BoxDecoration(
               color: theme.colorScheme.outline,
               borderRadius: BorderRadius.circular(2),
@@ -2543,10 +2796,12 @@ class _AssignInstructorSheetState extends State<_AssignInstructorSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Row(children: [
-              const Icon(Icons.manage_accounts_outlined, color: AppColors.amber, size: 20),
+              const Icon(Icons.manage_accounts_outlined,
+                  color: AppColors.amber, size: 20),
               const SizedBox(width: 10),
               Text('Asignar instructor a "${widget.course.title}"',
-                  style: TextStyle(color: textP, fontSize: 15, fontWeight: FontWeight.w700)),
+                  style: TextStyle(
+                      color: textP, fontSize: 15, fontWeight: FontWeight.w700)),
             ]),
           ),
           // Search
@@ -2557,8 +2812,10 @@ class _AssignInstructorSheetState extends State<_AssignInstructorSheet> {
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre o email...',
                 prefixIcon: const Icon(Icons.search, size: 18),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 isDense: true,
               ),
               onChanged: (v) => setState(() => _search = v),
@@ -2569,71 +2826,92 @@ class _AssignInstructorSheetState extends State<_AssignInstructorSheet> {
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 320),
             child: filtered.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Sin resultados', style: TextStyle(color: textS)),
-                )
-              : ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (_, i) {
-                    final m = filtered[i];
-                    final uid  = m['id'] ?? m['uid'] ?? '';
-                    final name = '${m['firstName'] ?? ''} ${m['lastName'] ?? ''}'.trim();
-                    final isCurrentInstructor = uid == widget.course.instructorId;
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: _loading ? null : () async {
-                          setState(() => _loading = true);
-                          await widget.onAssign(uid, name.isEmpty ? m['email'] ?? uid : name);
-                          if (mounted) setState(() => _loading = false);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isCurrentInstructor
-                              ? AppColors.brand.withValues(alpha: isDark ? 0.2 : 0.08)
-                              : (isDark ? AppColors.darkCard : AppColors.lightSurface2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child:
+                        Text('Sin resultados', style: TextStyle(color: textS)),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (_, i) {
+                      final m = filtered[i];
+                      final uid = m['id'] ?? m['uid'] ?? '';
+                      final name =
+                          '${m['firstName'] ?? ''} ${m['lastName'] ?? ''}'
+                              .trim();
+                      final isCurrentInstructor =
+                          uid == widget.course.instructorId;
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _loading
+                              ? null
+                              : () async {
+                                  setState(() => _loading = true);
+                                  await widget.onAssign(uid,
+                                      name.isEmpty ? m['email'] ?? uid : name);
+                                  if (mounted) setState(() => _loading = false);
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
                               color: isCurrentInstructor
-                                  ? AppColors.brand.withValues(alpha: 0.4)
-                                  : theme.colorScheme.outline.withValues(alpha: 0.3),
+                                  ? AppColors.brand
+                                      .withValues(alpha: isDark ? 0.2 : 0.08)
+                                  : (isDark
+                                      ? AppColors.darkCard
+                                      : AppColors.lightSurface2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isCurrentInstructor
+                                    ? AppColors.brand.withValues(alpha: 0.4)
+                                    : theme.colorScheme.outline
+                                        .withValues(alpha: 0.3),
+                              ),
                             ),
+                            child: Row(children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor:
+                                    AppColors.brand.withValues(alpha: 0.15),
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                      color: AppColors.brand,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name.isEmpty ? uid : name,
+                                        style: TextStyle(
+                                            color: textP,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500)),
+                                    Text(m['email'] ?? '',
+                                        style: TextStyle(
+                                            color: textS, fontSize: 10)),
+                                  ],
+                                ),
+                              ),
+                              if (isCurrentInstructor)
+                                const Icon(Icons.check_circle_rounded,
+                                    color: AppColors.brand, size: 18),
+                            ]),
                           ),
-                          child: Row(children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: AppColors.brand.withValues(alpha: 0.15),
-                              child: Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                style: const TextStyle(color: AppColors.brand, fontSize: 13, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(name.isEmpty ? uid : name,
-                                    style: TextStyle(color: textP, fontSize: 13, fontWeight: FontWeight.w500)),
-                                  Text(m['email'] ?? '',
-                                    style: TextStyle(color: textS, fontSize: 10)),
-                                ],
-                              ),
-                            ),
-                            if (isCurrentInstructor)
-                              const Icon(Icons.check_circle_rounded, color: AppColors.brand, size: 18),
-                          ]),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

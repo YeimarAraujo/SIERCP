@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
 
-// ─── MetricCard ────────────────────────────────────────────────────────────────
 enum MetricStatus { ok, warning, error, neutral }
 
 class MetricCard extends StatelessWidget {
@@ -21,7 +20,7 @@ class MetricCard extends StatelessWidget {
     this.hint,
   });
 
-  Color get _color {
+  Color get _indicatorColor {
     switch (status) {
       case MetricStatus.ok:
         return AppColors.green;
@@ -30,7 +29,7 @@ class MetricCard extends StatelessWidget {
       case MetricStatus.error:
         return AppColors.red;
       case MetricStatus.neutral:
-        return const Color(0xFF00D4FF);
+        return AppColors.textTertiary;
     }
   }
 
@@ -38,104 +37,98 @@ class MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
+    final cardSurface = isDark ? AppColors.darkCard : Colors.white;
+    final accentColor = AppColors.accent;
 
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkBg2 : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: _color.withValues(alpha: isDark ? 0.2 : 0.1),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _color.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
+        color: cardSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border:
+            Border.all(color: accentColor.withValues(alpha: 0.1), width: 1.2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: _color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(_getStatusIcon(), size: 12, color: _color),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color
-                        ?.withValues(alpha: 0.6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final h = constraints.maxHeight;
+          final valueSize = h < 50 ? 16.0 : h < 65 ? 20.0 : 26.0;
+          final labelSize = h < 50 ? 9.0 : 10.0;
+          final suffixSize = h < 50 ? 9.0 : 10.0;
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                  fontFamily: 'SpaceMono',
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _indicatorColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: textT,
+                        fontSize: labelSize,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                suffix,
-                style: TextStyle(
-                  color: _color.withValues(alpha: 0.8),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          color: textP,
+                          fontSize: valueSize,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (suffix.isNotEmpty) ...[
+                      const SizedBox(width: 3),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 1),
+                        child: Text(
+                          suffix,
+                          style: TextStyle(
+                            color: textT,
+                            fontSize: suffixSize,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
-
-  IconData _getStatusIcon() {
-    switch (status) {
-      case MetricStatus.ok:
-        return Icons.check_circle_outline;
-      case MetricStatus.warning:
-        return Icons.warning_amber_rounded;
-      case MetricStatus.error:
-        return Icons.error_outline_rounded;
-      case MetricStatus.neutral:
-        return Icons.analytics_outlined;
-    }
-  }
 }
 
-// ─── AlertCard ─────────────────────────────────────────────────────────────────
 class AlertCard extends StatelessWidget {
   final AlertModel alert;
   const AlertCard({super.key, required this.alert});
@@ -207,7 +200,6 @@ class AlertCard extends StatelessWidget {
   }
 }
 
-// ─── SectionLabel ──────────────────────────────────────────────────────────────
 class SectionLabel extends StatelessWidget {
   final String text;
   const SectionLabel(this.text, {super.key});

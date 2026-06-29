@@ -8,8 +8,10 @@ import 'package:siercp/core/theme/theme.dart';
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/reports/data/export_service.dart';
-import 'package:siercp/features/simulation/data/simulation_service.dart';
+import 'package:siercp/features/simulation/data/simulation_service.dart'
+    show quizHistoryProvider;
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/core/widgets/demo_guard.dart';
 import 'package:siercp/l10n/app_localizations.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -37,10 +39,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDemo = ref.watch(isDemoProvider);
+    if (isDemo) {
+      return const DemoGuard(featureName: 'Historial', child: SizedBox());
+    }
+
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final loc = AppLocalizations.of(context)!;
+    const accentColor = AppColors.accent;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -48,33 +56,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(loc.historyTitle,
-                      style: TextStyle(
-                          color: textP,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700)),
-                  Text(loc.historySubtitle,
-                      style: TextStyle(color: textS, fontSize: 12)),
-                ],
-              ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Text(loc.historyTitle,
+                  style: TextStyle(
+                      color: textP, fontSize: 20, fontWeight: FontWeight.w700)),
             ),
-            const SizedBox(height: 12),
             TabBar(
               controller: _tabController,
-              labelColor: AppColors.brand,
+              labelColor: accentColor,
               unselectedLabelColor: textS,
-              indicatorColor: AppColors.brand,
+              indicatorColor: accentColor,
               indicatorSize: TabBarIndicatorSize.label,
+              dividerColor: Colors.transparent,
               labelStyle:
                   const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               unselectedLabelStyle: const TextStyle(fontSize: 13),
               tabs: const [
-                Tab(text: 'Sesiones'),
+                Tab(text: 'Evaluaciones Prácticas'),
                 Tab(text: 'Evaluaciones Teóricas'),
               ],
             ),
@@ -94,7 +94,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   }
 }
 
-// ── Tab 1: Sesiones RCP ───────────────────────────────────────────────────────
+// ── Tab 1: Sesiones ───────────────────────────────────────────────────────
 
 class _CprHistoryTab extends ConsumerWidget {
   final AppLocalizations loc;
@@ -128,14 +128,44 @@ class _CprHistoryTab extends ConsumerWidget {
   }
 }
 
-class _CprHistoryBody extends ConsumerWidget {
+class _CprHistoryBody extends ConsumerStatefulWidget {
   final List<SessionModel> sessions;
   final AppLocalizations loc;
   const _CprHistoryBody({required this.sessions, required this.loc});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scores = sessions
+  ConsumerState<_CprHistoryBody> createState() => _CprHistoryBodyState();
+}
+
+class _CprHistoryBodyState extends ConsumerState<_CprHistoryBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  int _page = 0;
+  static const int _perPage = 10;
+  String _filter = 'all';
+
+  List<SessionModel> get _filtered {
+    if (_filter == 'all') return widget.sessions;
+    if (_filter == 'passed') {
+      return widget.sessions.where((s) => s.metrics?.approved == true).toList();
+    }
+    return widget.sessions
+        .where((s) => s.metrics != null && s.metrics!.approved != true)
+        .toList();
+  }
+
+  List<SessionModel> get _paginated =>
+      _filtered.skip(_page * _perPage).take(_perPage).toList();
+
+  int get _totalPages => (_filtered.length + _perPage - 1) ~/ _perPage;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final realStats = ref.watch(userStatsProvider);
+    final quizAsync = ref.watch(quizHistoryProvider);
+    final scores = widget.sessions
         .where((s) => s.metrics != null)
         .map((s) => s.metrics!.score)
         .toList();
@@ -145,258 +175,361 @@ class _CprHistoryBody extends ConsumerWidget {
         scores.isEmpty ? 0.0 : scores.reduce((a, b) => a > b ? a : b);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
     final border = theme.colorScheme.outline;
     final surface = theme.colorScheme.surface;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+    final screenWidth = MediaQuery.of(context).size.width;
+    const accentColor = AppColors.accent;
 
-    return CustomScrollView(
-      slivers: [
-        // Export menu
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    final svc = ref.read(exportServiceProvider);
-                    try {
-                      if (value == 'csv') {
-                        await svc.exportHistoryCSV(sessions);
-                      } else if (value == 'pdf' &&
-                          sessions.isNotEmpty &&
-                          sessions.first.metrics != null) {
-                        await svc.exportSessionPDF(
-                            sessions.first, sessions.first.metrics!);
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(sessionsHistoryProvider);
+        ref.invalidate(quizHistoryProvider);
+      },
+      color: AppColors.brand,
+      child: CustomScrollView(
+        slivers: [
+          // Export menu
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      final svc = ref.read(exportServiceProvider);
+                      try {
+                        if (value == 'csv') {
+                          await svc.exportHistoryCSV(widget.sessions);
+                        } else if (value == 'pdf' &&
+                            widget.sessions.isNotEmpty &&
+                            widget.sessions.first.metrics != null) {
+                          await svc.exportSessionPDF(widget.sessions.first,
+                              widget.sessions.first.metrics!);
+                        } else if (value == 'combined') {
+                          final quizData = quizAsync.valueOrNull ?? [];
+                          await svc.exportCombinedCSV(
+                              widget.sessions, quizData);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text(widget.loc.exportError(e.toString())),
+                                backgroundColor: AppColors.red),
+                          );
+                        }
                       }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(loc.exportError(e.toString())),
-                              backgroundColor: AppColors.red),
-                        );
-                      }
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'csv',
-                      child: Row(children: [
-                        const Icon(Icons.table_chart_outlined,
-                            size: 18, color: AppColors.green),
-                        const SizedBox(width: 10),
-                        Text(loc.exportCsv),
-                      ]),
-                    ),
-                    PopupMenuItem(
-                      value: 'pdf',
-                      child: Row(children: [
-                        const Icon(Icons.picture_as_pdf_outlined,
-                            size: 18, color: AppColors.red),
-                        const SizedBox(width: 10),
-                        Text(loc.exportPdf),
-                      ]),
-                    ),
-                  ],
-                  icon: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                          color: AppColors.brand.withValues(alpha: 0.35),
-                          width: 1),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.download_outlined,
-                            size: 14, color: AppColors.brand),
-                        const SizedBox(width: 5),
-                        Text(loc.exportBtn,
-                            style: const TextStyle(
-                                color: AppColors.brand,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ],
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'csv',
+                        child: Row(children: [
+                          const Icon(Icons.table_chart_outlined,
+                              size: 18, color: AppColors.green),
+                          const SizedBox(width: 10),
+                          Text(widget.loc.exportCsv),
+                        ]),
+                      ),
+                      PopupMenuItem(
+                        value: 'pdf',
+                        child: Row(children: [
+                          const Icon(Icons.picture_as_pdf_outlined,
+                              size: 18, color: AppColors.red),
+                          const SizedBox(width: 10),
+                          Text(widget.loc.exportPdf),
+                        ]),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'combined',
+                        child: Row(children: [
+                          Icon(Icons.download_outlined,
+                              size: 18, color: AppColors.brand),
+                          SizedBox(width: 10),
+                          Text('Exportar todo (CSV)'),
+                        ]),
+                      ),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: accentColor.withValues(alpha: 0.35),
+                            width: 1),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.download_outlined,
+                              size: 14, color: accentColor),
+                          const SizedBox(width: 5),
+                          Text(widget.loc.exportBtn,
+                              style: const TextStyle(
+                                  color: accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+
+          // Summary cards
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverGrid.count(
+              crossAxisCount: screenWidth > 600 ? 3 : 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: screenWidth > 600 ? 3 : 1.6,
+              children: [
+                _SummaryCard(
+                  icon: Icons.analytics_outlined,
+                  label: widget.loc.globalAvg,
+                  value: '${avgScore.toStringAsFixed(0)}%',
+                  color: AppColors.green,
+                  isDark: isDark,
+                ),
+                _SummaryCard(
+                  icon: Icons.emoji_events_outlined,
+                  label: widget.loc.bestSession,
+                  value: '${bestScore.toStringAsFixed(0)}%',
+                  color: AppColors.cyan,
+                  isDark: isDark,
+                ),
+                //_SummaryCard(
+                //icon: Icons.history_outlined,
+                //label: widget.loc.totalSessions,
+                //value: '${widget.sessions.length}',
+                //color: textP,
+                //isDark: isDark,
+                //),
+                // _SummaryCard(
+                //   icon: Icons.local_fire_department_outlined,
+                //   label: widget.loc.withMetrics,
+                //   value: '${scores.length}',
+                //   color: AppColors.amber,
+                //   isDark: isDark,
+                // ),
+                // _SummaryCard(
+                //   icon: Icons.timer_outlined,
+                //   label: widget.loc.practiceHours,
+                //   value: '${(realStats?.totalHours ?? 0).toStringAsFixed(1)}h',
+                //   color: AppColors.cyan,
+                //   isDark: isDark,
+                // ),
+                _SummaryCard(
+                  icon: Icons.local_fire_department_outlined,
+                  label: widget.loc.currentStreak,
+                  value: '${realStats?.streakDays ?? 0}d',
+                  color: AppColors.amber,
+                  isDark: isDark,
                 ),
               ],
             ),
           ),
-        ),
 
-        // Summary cards
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: SliverGrid.count(
-            crossAxisCount: isLandscape ? 4 : 4,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: isLandscape ? 2.4 : 1.9,
-            children: [
-              _SummaryCard(
-                icon: Icons.analytics_outlined,
-                label: loc.globalAvg,
-                value: '${avgScore.toStringAsFixed(0)}%',
-                color: AppColors.green,
-                isDark: isDark,
+          // Progress chart
+          if (scores.length > 1) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: SectionLabel(widget.loc.scoreProgression),
               ),
-              _SummaryCard(
-                icon: Icons.emoji_events_outlined,
-                label: loc.bestSession,
-                value: '${bestScore.toStringAsFixed(0)}%',
-                color: AppColors.cyan,
-                isDark: isDark,
-              ),
-              _SummaryCard(
-                icon: Icons.history_outlined,
-                label: loc.totalSessions,
-                value: '${sessions.length}',
-                color: textP,
-                isDark: isDark,
-              ),
-              _SummaryCard(
-                icon: Icons.local_fire_department_outlined,
-                label: loc.withMetrics,
-                value: '${scores.length}',
-                color: AppColors.amber,
-                isDark: isDark,
-              ),
-            ],
-          ),
-        ),
-
-        // Progress chart
-        if (scores.length > 1) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: SectionLabel(loc.scoreProgression),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                height: 160,
-                padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-                decoration: BoxDecoration(
-                  color: surface,
-                  border: Border.all(color: border, width: 0.5),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  boxShadow: isDark ? null : AppShadows.card(false),
-                ),
-                child: LineChart(
-                  LineChartData(
-                    minY: 0,
-                    maxY: 100,
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (_) =>
-                          FlLine(color: border, strokeWidth: 0.5),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 32,
-                          getTitlesWidget: (v, _) => Text(
-                            '${v.toInt()}',
-                            style: TextStyle(color: textS, fontSize: 9),
-                          ),
-                        ),
-                      ),
-                      rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: scores.reversed
-                            .toList()
-                            .asMap()
-                            .entries
-                            .map((e) => FlSpot(e.key.toDouble(), e.value))
-                            .toList(),
-                        isCurved: true,
-                        color: AppColors.brand,
-                        barWidth: 2,
-                        dotData: FlDotData(
-                          getDotPainter: (_, __, ___, ____) =>
-                              FlDotCirclePainter(
-                            radius: 3,
-                            color: AppColors.brand,
-                            strokeColor: Colors.transparent,
-                          ),
-                        ),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              AppColors.brand.withValues(alpha: 0.25),
-                              AppColors.brand.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  height: 160,
+                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+                  decoration: BoxDecoration(
+                    color: surface,
+                    border: Border.all(color: border, width: 0.5),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
-                ),
-              ),
-            ),
-          ),
-        ],
-
-        // Sessions list
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: SectionLabel(loc.latestSessions),
-          ),
-        ),
-        sessions.isEmpty
-            ? SliverToBoxAdapter(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.history_outlined,
-                            size: 48, color: textS.withValues(alpha: 0.3)),
-                        const SizedBox(height: 12),
-                        Text(loc.noSessions, style: TextStyle(color: textS)),
+                  child: LineChart(
+                    LineChartData(
+                      minY: 0,
+                      maxY: 100,
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (_) =>
+                            FlLine(color: border, strokeWidth: 0.5),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 32,
+                            getTitlesWidget: (v, _) => Text(
+                              '${v.toInt()}',
+                              style: TextStyle(color: textS, fontSize: 9),
+                            ),
+                          ),
+                        ),
+                        rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false)),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: scores.reversed
+                              .toList()
+                              .asMap()
+                              .entries
+                              .map((e) => FlSpot(e.key.toDouble(), e.value))
+                              .toList(),
+                          isCurved: true,
+                          color: accentColor,
+                          barWidth: 2,
+                          dotData: FlDotData(
+                            getDotPainter: (_, __, ___, ____) =>
+                                FlDotCirclePainter(
+                              radius: 3,
+                              color: accentColor,
+                              strokeColor: Colors.transparent,
+                            ),
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                accentColor.withValues(alpha: 0.25),
+                                accentColor.withValues(alpha: 0.0),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              )
-            : SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) =>
-                        _SessionTile(session: sessions[i], isDark: isDark),
-                    childCount: sessions.length,
+              ),
+            ),
+          ],
+
+          // Sessions list
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: Row(
+                children: [
+                  _FilterChip(
+                    label: 'Todas',
+                    selected: _filter == 'all',
+                    onSelected: () => setState(() {
+                      _filter = 'all';
+                      _page = 0;
+                    }),
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Aprobadas',
+                    selected: _filter == 'passed',
+                    onSelected: () => setState(() {
+                      _filter = 'passed';
+                      _page = 0;
+                    }),
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Perdidas',
+                    selected: _filter == 'failed',
+                    onSelected: () => setState(() {
+                      _filter = 'failed';
+                      _page = 0;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              child: SectionLabel(widget.loc.latestSessions),
+            ),
+          ),
+          _filtered.isEmpty
+              ? SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.filter_alt_outlined,
+                              size: 48, color: textS.withValues(alpha: 0.3)),
+                          const SizedBox(height: 12),
+                          Text(
+                            _filter == 'all'
+                                ? widget.loc.noSessions
+                                : 'No hay sesiones con este filtro',
+                            style: TextStyle(color: textS),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) =>
+                          _SessionTile(session: _paginated[i], isDark: isDark),
+                      childCount: _paginated.length,
+                    ),
                   ),
                 ),
+          // Pagination
+          if (_totalPages > 1)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed:
+                          _page > 0 ? () => setState(() => _page--) : null,
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      color: _page > 0 ? accentColor : textS,
+                    ),
+                    Text(
+                      '${_page + 1} / $_totalPages',
+                      style: TextStyle(color: textS, fontSize: 13),
+                    ),
+                    IconButton(
+                      onPressed: _page < _totalPages - 1
+                          ? () => setState(() => _page++)
+                          : null,
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      color: _page < _totalPages - 1 ? accentColor : textS,
+                    ),
+                  ],
+                ),
               ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-      ],
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
     );
   }
 }
@@ -430,18 +563,45 @@ class _QuizHistoryTab extends ConsumerWidget {
   }
 }
 
-class _QuizHistoryBody extends StatelessWidget {
+class _QuizHistoryBody extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> sessions;
   const _QuizHistoryBody({required this.sessions});
 
   @override
+  ConsumerState<_QuizHistoryBody> createState() => _QuizHistoryBodyState();
+}
+
+class _QuizHistoryBodyState extends ConsumerState<_QuizHistoryBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  int _page = 0;
+  static const int _perPage = 10;
+  String _filter = 'all';
+
+  List<Map<String, dynamic>> get _filtered {
+    if (_filter == 'all') return widget.sessions;
+    final passed = _filter == 'passed';
+    return widget.sessions.where((s) => s['passed'] == passed).toList();
+  }
+
+  List<Map<String, dynamic>> get _paginated =>
+      _filtered.skip(_page * _perPage).take(_perPage).toList();
+
+  int get _totalPages => (_filtered.length + _perPage - 1) ~/ _perPage;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    const accentColor = AppColors.accent;
+    final sessionsAsync = ref.watch(sessionsHistoryProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
 
-    if (sessions.isEmpty) {
+    if (widget.sessions.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -459,64 +619,236 @@ class _QuizHistoryBody extends StatelessWidget {
     }
 
     // Resumen XP total
-    final totalXp = sessions.fold<int>(
+    final totalXp = widget.sessions.fold<int>(
         0, (sum, s) => sum + ((s['xpEarned'] as num?)?.toInt() ?? 0));
-    final totalPassed = sessions.where((s) => s['passed'] == true).length;
+    final totalPassed =
+        widget.sessions.where((s) => s['passed'] == true).length;
 
-    return CustomScrollView(
-      slivers: [
-        // Summary cards
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          sliver: SliverGrid.count(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 2.4,
-            children: [
-              _QuizSummaryCard(
-                icon: Icons.bolt_rounded,
-                label: 'XP Total',
-                value: '$totalXp XP',
-                color: AppColors.brand,
-                isDark: isDark,
+    return RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(quizHistoryProvider);
+          ref.invalidate(sessionsHistoryProvider);
+        },
+        color: AppColors.brand,
+        child: CustomScrollView(
+          slivers: [
+            // Export button
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        final svc = ref.read(exportServiceProvider);
+                        try {
+                          if (value == 'evaluations') {
+                            await svc.exportEvaluationsCSV(widget.sessions);
+                          } else if (value == 'combined') {
+                            final sessions = sessionsAsync.valueOrNull ?? [];
+                            await svc.exportCombinedCSV(
+                                sessions, widget.sessions);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Error al exportar: ${e.toString()}'),
+                                  backgroundColor: AppColors.red),
+                            );
+                          }
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'evaluations',
+                          child: Row(children: [
+                            Icon(Icons.table_chart_outlined,
+                                size: 18, color: AppColors.green),
+                            SizedBox(width: 10),
+                            Text('Exportar evaluaciones (CSV)'),
+                          ]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'combined',
+                          child: Row(children: [
+                            Icon(Icons.download_outlined,
+                                size: 18, color: AppColors.brand),
+                            SizedBox(width: 10),
+                            Text('Exportar todo (CSV)'),
+                          ]),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: accentColor.withValues(alpha: 0.35),
+                              width: 1),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.download_outlined,
+                                size: 14, color: accentColor),
+                            SizedBox(width: 5),
+                            Text('Exportar',
+                                style: TextStyle(
+                                    color: accentColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              _QuizSummaryCard(
-                icon: Icons.check_circle_outline_rounded,
-                label: 'Aprobadas',
-                value: '$totalPassed',
-                color: AppColors.green,
-                isDark: isDark,
-              ),
-              _QuizSummaryCard(
-                icon: Icons.quiz_outlined,
-                label: 'Total',
-                value: '${sessions.length}',
-                color: textP,
-                isDark: isDark,
-              ),
-            ],
-          ),
-        ),
-
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: SectionLabel('Historial de evaluaciones'),
-          ),
-        ),
-
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) =>
-                  _QuizSessionTile(session: sessions[i], isDark: isDark),
-              childCount: sessions.length,
             ),
-          ),
-        ),
+
+            // Summary cards
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              sliver: SliverGrid.count(
+                crossAxisCount: screenWidth > 600 ? 3 : 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: screenWidth > 600 ? 3 : 1.6,
+                children: [
+                  _QuizSummaryCard(
+                    icon: Icons.bolt_rounded,
+                    label: 'XP Total',
+                    value: '$totalXp XP',
+                    color: AppColors.brand,
+                    isDark: isDark,
+                  ),
+                  _QuizSummaryCard(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Aprobadas',
+                    value: '$totalPassed',
+                    color: AppColors.green,
+                    isDark: isDark,
+                  ),
+                  _QuizSummaryCard(
+                    icon: Icons.quiz_outlined,
+                    label: 'Total',
+                    value: '${widget.sessions.length}',
+                    color: textP,
+                    isDark: isDark,
+                  ),
+                ],
+              ),
+            ),
+
+            // Filter chips
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: 'Todas',
+                      selected: _filter == 'all',
+                      onSelected: () => setState(() {
+                        _filter = 'all';
+                        _page = 0;
+                      }),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Aprobadas',
+                      selected: _filter == 'passed',
+                      onSelected: () => setState(() {
+                        _filter = 'passed';
+                        _page = 0;
+                      }),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Perdidas',
+                      selected: _filter == 'failed',
+                      onSelected: () => setState(() {
+                        _filter = 'failed';
+                        _page = 0;
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: SectionLabel('Historial de evaluaciones'),
+              ),
+            ),
+
+            // List
+            if (_filtered.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_alt_outlined,
+                          size: 48, color: textS.withValues(alpha: 0.3)),
+                      const SizedBox(height: 12),
+                      Text('No hay evaluaciones con este filtro',
+                          style: TextStyle(color: textS)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _QuizSessionTile(
+                        session: _paginated[i], isDark: isDark),
+                    childCount: _paginated.length,
+                  ),
+                ),
+              ),
+
+            // Pagination
+            if (_totalPages > 1)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed:
+                            _page > 0 ? () => setState(() => _page--) : null,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        color: _page > 0 ? accentColor : textS,
+                      ),
+                      Text(
+                        '${_page + 1} / $_totalPages',
+                        style: TextStyle(color: textS, fontSize: 13),
+                      ),
+                      IconButton(
+                        onPressed: _page < _totalPages - 1
+                            ? () => setState(() => _page++)
+                            : null,
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        color: _page < _totalPages - 1 ? accentColor : textS,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
+    ),
     );
   }
 }
@@ -538,43 +870,67 @@ class _QuizSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textSmall = theme.textTheme.bodySmall?.color;
     return Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border.all(color: theme.colorScheme.outline, width: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          boxShadow: isDark ? null : AppShadows.card(false),
+          color: isDark ? AppColors.darkCard : Colors.white,
+          border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              width: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final h = constraints.maxHeight;
+            final valueSize = h < 50
+                ? 16.0
+                : h < 65
+                    ? 20.0
+                    : 26.0;
+            final labelSize = h < 50 ? 9.0 : 10.0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 6),
-                Expanded(
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: textSmall,
+                          fontSize: labelSize,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Flexible(
                   child: Text(
-                    label,
+                    value,
                     style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                      fontSize: 10,
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: valueSize,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ],
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'SpaceMono',
-              ),
-            ),
-          ],
+            );
+          },
         ));
   }
 }
@@ -589,8 +945,7 @@ class _QuizSessionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final border = theme.colorScheme.outline;
-    final surface = theme.colorScheme.surface;
+    const accentColor = AppColors.accent;
 
     final type = session['type'] as String? ?? 'theoretical';
     final score = (session['score'] as num?)?.toDouble() ?? 0.0;
@@ -614,80 +969,70 @@ class _QuizSessionTile extends StatelessWidget {
       } catch (_) {}
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: surface,
-        border: Border.all(color: border, width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(icon, color: color, size: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(typeLabel,
-                      style: TextStyle(
-                          color: textP,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
-                  Text(
-                    dateStr.isNotEmpty ? dateStr : 'Sin fecha',
-                    style: TextStyle(color: textS, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(typeLabel,
+                    style: TextStyle(
+                        color: textP,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
                 Text(
-                  '${score.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'SpaceMono',
-                  ),
+                  dateStr.isNotEmpty ? dateStr : 'Sin fecha',
+                  style: TextStyle(color: textS, fontSize: 11),
                 ),
-                if (xpEarned > 0)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.bolt_rounded,
-                          size: 11, color: AppColors.brand),
-                      Text(
-                        '+$xpEarned XP',
-                        style: const TextStyle(
-                            color: AppColors.brand,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  )
-                else
-                  Text(
-                    passed ? 'Aprobado' : 'No aprobado',
-                    style: TextStyle(color: textS, fontSize: 10),
-                  ),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${score.toStringAsFixed(0)}%',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (xpEarned > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt_rounded,
+                        size: 11, color: accentColor),
+                    Text(
+                      '+$xpEarned XP',
+                      style: const TextStyle(
+                          color: accentColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  passed ? 'Aprobado' : 'No aprobado',
+                  style: TextStyle(color: textS, fontSize: 10),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -713,38 +1058,61 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border.all(color: theme.colorScheme.outline, width: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: isDark ? null : AppShadows.card(false),
+        color: isDark ? AppColors.darkCard : Colors.white,
+        border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final h = constraints.maxHeight;
+          final valueSize = h < 50
+              ? 16.0
+              : h < 65
+                  ? 20.0
+                  : 26.0;
+          final labelSize = h < 50 ? 9.0 : 10.0;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(label,
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(label,
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: labelSize,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.2,
+                        )),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(value,
                     style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                      fontSize: 11,
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: valueSize,
+                      fontWeight: FontWeight.w700,
                     )),
               ),
             ],
-          ),
-          const Spacer(),
-          Text(value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'SpaceMono',
-              )),
-        ],
+          );
+        },
       ),
     );
   }
@@ -763,8 +1131,6 @@ class _SessionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final border = theme.colorScheme.outline;
-    final surface = theme.colorScheme.surface;
 
     final color = score == null
         ? AppColors.textTertiary
@@ -779,76 +1145,114 @@ class _SessionTile extends StatelessWidget {
             ? Icons.warning_amber_outlined
             : Icons.cancel_outlined;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: surface,
-        border: Border.all(color: border, width: 0.5),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () =>
+            context.go('/simulation/practical/session-result/${session.id}'),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: isDark ? null : AppShadows.card(false),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => context.go('/session-result/${session.id}'),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.scenarioTitle ?? loc.cprSession,
-                        style: TextStyle(
-                            color: textP,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500),
-                      ),
-                      Text(
-                        '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} ${loc.compLabel}',
-                        style: TextStyle(color: textS, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      score != null ? '${score.toStringAsFixed(0)}%' : '--',
+                      session.scenarioTitle ?? 'Sesión de práctica',
                       style: TextStyle(
-                        color: color,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'SpaceMono',
-                      ),
+                          color: textP,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500),
                     ),
-                    const SizedBox(height: 2),
                     Text(
-                      approved
-                          ? loc.approved
-                          : score != null
-                              ? loc.review
-                              : loc.noData,
-                      style: TextStyle(color: textS, fontSize: 10),
+                      '${DateFormat('d MMM · HH:mm').format(session.startedAt)} · ${session.durationFormatted} · ${session.metrics?.totalCompressions ?? 0} ${loc.compLabel}',
+                      style: TextStyle(color: textS, fontSize: 11),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    score != null ? '${score.toStringAsFixed(0)}%' : '--',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    approved
+                        ? loc.approved
+                        : score != null
+                            ? loc.review
+                            : loc.noData,
+                    style: TextStyle(color: textS, fontSize: 10),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: textS.withValues(alpha: 0.5),
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const accent = AppColors.accent;
+    return GestureDetector(
+      onTap: onSelected,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? accent : theme.colorScheme.outline,
+            width: selected ? 0 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : theme.textTheme.bodyMedium?.color,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),

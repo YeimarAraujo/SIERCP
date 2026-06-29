@@ -690,9 +690,16 @@ extension SessionModelCopy on SessionModel {
 final activeSessionProvider = bleActiveSessionProvider;
 
 // ─── Sessions History ────────────────────────────────────────────────────────
+final _sessionsReadyProvider = StateProvider<bool>((ref) => false);
+
 final sessionsHistoryProvider = FutureProvider<List<SessionModel>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
+  // Stagger on first load: let auth + org queries settle first
+  if (!ref.watch(_sessionsReadyProvider)) {
+    await Future.delayed(const Duration(milliseconds: 400));
+    ref.read(_sessionsReadyProvider.notifier).state = true;
+  }
   return ref.read(sessionServiceProvider).getSessions(user.id);
 });
 
@@ -732,9 +739,15 @@ final coursesProvider = FutureProvider<List<CourseModel>>((ref) async {
 
 /// Cursos donde el usuario está inscrito como ESTUDIANTE.
 /// Se carga siempre (independientemente del rol) para el dashboard dual.
+final _enrolledCoursesReadyProvider = StateProvider<bool>((ref) => false);
+
 final enrolledCoursesProvider = FutureProvider<List<CourseModel>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
+  if (!ref.watch(_enrolledCoursesReadyProvider)) {
+    await Future.delayed(const Duration(milliseconds: 200));
+    ref.read(_enrolledCoursesReadyProvider.notifier).state = true;
+  }
   return ref.read(firestoreServiceProvider).getStudentCourses(user.id);
 });
 
@@ -794,6 +807,23 @@ final userStatsProvider = Provider<UserStats?>((ref) {
           .reduce((a, b) => a + b) /
       withMetrics.length;
 
+  // Calcular racha de días consecutivos con actividad
+  final uniqueDays = sessions
+      .map((s) => DateTime(s.startedAt.year, s.startedAt.month, s.startedAt.day))
+      .toSet()
+      .toList()
+    ..sort((a, b) => b.compareTo(a));
+  int streakDays = 0;
+  DateTime checkDate = DateTime(today.year, today.month, today.day);
+  for (final day in uniqueDays) {
+    if (day == checkDate) {
+      streakDays++;
+      checkDate = checkDate.subtract(const Duration(days: 1));
+    } else if (day.isBefore(checkDate)) {
+      break;
+    }
+  }
+
   return UserStats(
     totalSessions: sessions.length,
     sessionsToday: todayCount,
@@ -802,6 +832,7 @@ final userStatsProvider = Provider<UserStats?>((ref) {
     totalHours: totalHours,
     averageDepthMm: avgDepth,
     averageRatePerMin: avgRate,
+    streakDays: streakDays,
   );
 });
 

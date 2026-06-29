@@ -157,22 +157,29 @@ class SessionService {
       return [];
     }
 
-    // Verificar por asignación en cursos de la org (independiente del rol en membership).
-    // Cubre el caso donde admin asigna instructorId en el curso sin actualizar la membership.
+    final Set<String> seenIds = {};
+    final List<CourseModel> result = [];
+
+    // Cursos como instructor (por asignación en la org)
     if (institutionId != null && institutionId.isNotEmpty) {
       final orgCourses = await _db.getCoursesByInstitution(institutionId);
-      final instructorCourses = orgCourses
-          .where((c) => c.isInstructorOf(userId))
-          .toList();
-      if (instructorCourses.isNotEmpty) return instructorCourses;
+      for (final c in orgCourses.where((c) => c.isInstructorOf(userId))) {
+        seenIds.add(c.id);
+        result.add(c);
+      }
     }
 
-    // Verificar cursos fuera de la org donde sea instructor primario
-    final primaryCourses = await _db.getInstructorCourses(userId);
-    if (primaryCourses.isNotEmpty) return primaryCourses;
+    // Cursos como instructor primario fuera de la org
+    for (final c in await _db.getInstructorCourses(userId)) {
+      if (seenIds.add(c.id)) result.add(c);
+    }
 
-    // Sin cursos como instructor → vista de alumno (por inscripción)
-    return _db.getStudentCourses(userId);
+    // Cursos como estudiante (inscrito)
+    for (final c in await _db.getStudentCourses(userId)) {
+      if (seenIds.add(c.id)) result.add(c);
+    }
+
+    return result;
   }
 
   /// Verifica si el usuario está asignado como instructor en algún curso de la org.
@@ -193,6 +200,20 @@ class SessionService {
     required String instructorName,
     String? institutionId,
   }) async {
+    final user = await _db.getUser(instructorId);
+    if (user == null) throw Exception('Usuario no encontrado');
+
+    if (user.courseLimit < 999999) {
+      final now = DateTime.now();
+      final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      if (user.courseCreationMonth == currentMonth &&
+          user.coursesCreatedThisMonth >= user.courseLimit) {
+        throw Exception(
+            'Has alcanzado el límite mensual de ${user.courseLimit} cursos');
+      }
+    }
+
     final code = _generateCode();
     return _db.createCourse(
       title: name,

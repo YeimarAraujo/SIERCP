@@ -1,8 +1,3 @@
-// lib/features/scenarios/presentation/pages/scenario_guide_screen.dart
-//
-// Vista de guía en video (guiaRCP.mp4) que se muestra tras seleccionar un
-// escenario y antes de iniciar la simulación. Permite adelantar/retroceder el
-// video y salir (omitir) en cualquier momento.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,7 +59,8 @@ class _ScenarioGuideScreenState extends ConsumerState<ScenarioGuideScreen> {
     final courseParam =
         widget.courseId != null ? '&courseId=${widget.courseId}' : '';
     if (mounted) {
-      context.go('/session?scenario=${widget.scenarioId}$courseParam');
+      context.go(
+          '/simulation/practical/scenario-detail/${widget.scenarioId}$courseParam');
     }
   }
 
@@ -72,9 +68,7 @@ class _ScenarioGuideScreenState extends ConsumerState<ScenarioGuideScreen> {
     final target = _controller.value.position + delta;
     final dur = _controller.value.duration;
     _controller.seekTo(
-      target < Duration.zero
-          ? Duration.zero
-          : (target > dur ? dur : target),
+      target < Duration.zero ? Duration.zero : (target > dur ? dur : target),
     );
   }
 
@@ -103,12 +97,11 @@ class _ScenarioGuideScreenState extends ConsumerState<ScenarioGuideScreen> {
             Center(
               child: _ready
                   ? GestureDetector(
-                      onTap: () => setState(
-                          () => _controlsVisible = !_controlsVisible),
+                      onTap: () =>
+                          setState(() => _controlsVisible = !_controlsVisible),
                       child: AspectRatio(
-                        aspectRatio: value.aspectRatio == 0
-                            ? 16 / 9
-                            : value.aspectRatio,
+                        aspectRatio:
+                            value.aspectRatio == 0 ? 16 / 9 : value.aspectRatio,
                         child: VideoPlayer(_controller),
                       ),
                     )
@@ -257,8 +250,7 @@ class _ScenarioGuideScreenState extends ConsumerState<ScenarioGuideScreen> {
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.lg),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
                             ),
                           ),
                         ),

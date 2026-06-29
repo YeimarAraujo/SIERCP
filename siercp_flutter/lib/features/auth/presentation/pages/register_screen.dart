@@ -17,22 +17,22 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey       = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl  = TextEditingController();
-  final _emailCtrl     = TextEditingController();
-  final _idCtrl        = TextEditingController();
-  final _phoneCtrl     = TextEditingController();
-  final _passCtrl      = TextEditingController();
-  final _confirmCtrl   = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _idCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
 
-  String  _docType     = 'CC';
-  String  _department  = '';
-  String  _city        = '';
-  bool    _obscurePass    = true;
-  bool    _obscureConfirm = true;
-  bool    _loading        = false;
-  bool    _acceptedPrivacy = false;
+  String _docType = 'CC';
+  String _department = '';
+  String _city = '';
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
+  bool _loading = false;
+  bool _acceptedPrivacy = false;
   String? _error;
 
   @override
@@ -54,27 +54,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       setState(() => _error = loc.registerPrivacyError);
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
       await ref.read(authStateProvider.notifier).register(
-        email:         _emailCtrl.text.trim(),
-        password:      _passCtrl.text,
-        firstName:     _firstNameCtrl.text.trim(),
-        lastName:      _lastNameCtrl.text.trim(),
-        role:          AppConstants.roleUsuario,
-        identificacion: _idCtrl.text.trim(),
-        documentType:  _docType,
-        department:    _department.isEmpty ? null : _department,
-        city:          _city.isEmpty ? null : _city,
-        phoneNumber:   _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-      );
-      if (mounted) context.go('/home');
+            email: _emailCtrl.text.trim(),
+            password: _passCtrl.text,
+            firstName: _firstNameCtrl.text.trim(),
+            lastName: _lastNameCtrl.text.trim(),
+            role: AppConstants.roleUsuario,
+            identificacion: _idCtrl.text.trim(),
+            documentType: _docType,
+            department: _department.isEmpty ? null : _department,
+            city: _city.isEmpty ? null : _city,
+            phoneNumber:
+                _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+          );
+      if (mounted) {
+        context.go('/home');
+        return;
+      }
     } catch (e) {
       setState(() => _error = FirebaseAuthService.parseAuthError(e));
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+    if (mounted) setState(() => _loading = false);
   }
 
   void _showPrivacyPolicy() {
@@ -102,21 +108,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   // ── helpers ────────────────────────────────────────────────────────────────
 
   List<DropdownMenuItem<String>> _docTypeItems() => documentTypes.entries
-      .map((e) => DropdownMenuItem(value: e.key, child: Text('${e.key} — ${e.value}', overflow: TextOverflow.ellipsis)))
+      .map((e) => DropdownMenuItem(
+          value: e.key,
+          child:
+              Text('${e.key} — ${e.value}', overflow: TextOverflow.ellipsis)))
       .toList();
 
   List<DropdownMenuItem<String>> _departmentItems() => [
-        const DropdownMenuItem(value: '', child: Text('Selecciona un departamento')),
-        ...colombiaDepartments.map((d) => DropdownMenuItem(value: d, child: Text(d))),
+        const DropdownMenuItem(
+            value: '', child: Text('Selecciona un departamento')),
+        ...colombiaDepartments
+            .map((d) => DropdownMenuItem(value: d, child: Text(d))),
       ];
 
   List<DropdownMenuItem<String>> _cityItems() {
     if (_department.isEmpty) {
-      return [const DropdownMenuItem(value: '', child: Text('Selecciona un departamento primero'))];
+      return [
+        const DropdownMenuItem(
+            value: '', child: Text('Selecciona un departamento'))
+      ];
     }
     return [
       const DropdownMenuItem(value: '', child: Text('Selecciona un municipio')),
-      ...getMunicipalities(_department).map((c) => DropdownMenuItem(value: c, child: Text(c))),
+      ...getMunicipalities(_department)
+          .map((c) => DropdownMenuItem(value: c, child: Text(c))),
     ];
   }
 
@@ -125,10 +140,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final loc   = AppLocalizations.of(context)!;
+    final loc = AppLocalizations.of(context)!;
 
     final dropDecor = InputDecoration(
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+      border:
+          OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
 
@@ -141,6 +157,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           icon: Icon(Icons.arrow_back_ios_new, color: textP, size: 20),
           onPressed: () => context.pop(),
         ),
+        title: Text(loc.registerTitle,
+            style: TextStyle(
+                color: textP, fontSize: 24, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -151,12 +170,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 8),
-                Text(loc.registerTitle,
-                    style: TextStyle(color: textP, fontSize: 28, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
                 Text(loc.registerSubtitle,
                     style: TextStyle(color: textS, fontSize: 14)),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
                 // ── Info banner ──────────────────────────────────────────────
                 Container(
@@ -164,17 +180,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.brand.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.brand.withValues(alpha: 0.2)),
+                    border: Border.all(
+                        color: AppColors.brand.withValues(alpha: 0.2)),
                   ),
-                  child: Row(
+                  child: const Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 18, color: AppColors.brand),
-                      const SizedBox(width: 10),
+                      Icon(Icons.info_outline,
+                          size: 18, color: AppColors.brand),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Para obtener certificaciones necesitas subir tu licencia SST o certificados profesionales. Las instituciones pueden certificarte directamente al estar afiliado.',
-                          style: TextStyle(color: AppColors.brand, fontSize: 12, height: 1.4),
+                          style: TextStyle(
+                              color: AppColors.brand,
+                              fontSize: 12,
+                              height: 1.4),
                         ),
                       ),
                     ],
@@ -192,7 +213,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: loc.firstName,
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? loc.requiredField : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? loc.requiredField
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -204,7 +227,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: loc.lastName,
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? loc.requiredField : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? loc.requiredField
+                          : null,
                     ),
                   ),
                 ]),
@@ -213,13 +238,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // ── Tipo de documento ────────────────────────────────────────
                 DropdownButtonFormField<String>(
                   value: _docType,
+                  isExpanded: true,
                   decoration: dropDecor.copyWith(
                     labelText: 'Tipo de documento',
                     prefixIcon: const Icon(Icons.badge_outlined),
                   ),
                   items: _docTypeItems(),
+                  selectedItemBuilder: (context) => documentTypes.entries
+                      .map((e) => Text('${e.key} — ${e.value}',
+                          overflow: TextOverflow.ellipsis))
+                      .toList(growable: false),
                   onChanged: (v) => setState(() => _docType = v ?? 'CC'),
-                  validator: (v) => (v == null || v.isEmpty) ? loc.requiredField : null,
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? loc.requiredField : null,
                 ),
                 const SizedBox(height: 14),
 
@@ -249,7 +280,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 DropdownButtonFormField<String>(
                   value: _department.isEmpty ? '' : _department,
                   decoration: dropDecor.copyWith(
-                    labelText: 'Departamento (opcional)',
+                    labelText: 'Departamento',
                     prefixIcon: const Icon(Icons.map_outlined),
                   ),
                   items: _departmentItems(),
@@ -264,11 +295,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 DropdownButtonFormField<String>(
                   value: _city.isEmpty ? '' : _city,
                   decoration: dropDecor.copyWith(
-                    labelText: 'Ciudad / Municipio (opcional)',
+                    labelText: 'Ciudad / Municipio',
                     prefixIcon: const Icon(Icons.location_city_outlined),
                   ),
                   items: _cityItems(),
-                  onChanged: _department.isEmpty ? null : (v) => setState(() => _city = v ?? ''),
+                  onChanged: _department.isEmpty
+                      ? null
+                      : (v) => setState(() => _city = v ?? ''),
                 ),
                 const SizedBox(height: 14),
 
@@ -276,9 +309,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _phoneCtrl,
                   keyboardType: TextInputType.phone,
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]'))],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]'))
+                  ],
                   decoration: const InputDecoration(
-                    labelText: 'Teléfono (opcional)',
+                    labelText: 'Teléfono',
                     hintText: '+57 300 000 0000',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
@@ -302,7 +337,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return loc.requiredField;
-                    if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim())) {
+                    if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$')
+                        .hasMatch(v.trim())) {
                       return loc.invalidEmail;
                     }
                     return null;
@@ -318,15 +354,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: loc.passwordLabel,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                      icon: Icon(_obscurePass
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined, size: 20),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                      icon: Icon(
+                          _obscurePass
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          size: 20),
                     ),
                   ),
                   validator: (v) {
                     if (v == null || v.length < 10) return loc.min6Chars;
-                    if (!v.contains(RegExp(r'[A-Z]')) || !v.contains(RegExp(r'[0-9]'))) {
+                    if (!v.contains(RegExp(r'[A-Z]')) ||
+                        !v.contains(RegExp(r'[0-9]'))) {
                       return 'Debe incluir mayúsculas y números';
                     }
                     return null;
@@ -342,15 +382,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     labelText: 'Confirmar contraseña',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                      icon: Icon(_obscureConfirm
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined, size: 20),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      icon: Icon(
+                          _obscureConfirm
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          size: 20),
                     ),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return loc.requiredField;
-                    if (v != _passCtrl.text) return 'Las contraseñas no coinciden';
+                    if (v != _passCtrl.text)
+                      return 'Las contraseñas no coinciden';
                     return null;
                   },
                 ),
@@ -370,10 +414,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Row(children: [
                   Checkbox(
                     value: _acceptedPrivacy,
-                    onChanged: (v) => setState(() => _acceptedPrivacy = v ?? false),
+                    onChanged: (v) =>
+                        setState(() => _acceptedPrivacy = v ?? false),
                     activeColor: AppColors.brand,
                   ),
-                  Text(loc.acceptPrivacy1, style: const TextStyle(fontSize: 13)),
+                  Text(loc.acceptPrivacy1,
+                      style: const TextStyle(fontSize: 13)),
                   const SizedBox(width: 4),
                   GestureDetector(
                     onTap: _showPrivacyPolicy,
@@ -393,12 +439,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.redBg,
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: AppColors.red.withValues(alpha: 0.3)),
                     ),
                     child: Row(children: [
-                      const Icon(Icons.error_outline, color: AppColors.red, size: 18),
+                      const Icon(Icons.error_outline,
+                          color: AppColors.red, size: 18),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13))),
+                      Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: AppColors.red, fontSize: 13))),
                     ]),
                   ),
                   const SizedBox(height: 16),
@@ -408,8 +459,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ElevatedButton(
                   onPressed: _loading ? null : _register,
                   child: _loading
-                      ? const SizedBox(height: 20, width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : Text(loc.registerTitle),
                 ),
                 const SizedBox(height: 20),
@@ -422,7 +476,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       text: TextSpan(
                         style: TextStyle(fontSize: 13, color: textS),
                         children: const [
-                          TextSpan(text: '¿Representas una institución o empresa? '),
+                          TextSpan(
+                              text: '¿Representas una institución o empresa? '),
                           TextSpan(
                             text: 'Regístrate aquí',
                             style: TextStyle(
@@ -462,26 +517,37 @@ class _PasswordStrengthBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score  = _score(password);
-    final color  = [AppColors.red, AppColors.amber, AppColors.cyan, AppColors.green][score.clamp(0, 3)];
+    final score = _score(password);
+    final color = [
+      AppColors.red,
+      AppColors.amber,
+      AppColors.cyan,
+      AppColors.green
+    ][score.clamp(0, 3)];
     final labels = ['Muy débil', 'Débil', 'Buena', 'Fuerte'];
-    final label  = password.length < 6 ? 'Muy débil' : labels[score.clamp(0, 3)];
+    final label = password.length < 6 ? 'Muy débil' : labels[score.clamp(0, 3)];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: List.generate(4, (i) => Expanded(
-          child: Container(
-            height: 4,
-            margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
-            decoration: BoxDecoration(
-              color: i < score ? color : color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ))),
+        Row(
+            children: List.generate(
+                4,
+                (i) => Expanded(
+                      child: Container(
+                        height: 4,
+                        margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                        decoration: BoxDecoration(
+                          color:
+                              i < score ? color : color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ))),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+        Text(label,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       ],
     );
   }
