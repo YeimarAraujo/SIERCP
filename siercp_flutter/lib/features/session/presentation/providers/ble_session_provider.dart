@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/features/session/data/models/session.dart';
@@ -10,6 +11,9 @@ import 'package:siercp/core/services/audio_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/core/services/leaderboard_service.dart';
+import 'package:siercp/core/services/firestore_service.dart';
+import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/features/home/data/daily_missions.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -208,6 +212,36 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     });
   }
 
+  void _awardSessionXp(SessionMetrics metrics, PatientType patientType) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    final db = ref.read(firestoreServiceProvider);
+
+    final xp = (metrics.score / 10).round().clamp(0, 10);
+    unawaited(db.addXpTransaction(user.id, xp, 'Sesión práctica'));
+
+    if (metrics.score >= AppConstants.ahaExcellentScore && metrics.totalCompressions >= 30) {
+      final code = switch (patientType) {
+        PatientType.adult => 'RCP_ADULTO',
+        PatientType.pediatric => 'RCP_PEDIATRICO',
+        PatientType.infant => 'RCP_LACTANTE',
+      };
+      unawaited(db.issueSkill(user.id, code));
+    }
+
+    final mission = _todayMission();
+    if (mission.condition(metrics)) {
+      unawaited(db.addXpTransaction(user.id, mission.xpReward, 'Misión: ${mission.title}'));
+    }
+  }
+
+  Mission _todayMission() {
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final index = Random(seed).nextInt(missionCatalogue.length);
+    return missionCatalogue[index];
+  }
+
   double _calculateTempScore(RcpEngine engine) {
     if (engine.compresionesTotales == 0) return 0;
     double score = 0;
@@ -294,6 +328,9 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
       // Actualizar leaderboard institucional (fire-and-forget, no bloquea UI)
       _updateLeaderboard(metrics.score);
+
+      // Gamificación local: XP por sesión + skills
+      _awardSessionXp(metrics, currentSession.patientType);
 
       debugPrint("Sesión guardada profesionalmente: ${finished.id}");
       return (session: finished, synced: true);

@@ -162,6 +162,8 @@ class FirestoreService {
     'stats',
     'language',
     'timezone',
+    'publicProfile',
+    'publicSlug',
   };
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
@@ -207,6 +209,59 @@ class FirestoreService {
       'stats': stats,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  static const _xpThresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
+
+  static int _calcLevel(int xp) =>
+      _xpThresholds.where((t) => xp >= t).length;
+
+  Future<void> addXpTransaction(String userId, int xp, String reason) async {
+    if (xp <= 0) return;
+    final statsRef = _db.collection(AppConstants.colUserStats).doc(userId);
+    try {
+      await _db.runTransaction((tx) async {
+        final snap = await tx.get(statsRef);
+        final data = snap.data() ?? {};
+        final oldXp = (data['xp'] as num?)?.toInt() ?? 0;
+        final newXp = oldXp + xp;
+        final newLvl = _calcLevel(newXp);
+
+        tx.set(statsRef, {
+          'xp': newXp,
+          'level': newLvl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+    } catch (e) {
+      debugPrint('[Firestore] addXpTransaction error: $e');
+    }
+
+    try {
+      await _db
+          .collection(AppConstants.colXpTransactions)
+          .add({
+            'userId': userId,
+            'xp': xp,
+            'reason': reason,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint('[Firestore] xp log error: $e');
+    }
+  }
+
+  Future<void> issueSkill(String userId, String skillCode) async {
+    final ref = _db.collection(AppConstants.colUserSkills).doc(userId);
+    try {
+      await ref.set({
+        'userId': userId,
+        skillCode: FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('[Firestore] issueSkill error: $e');
+    }
   }
 
   Future<void> deleteUser(String uid) async {
@@ -804,8 +859,12 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    final now = DateTime.now();
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
     await _users.doc(instructorId).update({
       'coursesCreated': FieldValue.increment(1),
+      'coursesCreatedThisMonth': FieldValue.increment(1),
+      'courseCreationMonth': currentMonth,
     });
     return ref.id;
   }

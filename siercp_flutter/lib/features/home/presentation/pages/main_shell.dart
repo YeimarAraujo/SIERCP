@@ -20,6 +20,30 @@ class MainShell extends ConsumerWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  bool _hideBottomNav(String location) {
+    const hiddenRoutes = [
+      '/simulation/practical/session',
+      '/simulation/practical/session-result',
+      '/simulation/practical/scenario-guide',
+      '/simulation/theoretical/evaluations/:topicId',
+      '/simulation/theoretical/result',
+      '/simulation/ecg',
+      '/simulation/theoretical/cases',
+      '/simulation/theoretical/random',
+      '/simulation/theoretical/triage',
+      '/simulation/theoretical/result/:sessionId',
+      '/simulation/aed-simulator',
+      '/simulation/airway-simulator',
+      '/simulation/acls-simulator',
+      '/simulation/trauma-simulator',
+      '/live',
+      '/course-editor',
+      '/student',
+    ];
+
+    return hiddenRoutes.any((route) => location.startsWith(route));
+  }
+
   List<NavItem> _getNavItems(
     UserModel? user,
     OrgContextState orgCtx,
@@ -47,12 +71,12 @@ class MainShell extends ConsumerWidget {
     if (isInstructor) {
       return [
         NavItem(loc.navHome, Icons.home_outlined, Icons.home, '/home'),
-        const NavItem('En vivo', Icons.live_tv_outlined, Icons.live_tv,
-            '/instructor/students'),
-        const NavItem('Mis cursos', Icons.menu_book_outlined, Icons.menu_book,
-            '/courses'),
         NavItem(loc.navSimulation, Icons.psychology_outlined, Icons.psychology,
             '/simulation'),
+        const NavItem('Mis cursos', Icons.menu_book_outlined, Icons.menu_book,
+            '/courses'),
+        const NavItem('En vivo', Icons.live_tv_outlined, Icons.live_tv,
+            '/instructor/students'),
         NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
       ];
     }
@@ -62,27 +86,10 @@ class MainShell extends ConsumerWidget {
           '/simulation'),
       NavItem(loc.navCourses, Icons.menu_book_outlined, Icons.menu_book,
           '/courses'),
-      const NavItem('Passport', Icons.workspace_premium_outlined,
-          Icons.workspace_premium, '/skills'),
+      const NavItem(
+          'Historial', Icons.history_outlined, Icons.history, '/history'),
       NavItem(loc.navProfile, Icons.person_outline, Icons.person, '/profile'),
     ];
-  }
-
-  String _getTitleForRoute(String location) {
-    if (location.startsWith('/admin/users')) return 'Gestión de Usuarios';
-    if (location.startsWith('/analytics')) return 'Analíticas';
-    if (location.startsWith('/reports')) return 'Reportes';
-    if (location.startsWith('/instructor/students')) return 'Sesiones en Vivo';
-    if (location.startsWith('/live')) return 'Monitor en Vivo';
-    if (location.startsWith('/courses')) return 'Cursos';
-    if (location.startsWith('/simulation')) return 'Práctica';
-    if (location.startsWith('/history')) return 'Historial';
-    if (location.startsWith('/profile/certificados')) return 'Mis Certificados';
-    if (location.startsWith('/skills')) return 'Mi Skill Passport';
-    if (location.startsWith('/profile')) return 'Mi Perfil';
-    if (location.startsWith('/notifications')) return 'Notificaciones';
-    if (location.startsWith('/home')) return 'Inicio';
-    return 'SIERCP';
   }
 
   @override
@@ -95,11 +102,26 @@ class MainShell extends ConsumerWidget {
         ref.watch(isInstructorOnCourseProvider).valueOrNull ?? false;
     final navItems = _getNavItems(user, orgCtx, isInstructorOnCourse, loc);
 
-    final location = GoRouterState.of(context).matchedLocation;
+    final location = GoRouterState.of(context).uri.path;
+    final hideNavBar = _hideBottomNav(location);
+
+    const profileChildRoutes = [
+      '/badges',
+      '/learning-paths',
+      '/ranking',
+      '/skills',
+    ];
+
     int index = navItems.indexWhere((item) =>
         location == item.route || location.startsWith('${item.route}/'));
     if (index == -1) {
       index = navItems.indexWhere((item) => location.startsWith(item.route));
+    }
+    if (index == -1) {
+      if (profileChildRoutes
+          .any((r) => location == r || location.startsWith('$r/'))) {
+        index = navItems.indexWhere((item) => item.route == '/profile');
+      }
     }
     if (index == -1) index = 0;
 
@@ -121,7 +143,7 @@ class MainShell extends ConsumerWidget {
         appBar: null,
         body: Row(
           children: [
-            if (isLandscape)
+            if (isLandscape && !hideNavBar)
               Container(
                 key: const ValueKey('main-shell-rail'),
                 width: 100,
@@ -144,12 +166,14 @@ class MainShell extends ConsumerWidget {
                   indicatorColor: theme.navigationBarTheme.indicatorColor,
                   indicatorShape: theme.navigationBarTheme.indicatorShape,
                   selectedIconTheme: IconThemeData(
-                    color: theme.colorScheme.primary,
                     size: 24,
+                    color: theme.navigationBarTheme.iconTheme
+                        ?.resolve({WidgetState.selected})?.color,
                   ),
                   unselectedIconTheme: IconThemeData(
-                    color: theme.colorScheme.onSurfaceVariant,
                     size: 24,
+                    color:
+                        theme.navigationBarTheme.iconTheme?.resolve({})?.color,
                   ),
                   selectedLabelTextStyle: theme
                       .navigationBarTheme.labelTextStyle
@@ -165,10 +189,13 @@ class MainShell extends ConsumerWidget {
                       .toList(),
                 ),
               ),
-            Expanded(key: const ValueKey('main-shell-body'), child: child),
+            Expanded(
+              key: const ValueKey('main-shell-body'),
+              child: child,
+            ),
           ],
         ),
-        bottomNavigationBar: isLandscape
+        bottomNavigationBar: (isLandscape || hideNavBar)
             ? null
             : Container(
                 decoration: BoxDecoration(

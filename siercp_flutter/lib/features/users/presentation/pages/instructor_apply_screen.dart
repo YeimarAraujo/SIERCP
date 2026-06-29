@@ -17,35 +17,42 @@ class InstructorApplyScreen extends ConsumerStatefulWidget {
       _InstructorApplyScreenState();
 }
 
-class _InstructorApplyScreenState
-    extends ConsumerState<InstructorApplyScreen> {
+class _InstructorApplyScreenState extends ConsumerState<InstructorApplyScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Formulario principal
-  final _issuerCtrl      = TextEditingController();
-  final _certNumCtrl     = TextEditingController();
-  final _issueDateCtrl   = TextEditingController();
-  final _expiryDateCtrl  = TextEditingController();
+  final _issuerCtrl = TextEditingController();
+  final _certNumCtrl = TextEditingController();
+  final _issueDateCtrl = TextEditingController();
+  final _expiryDateCtrl = TextEditingController();
 
-  String  _certType  = 'SST_LICENCIA';
-  bool    _loading   = false;
+  String _certType = 'SST_LICENCIA';
+  bool _loading = false;
   String? _error;
-  bool    _submitted = false;
+  bool _submitted = false;
   // HIGH-07: must be populated with a real Firebase Storage URL before submit.
   String? _fileUrl;
 
   static const _certTypes = [
-    ('SST_LICENCIA',       'Licencia SST (Res. 0312/2019)',       Icons.security_outlined),
-    ('TITULO_PROFESIONAL', 'Título Profesional en Salud',          Icons.workspace_premium_outlined),
-    ('BLS_AHA',            'BLS (Basic Life Support) AHA',         Icons.favorite_outlined),
-    ('ACLS_AHA',           'ACLS AHA',                             Icons.monitor_heart_outlined),
-    ('PALS_AHA',           'PALS AHA',                             Icons.child_care_outlined),
-    ('INSTRUCTOR_BLS',     'Instructor BLS AHA',                   Icons.school_outlined),
-    ('INSTRUCTOR_ACLS',    'Instructor ACLS AHA',                  Icons.medical_services_outlined),
-    ('INSTRUCTOR_PALS',    'Instructor PALS AHA',                  Icons.school_outlined),
-    ('SVBS',               'Soporte Vital Básico (SVBS)',           Icons.local_hospital_outlined),
-    ('PRIMEROS_AUXILIOS',  'Primeros Auxilios Avanzados',          Icons.healing_outlined),
-    ('OTRO',               'Otro',                                  Icons.description_outlined),
+    ('SST_LICENCIA', 'Licencia SST (Res. 0312/2019)', Icons.security_outlined),
+    (
+      'TITULO_PROFESIONAL',
+      'Título Profesional en Salud',
+      Icons.workspace_premium_outlined
+    ),
+    ('BLS_AHA', 'BLS (Basic Life Support) AHA', Icons.favorite_outlined),
+    ('ACLS_AHA', 'ACLS AHA', Icons.monitor_heart_outlined),
+    ('PALS_AHA', 'PALS AHA', Icons.child_care_outlined),
+    ('INSTRUCTOR_BLS', 'Instructor BLS AHA', Icons.school_outlined),
+    ('INSTRUCTOR_ACLS', 'Instructor ACLS AHA', Icons.medical_services_outlined),
+    ('INSTRUCTOR_PALS', 'Instructor PALS AHA', Icons.school_outlined),
+    ('SVBS', 'Soporte Vital Básico (SVBS)', Icons.local_hospital_outlined),
+    (
+      'PRIMEROS_AUXILIOS',
+      'Primeros Auxilios Avanzados',
+      Icons.healing_outlined
+    ),
+    ('OTRO', 'Otro', Icons.description_outlined),
   ];
 
   @override
@@ -59,7 +66,10 @@ class _InstructorApplyScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final user = ref.read(currentUserProvider);
       if (user == null) throw Exception('Sin sesión activa.');
@@ -79,31 +89,38 @@ class _InstructorApplyScreenState
       }
 
       await ref.read(firestoreServiceProvider).submitCertificateForVerification(
-        userId:            user.id,
-        type:              _certType,
-        issuer:            _issuerCtrl.text.trim(),
-        certificateNumber: _certNumCtrl.text.trim(),
-        issueDate:         _issueDateCtrl.text.trim(),
-        expiryDate:        _expiryDateCtrl.text.trim().isEmpty
-                               ? null
-                               : _expiryDateCtrl.text.trim(),
-        fileUrl:           _fileUrl!,
-      );
-      setState(() { _submitted = true; });
+            userId: user.id,
+            type: _certType,
+            issuer: _issuerCtrl.text.trim(),
+            certificateNumber: _certNumCtrl.text.trim(),
+            issueDate: _issueDateCtrl.text.trim(),
+            expiryDate: _expiryDateCtrl.text.trim().isEmpty
+                ? null
+                : _expiryDateCtrl.text.trim(),
+            fileUrl: _fileUrl!,
+          );
+      setState(() {
+        _submitted = true;
+      });
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(() {
+        _error = e.toString();
+      });
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
+    final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textP  = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
-    final textS  = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    final user   = ref.watch(currentUserProvider);
+    final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
+    final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
+    final user = ref.watch(currentUserProvider);
 
     if (_submitted) return _SuccessView(isDark: isDark);
 
@@ -141,7 +158,7 @@ class _InstructorApplyScreenState
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color:        const Color(0xFF7C3AED).withValues(alpha: 0.08),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
                       color: const Color(0xFF7C3AED).withValues(alpha: 0.2)),
@@ -156,9 +173,9 @@ class _InstructorApplyScreenState
                         SizedBox(width: 8),
                         Text('Instructor Independiente',
                             style: TextStyle(
-                                color:      Color(0xFF7C3AED),
+                                color: Color(0xFF7C3AED),
                                 fontWeight: FontWeight.w800,
-                                fontSize:   14)),
+                                fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -166,9 +183,10 @@ class _InstructorApplyScreenState
                       'Para crear cursos y capacitar estudiantes sin pertenecer a una institución, debes tener certificados profesionales o licencia SST vigente. '
                       'El SuperAdmin revisará tus documentos en un plazo de 1-3 días hábiles.',
                       style: TextStyle(
-                          color:    const Color(0xFF7C3AED).withValues(alpha: 0.85),
+                          color:
+                              const Color(0xFF7C3AED).withValues(alpha: 0.85),
                           fontSize: 12,
-                          height:   1.5),
+                          height: 1.5),
                     ),
                   ],
                 ),
@@ -178,9 +196,7 @@ class _InstructorApplyScreenState
               // ── Tipo de certificado ──────────────────────────────────────
               Text('Tipo de documento',
                   style: TextStyle(
-                      color:      textP,
-                      fontWeight: FontWeight.w700,
-                      fontSize:   14)),
+                      color: textP, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -195,7 +211,7 @@ class _InstructorApplyScreenState
                       decoration: BoxDecoration(
                         color: selected
                             ? AppColors.brand.withValues(alpha: 0.12)
-                            : (isDark ? AppColors.darkBg3 : AppColors.lightBg2),
+                            : (isDark ? AppColors.darkBg2 : AppColors.lightBg2),
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(
                           color: selected
@@ -211,14 +227,12 @@ class _InstructorApplyScreenState
                         children: [
                           Icon(t.$3,
                               size: 16,
-                              color: selected
-                                  ? AppColors.brand
-                                  : textS),
+                              color: selected ? AppColors.brand : textS),
                           const SizedBox(width: 6),
                           Text(t.$2,
                               style: TextStyle(
-                                  color:      selected ? AppColors.brand : textS,
-                                  fontSize:   12,
+                                  color: selected ? AppColors.brand : textS,
+                                  fontSize: 12,
                                   fontWeight: selected
                                       ? FontWeight.w700
                                       : FontWeight.w500)),
@@ -235,8 +249,8 @@ class _InstructorApplyScreenState
                 controller: _issuerCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
-                  labelText:  'Entidad emisora',
-                  hintText:   'Ej: Ministerio de Salud, AHA, Cruz Roja…',
+                  labelText: 'Entidad emisora',
+                  hintText: 'Ej: Ministerio de Salud, AHA, Cruz Roja…',
                   prefixIcon: Icon(Icons.business_outlined),
                 ),
                 validator: (v) =>
@@ -248,8 +262,8 @@ class _InstructorApplyScreenState
               TextFormField(
                 controller: _certNumCtrl,
                 decoration: const InputDecoration(
-                  labelText:  'Número de certificado / licencia',
-                  hintText:   'Ej: SST-2024-001234',
+                  labelText: 'Número de certificado / licencia',
+                  hintText: 'Ej: SST-2024-001234',
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
                 validator: (v) =>
@@ -262,8 +276,8 @@ class _InstructorApplyScreenState
                 controller: _issueDateCtrl,
                 keyboardType: TextInputType.datetime,
                 decoration: const InputDecoration(
-                  labelText:  'Fecha de emisión',
-                  hintText:   'DD/MM/AAAA',
+                  labelText: 'Fecha de emisión',
+                  hintText: 'DD/MM/AAAA',
                   prefixIcon: Icon(Icons.calendar_today_outlined),
                 ),
                 validator: (v) =>
@@ -276,8 +290,8 @@ class _InstructorApplyScreenState
                 controller: _expiryDateCtrl,
                 keyboardType: TextInputType.datetime,
                 decoration: const InputDecoration(
-                  labelText:  'Fecha de vencimiento (opcional)',
-                  hintText:   'DD/MM/AAAA  —  dejar en blanco si no aplica',
+                  labelText: 'Fecha de vencimiento (opcional)',
+                  hintText: 'DD/MM/AAAA  —  dejar en blanco si no aplica',
                   prefixIcon: Icon(Icons.event_outlined),
                 ),
               ),
@@ -287,7 +301,7 @@ class _InstructorApplyScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color:        AppColors.amber.withValues(alpha: 0.08),
+                  color: AppColors.amber.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
                       color: AppColors.amber.withValues(alpha: 0.25)),
@@ -295,17 +309,14 @@ class _InstructorApplyScreenState
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 16, color: AppColors.amber),
+                    Icon(Icons.info_outline, size: 16, color: AppColors.amber),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Próximamente podrás adjuntar el archivo PDF o imagen del certificado. '
                         'Por ahora envía los datos y el SuperAdmin te contactará para verificación.',
                         style: TextStyle(
-                            color:    AppColors.amber,
-                            fontSize: 11,
-                            height:   1.4),
+                            color: AppColors.amber, fontSize: 11, height: 1.4),
                       ),
                     ),
                   ],
@@ -318,10 +329,10 @@ class _InstructorApplyScreenState
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color:        AppColors.redBg,
+                    color: AppColors.redBg,
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                        color: AppColors.red.withValues(alpha: 0.3)),
+                    border:
+                        Border.all(color: AppColors.red.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -344,7 +355,8 @@ class _InstructorApplyScreenState
                 onPressed: _loading ? null : _submit,
                 icon: _loading
                     ? const SizedBox(
-                        width: 16, height: 16,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_outlined, size: 18),
@@ -381,7 +393,8 @@ class _SuccessView extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               Container(
-                width: 100, height: 100,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   color: AppColors.green.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
@@ -392,16 +405,16 @@ class _SuccessView extends StatelessWidget {
               const SizedBox(height: 24),
               const Text('Solicitud enviada',
                   style: TextStyle(
-                      fontSize:   24,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color:      AppColors.green)),
+                      color: AppColors.green)),
               const SizedBox(height: 12),
               Text(
                 'Tu solicitud ha sido enviada al SuperAdmin. Recibirás una notificación cuando sea revisada (1-3 días hábiles).',
                 style: TextStyle(
-                    color:    Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontSize: 14,
-                    height:   1.6),
+                    height: 1.6),
                 textAlign: TextAlign.center,
               ),
               const Spacer(flex: 2),
@@ -445,7 +458,8 @@ class _PendingView extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               Container(
-                width: 100, height: 100,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   color: AppColors.amber.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
@@ -456,16 +470,16 @@ class _PendingView extends StatelessWidget {
               const SizedBox(height: 24),
               const Text('Solicitud en revisión',
                   style: TextStyle(
-                      fontSize:   22,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color:      AppColors.amber)),
+                      color: AppColors.amber)),
               const SizedBox(height: 12),
               Text(
                 'Tu certificado está siendo revisado por el SuperAdmin. Recibirás una notificación con el resultado.',
                 style: TextStyle(
-                    color:    Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontSize: 14,
-                    height:   1.6),
+                    height: 1.6),
                 textAlign: TextAlign.center,
               ),
               const Spacer(flex: 2),
@@ -509,7 +523,8 @@ class _ApprovedView extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               Container(
-                width: 100, height: 100,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   color: AppColors.brand.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
@@ -520,22 +535,22 @@ class _ApprovedView extends StatelessWidget {
               const SizedBox(height: 24),
               const Text('¡Ya eres Instructor!',
                   style: TextStyle(
-                      fontSize:   24,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color:      AppColors.brand)),
+                      color: AppColors.brand)),
               const SizedBox(height: 12),
               Text(
                 'Tus certificados han sido aprobados. Ahora puedes crear cursos y capacitar estudiantes de forma independiente.',
                 style: TextStyle(
-                    color:    Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontSize: 14,
-                    height:   1.6),
+                    height: 1.6),
                 textAlign: TextAlign.center,
               ),
               const Spacer(flex: 2),
               ElevatedButton.icon(
                 onPressed: () => context.go('/courses'),
-                icon:  const Icon(Icons.menu_book_outlined),
+                icon: const Icon(Icons.menu_book_outlined),
                 label: const Text('Crear mi primer curso'),
                 style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50)),

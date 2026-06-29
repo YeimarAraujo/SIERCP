@@ -111,7 +111,7 @@ class ExportService {
                           style: pw.TextStyle(color: textMid, fontSize: 9)),
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        session.scenarioTitle ?? 'Sesión RCP',
+                        session.scenarioTitle ?? 'Sesión de práctica',
                         style: pw.TextStyle(
                             color: textDark,
                             fontSize: 13,
@@ -303,6 +303,116 @@ class ExportService {
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
       subject: 'Historial de Sesiones RCP - SIERCP',
+    );
+  }
+
+  Future<void> exportEvaluationsCSV(List<Map<String, dynamic>> evaluations) async {
+    final buffer = StringBuffer();
+    buffer.writeln('SIERCP - Historial de Evaluaciones');
+    buffer.writeln(
+        'Exportado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    buffer.writeln();
+    buffer.writeln('Tipo,Fecha,Puntaje (%),Aprobado,Correctas,Total,XP');
+
+    for (final e in evaluations) {
+      final type = e['type'] as String? ?? 'theoretical';
+      final typeLabel = type == 'practical_eval' ? 'Práctica' : 'Teórica';
+      final completedAt = e['completedAt'];
+      String dateStr = '';
+      if (completedAt != null) {
+        try {
+          final dt = (completedAt as dynamic).toDate() as DateTime;
+          dateStr = DateFormat('yyyy-MM-dd HH:mm').format(dt);
+        } catch (_) {}
+      }
+      final score = (e['score'] as num?)?.toDouble() ?? 0.0;
+      final passed = e['passed'] as bool? ?? false;
+      final correct = e['correct'] as int? ?? 0;
+      final total = e['total'] as int? ?? 0;
+      final xp = (e['xpEarned'] as num?)?.toInt() ?? 0;
+
+      buffer.writeln(
+          '$typeLabel,$dateStr,${score.toStringAsFixed(1)},${passed ? 'Sí' : 'No'},$correct,$total,$xp');
+    }
+
+    final dir = await getTemporaryDirectory();
+    final now = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final file = File('${dir.path}/SIERCP_Evaluaciones_$now.csv');
+    await file.writeAsString(buffer.toString());
+
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/csv')],
+      subject: 'Historial de Evaluaciones - SIERCP',
+    );
+  }
+
+  Future<void> exportCombinedCSV(
+    List<SessionModel> sessions,
+    List<Map<String, dynamic>> evaluations,
+  ) async {
+    final buffer = StringBuffer();
+    final now = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    buffer.writeln('SIERCP - Reporte Combinado');
+    buffer.writeln('Exportado: $now');
+    buffer.writeln();
+
+    // ── Sesiones RCP ──
+    buffer.writeln('=== SESIONES RCP ===');
+    buffer.writeln(
+      'ID,Escenario,Fecha,Duración (s),Score (%),Aprobado,Compresiones,Profundidad Prom (mm),Frecuencia Prom (/min),Compresiones correctas (%),Pausas,Max Pausa (s)',
+    );
+    for (final s in sessions) {
+      final m = s.metrics;
+      buffer.writeln([
+        s.id,
+        '"${s.scenarioTitle ?? 'RCP'}"',
+        DateFormat('yyyy-MM-dd HH:mm').format(s.startedAt),
+        s.duration.inSeconds,
+        m?.score.toStringAsFixed(1) ?? '',
+        m?.approved == true ? 'Sí' : 'No',
+        m?.totalCompressions ?? '',
+        m?.averageDepthMm.toStringAsFixed(1) ?? '',
+        m?.averageRatePerMin.toStringAsFixed(1) ?? '',
+        m?.correctCompressionsPct.toStringAsFixed(1) ?? '',
+        m?.interruptionCount ?? '',
+        m?.maxPauseSeconds.toStringAsFixed(1) ?? '',
+      ].join(','));
+    }
+
+    buffer.writeln();
+
+    // ── Evaluaciones ──
+    buffer.writeln('=== EVALUACIONES ===');
+    buffer.writeln('Tipo,Fecha,Puntaje (%),Aprobado,Correctas,Total,XP');
+    for (final e in evaluations) {
+      final type = e['type'] as String? ?? 'theoretical';
+      final typeLabel = type == 'practical_eval' ? 'Práctica' : 'Teórica';
+      final completedAt = e['completedAt'];
+      String dateStr = '';
+      if (completedAt != null) {
+        try {
+          final dt = (completedAt as dynamic).toDate() as DateTime;
+          dateStr = DateFormat('yyyy-MM-dd HH:mm').format(dt);
+        } catch (_) {}
+      }
+      final score = (e['score'] as num?)?.toDouble() ?? 0.0;
+      final passed = e['passed'] as bool? ?? false;
+      final correct = e['correct'] as int? ?? 0;
+      final total = e['total'] as int? ?? 0;
+      final xp = (e['xpEarned'] as num?)?.toInt() ?? 0;
+
+      buffer.writeln(
+          '$typeLabel,$dateStr,${score.toStringAsFixed(1)},${passed ? 'Sí' : 'No'},$correct,$total,$xp');
+    }
+
+    final dir = await getTemporaryDirectory();
+    final safeNow = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final file = File('${dir.path}/SIERCP_Completo_$safeNow.csv');
+    await file.writeAsString(buffer.toString());
+
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/csv')],
+      subject: 'Reporte Combinado - SIERCP',
     );
   }
 

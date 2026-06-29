@@ -31,7 +31,7 @@ Color _typeColor(_EventType t) {
     case _EventType.quiz:
       return AppColors.accent;
     case _EventType.session:
-      return AppColors.brand;
+      return AppColors.cyan;
     case _EventType.certificate:
       return AppColors.green;
   }
@@ -108,7 +108,7 @@ final _calendarEventsProvider =
     final score = d['score'] as num?;
     events.add(_CalEvent(
       id: doc.id,
-      title: d['scenarioTitle'] as String? ?? 'Sesión RCP',
+      title: d['scenarioTitle'] as String? ?? 'Sesión de práctica',
       date: ts.toDate(),
       type: _EventType.session,
       subtitle: score != null ? '${score.toInt()}%' : null,
@@ -190,8 +190,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
               Text(loc.calendarLoading,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             ],
           ),
         ),
@@ -302,7 +303,8 @@ class _WeekDayLabels extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.45),
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -408,13 +410,15 @@ class _DayCell extends StatelessWidget {
 
     Color? bgColor;
     Color textColor = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = isDark ? AppColors.accent : AppColors.brand;
 
     if (isSelected) {
-      bgColor = AppColors.brand;
+      bgColor = accentColor;
       textColor = Colors.white;
     } else if (isToday) {
-      bgColor = AppColors.brand.withValues(alpha: 0.15);
-      textColor = AppColors.brand;
+      bgColor = accentColor.withValues(alpha: 0.15);
+      textColor = accentColor;
     }
 
     // Collect unique event types for dots
@@ -435,9 +439,8 @@ class _DayCell extends StatelessWidget {
               '$day',
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: isToday || isSelected
-                    ? FontWeight.w800
-                    : FontWeight.w500,
+                fontWeight:
+                    isToday || isSelected ? FontWeight.w800 : FontWeight.w500,
                 color: textColor,
               ),
             ),
@@ -482,8 +485,8 @@ class _DayPanel extends StatelessWidget {
     if (day == null) {
       return Center(
         child: Text(loc.calendarNoEvents,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5))),
+            style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5))),
       );
     }
 
@@ -492,6 +495,8 @@ class _DayPanel extends StatelessWidget {
     final dateLabel = DateFormat('EEEE, d MMMM', 'es').format(day!);
     final capitalizedLabel =
         dateLabel[0].toUpperCase() + dateLabel.substring(1);
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = isDark ? AppColors.accent : AppColors.brand;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,13 +518,13 @@ class _DayPanel extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.brand.withValues(alpha: 0.12),
+                    color: accentColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${dayEvents.length}',
-                    style: const TextStyle(
-                        color: AppColors.brand,
+                    style: TextStyle(
+                        color: accentColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w800),
                   ),
@@ -536,7 +541,8 @@ class _DayPanel extends StatelessWidget {
                 children: [
                   Icon(Icons.calendar_today_outlined,
                       size: 36,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.25)),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.25)),
                   const SizedBox(height: 10),
                   Text(
                     loc.calendarNoEvents,
@@ -572,8 +578,7 @@ class _EventTile extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final color = _typeColor(event.type);
-    final timeLabel =
-        DateFormat('HH:mm').format(event.date);
+    final timeLabel = DateFormat('HH:mm').format(event.date);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -619,7 +624,8 @@ class _EventTile extends StatelessWidget {
                       timeLabel,
                       style: TextStyle(
                         fontSize: 12,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                     if (event.subtitle != null) ...[

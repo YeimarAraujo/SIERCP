@@ -112,22 +112,26 @@ class FirebaseAuthService {
     required String role,
     String? identificacion,
   }) async {
-    // Nombre único para la app temporal
-    final tempAppName = 'adminCreate_${DateTime.now().millisecondsSinceEpoch}';
+    final tempAppName = 'adminCreate_${DateTime.now().microsecondsSinceEpoch}';
 
-    // Inicializar segunda instancia de FirebaseApp
-    final tempApp = await Firebase.initializeApp(
-      name: tempAppName,
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    FirebaseApp? tempApp;
 
     try {
+      tempApp = await Firebase.initializeApp(
+        name: tempAppName,
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
       final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
+
       final credential = await tempAuth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-      await credential.user?.updateDisplayName('$firstName $lastName');
+
+      await credential.user?.updateDisplayName(
+        '$firstName $lastName',
+      );
 
       final user = UserModel(
         id: credential.user!.uid,
@@ -141,12 +145,13 @@ class FirebaseAuthService {
 
       await _firestore.createUser(user);
 
-      // Cerrar sesión del usuario recién creado en la instancia temporal
       await tempAuth.signOut();
+
       return user;
     } finally {
-      // Siempre eliminar la app temporal para liberar recursos
-      await tempApp.delete();
+      if (tempApp != null) {
+        await tempApp.delete();
+      }
     }
   }
 

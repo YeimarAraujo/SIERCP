@@ -5,25 +5,24 @@ class AudioService {
   final AudioPlayer _player = AudioPlayer();
 
   bool _isInitialized = false;
-  
+
   Future<void> init() async {
     if (_isInitialized) return;
     try {
-      // Configurar el contexto global para asegurar salida por altavoz y modo ruidoso
-      await AudioPlayer.global.setAudioContext(AudioContext(
-        iOS: AudioContextIOS(
-          category: AVAudioSessionCategory.playback,
-          options: {
-            AVAudioSessionOptions.defaultToSpeaker,
-            AVAudioSessionOptions.mixWithOthers,
-          },
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {},
+          ),
+          android: const AudioContextAndroid(
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.assistanceSonification,
+            audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+          ),
         ),
-        android: const AudioContextAndroid(
-          contentType: AndroidContentType.music,
-          usageType: AndroidUsageType.assistanceSonification,
-          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
-        ),
-      ));
+      );
+
       _isInitialized = true;
     } catch (e) {
       debugPrint('Error initializing AudioContext: $e');

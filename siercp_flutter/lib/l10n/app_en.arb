@@ -32,7 +32,7 @@
   "noAccountRegister": "Don't have an account? Register here",
   "loginErrorEmptyFields": "Enter your email and password",
   "forgotPassErrorEmpty": "Enter your email to reset your password.",
-  "forgotPassSuccess": "📧 Reset email sent.",
+  "forgotPassSuccess": "Reset email sent.",
   "registerTitle": "Create Account",
   "registerSubtitle": "Join SIERCP and start your training",
   "roleStudentLabel": "Student",
@@ -65,9 +65,10 @@
   "deviceError": "Error",
   "noDevice": "No manikin",
   "searchingManikin": "Searching manikin...",
-  "manikinNotDetected": "⚠️ Manikin not detected. Check ESP32 connection.",
+  "manikinNotDetected": "Manikin not detected. Check Simulator connection.",
 
   "adminDashboardTitle": "Control Panel",
+  "adminLoginWebOnly": "Administrators must log in from the web version.",
   "welcomeName": "Welcome, {name}",
   "@welcomeName": {
     "placeholders": {

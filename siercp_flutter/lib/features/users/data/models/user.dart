@@ -111,6 +111,12 @@ class UserModel {
   /// Number of courses this user has created (enforced against role limit).
   final int coursesCreated;
 
+  /// Courses created in the current monthly period (resets monthly).
+  final int coursesCreatedThisMonth;
+
+  /// Month of the last course creation (format: 'YYYY-MM').
+  final String? courseCreationMonth;
+
   /// Certificate verification tier.
   final CertVerificationStatus certVerification;
 
@@ -133,6 +139,8 @@ class UserModel {
     this.institutionId = '',
     this.accountStatus = 'ACTIVE',
     this.coursesCreated = 0,
+    this.coursesCreatedThisMonth = 0,
+    this.courseCreationMonth,
     this.certVerification = CertVerificationStatus.none,
   });
 
@@ -155,6 +163,8 @@ class UserModel {
     String? institutionId,
     String? accountStatus,
     int? coursesCreated,
+    int? coursesCreatedThisMonth,
+    String? courseCreationMonth,
     CertVerificationStatus? certVerification,
   }) =>
       UserModel(
@@ -176,6 +186,8 @@ class UserModel {
         institutionId: institutionId ?? this.institutionId,
         accountStatus: accountStatus ?? this.accountStatus,
         coursesCreated: coursesCreated ?? this.coursesCreated,
+        coursesCreatedThisMonth: coursesCreatedThisMonth ?? this.coursesCreatedThisMonth,
+        courseCreationMonth: courseCreationMonth ?? this.courseCreationMonth,
         certVerification: certVerification ?? this.certVerification,
       );
 
@@ -230,10 +242,17 @@ class UserModel {
         AppConstants.roleUsuario => AppConstants.courseLimitUsuario,
         AppConstants.roleUsuarioProfesional =>
           AppConstants.courseLimitUsuarioPro,
-        _ => 999999, // admin/instructor/sst: plan-controlled
+        AppConstants.roleUsuarioSST => AppConstants.courseLimitUsuarioSST,
+        _ => 999999, // admin/instructor/super_admin: plan-controlled
       };
 
-  bool get canCreateMoreCourses => coursesCreated < courseLimit;
+  bool get canCreateMoreCourses {
+    if (courseLimit >= 999999) return true;
+    final now = DateTime.now();
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    if (courseCreationMonth != currentMonth) return true;
+    return coursesCreatedThisMonth < courseLimit;
+  }
 
   bool get mustPayToCertify => role == AppConstants.roleUsuarioProfesional;
 
@@ -262,6 +281,8 @@ class UserModel {
       institutionId: d['institutionId'] as String? ?? '',
       accountStatus: d['status'] as String? ?? 'ACTIVE',
       coursesCreated: (d['coursesCreated'] as num?)?.toInt() ?? 0,
+      coursesCreatedThisMonth: (d['coursesCreatedThisMonth'] as num?)?.toInt() ?? 0,
+      courseCreationMonth: d['courseCreationMonth'] as String?,
       certVerification:
           CertVerificationStatusExt.fromString(d['certVerification']),
     );
@@ -297,6 +318,8 @@ class UserModel {
           'averageRatePerMin': stats?.averageRatePerMin ?? 0.0,
         },
         'coursesCreated': coursesCreated,
+        'coursesCreatedThisMonth': coursesCreatedThisMonth,
+        'courseCreationMonth': courseCreationMonth,
         'certVerification': certVerification.name,
         'updatedAt': FieldValue.serverTimestamp(),
       };

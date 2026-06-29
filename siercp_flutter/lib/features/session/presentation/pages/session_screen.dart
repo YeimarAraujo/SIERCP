@@ -26,17 +26,34 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   int _countdown = 4;
   bool _isCountdownActive = false;
   String? _error;
+  int _lastCompressionCount = 0;
+  String _feedbackMessage = 'Inicia las compresiones';
+  Color _feedbackColor = const Color(0xFF00D4FF);
+  IconData _feedbackIcon = Icons.info_outline;
 
+  @override
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startSession());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.listenManual(
+        bleActiveSessionProvider,
+        (previous, next) {
+          final live = next.liveData;
+
+          _updateFeedback(live);
+        },
+      );
+
+      _startSession();
+    });
   }
 
   Future<void> _startSession() async {
     if (_sessionInitiated) return;
     _sessionInitiated = true;
-    
+
     try {
       // 1. Preparar el servicio de audio
       final audioService = ref.read(audioServiceProvider);
@@ -53,13 +70,13 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       audioService.playStart();
 
       // Esperar los primeros 2 segundos en "Prepárate" (ajustado a la duración del audio)
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 2800));
 
       // Cuenta regresiva visual de 3 a 1 (Segundos 3, 4 y 5)
       for (int i = 3; i >= 1; i--) {
         if (!mounted) return;
         setState(() => _countdown = i);
-        await Future.delayed(const Duration(seconds: 1));
+        await Future.delayed(const Duration(milliseconds: 900));
       }
 
       if (!mounted) return;
@@ -91,7 +108,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: Text('Cancelar',
                   style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-          ElevatedButton(
+          TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
               child: const Text('Finalizar',
@@ -112,7 +129,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           .read(bleActiveSessionProvider.notifier)
           .endSession()
           .timeout(const Duration(seconds: 15));
-      
+
       final session = result.session;
       final synced = result.synced;
 
@@ -120,7 +137,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         if (!synced) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Sesión guardada localmente. Se sincronizará automáticamente al recuperar internet.'),
+              content: Text(
+                  'Sesión guardada localmente. Se sincronizará automáticamente al recuperar internet.'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),
             ),
@@ -128,20 +146,24 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           // Pequeño delay para que el usuario alcance a ver que se disparó el snackbar antes de cambiar de pantalla
           await Future.delayed(const Duration(milliseconds: 800));
         }
-        if (mounted) context.go('/session-result/${session.id}');
+        if (mounted) {
+          context.go('/simulation/practical/session-result/${session.id}');
+        }
       }
     } catch (e) {
       if (mounted) {
         // Si hay error (como timeout), informamos que se guardó localmente por seguridad
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Guardado localmente (sin sincronización inmediata).'),
+            content:
+                Text('Guardado localmente (sin sincronización inmediata).'),
             backgroundColor: Colors.orange,
           ),
         );
         if (sessionId != null) {
           await Future.delayed(const Duration(milliseconds: 800));
-          if (mounted) context.go('/session-result/$sessionId');
+          if (mounted)
+            context.go('/simulation/practical/session-result/$sessionId');
         } else {
           setState(() {
             _starting = false;
@@ -181,7 +203,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               Text(
                 'PREPÁRATE',
                 style: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                  color:
+                      theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 4,
@@ -270,16 +293,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topLeft,
-            radius: 1.5,
-            colors: [
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: isDark ? 1.0 : 0.5),
-              theme.scaffoldBackgroundColor,
-            ],
-          ),
-        ),
         child: SafeArea(
           child: Column(
             children: [
@@ -293,9 +306,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: isLandscape
-                      ? _buildLandscapeLayout(history, live)
-                      : _buildPortraitLayout(history, live),
+                  child: Column(
+                    children: [
+                      // _buildSessionFeedback(live),
+                      // const SizedBox(height: 12),
+                      Expanded(
+                        child: isLandscape
+                            ? _buildLandscapeLayout(history, live)
+                            : _buildPortraitLayout(history, live),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -308,7 +329,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     );
   }
 
-  Widget _buildModernHeader(dynamic session, dynamic live, String elapsedStr, Color scoreColor) {
+  Widget _buildModernHeader(
+      dynamic session, dynamic live, String elapsedStr, Color scoreColor) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 20, 16),
@@ -328,22 +350,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF00D4FF),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: Color(0xFF00D4FF), blurRadius: 6)
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Text(
                       'MONITOR DE SESIÓN',
                       style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                        color: theme.textTheme.bodySmall?.color
+                            ?.withValues(alpha: 0.7),
                         fontSize: 9,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 2,
@@ -383,11 +394,84 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                   elapsedStr,
                   style: GoogleFonts.spaceMono(
                     color: const Color(0xFF00D4FF),
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateFeedback(dynamic live) {
+    final count = live.compressionCount;
+
+    if (count == 0) return;
+
+    // Solo cambia cada 2 compresiones
+    if (count % 2 != 0) return;
+
+    String message;
+    Color color;
+    IconData icon;
+
+    final goodRate = live.ratePerMin >= 100 && live.ratePerMin <= 120;
+
+    final goodDepth = live.depthMm >= 50 && live.depthMm <= 60;
+
+    if (!goodDepth) {
+      message = 'Aumenta la profundidad';
+      color = Colors.orange;
+      icon = Icons.arrow_downward;
+    } else if (!goodRate) {
+      message = 'Mantén ritmo constante';
+      color = Colors.orange;
+      icon = Icons.speed;
+    } else {
+      message = 'Descomprime completamente';
+      color = const Color(0xFF00FF94);
+      icon = Icons.check_circle;
+    }
+
+    if (!mounted) return;
+
+    if (_feedbackMessage != message) {
+      setState(() {
+        _feedbackMessage = message;
+        _feedbackColor = color;
+        _feedbackIcon = icon;
+      });
+    }
+  }
+
+  Widget _buildSessionFeedback(dynamic live) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _feedbackColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _feedbackColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _feedbackIcon,
+            color: _feedbackColor,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _feedbackMessage,
+            style: TextStyle(
+              color: _feedbackColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -402,39 +486,19 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         Expanded(
           flex: 5,
           child: _MonitorCard(
-            title: 'DINÁMICA DE COMPRESIÓN',
-            subtitle: 'PROFUNDIDAD (mm) / TIEMPO',
-            icon: Icons.show_chart,
-            child:
-                CompressionWave(
-                  history: history,
-                  ratePerMin: live.ratePerMin,
-                  score: live.sessionScore.toInt(),
-                ),
+            title: 'FRECUENCIA',
+            subtitle: 'CPM (OBJETIVO 100-120)',
+            child: RateGauge(ratePerMin: live.ratePerMin),
           ),
         ),
         const SizedBox(width: 12),
         // Side Metrics
         Expanded(
-          flex: 3,
-          child: Column(
-            children: [
-              Expanded(
-                child: _MonitorCard(
-                  title: 'FRECUENCIA',
-                  subtitle: 'CPM (OBJETIVO 100-120)',
-                  child: RateGauge(ratePerMin: live.ratePerMin),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _MonitorCard(
-                  title: 'PROFUNDIDAD',
-                  subtitle: 'MM (OBJETIVO 50-60)',
-                  child: DepthGauge(depthMm: live.depthMm),
-                ),
-              ),
-            ],
+          flex: 5,
+          child: _MonitorCard(
+            title: 'PROFUNDIDAD',
+            subtitle: 'CM (OBJETIVO 5-6)',
+            child: DepthGauge(depthMm: live.depthMm),
           ),
         ),
       ],
@@ -446,14 +510,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       children: [
         Expanded(
           flex: 3,
-          child: _MonitorCard(
-            title: 'DINÁMICA DE COMPRESIÓN',
-            child:
-                CompressionWave(
-                  history: history,
-                  ratePerMin: live.ratePerMin,
-                  score: live.sessionScore.toInt(),
-                ),
+          child: CompressionWave(
+            history: history,
+            ratePerMin: live.ratePerMin,
+            score: live.sessionScore.toInt(),
           ),
         ),
         const SizedBox(height: 12),
@@ -486,6 +546,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final mode = ref.watch(sessionModeProvider);
 
     return Container(
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -504,8 +565,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                     label: 'SCORE',
                     value: '${live.sessionScore.toStringAsFixed(0)}%',
                     color: live.sessionScore >= 80
-                        ? const Color(0xFF00FF94)
-                        : Colors.orange,
+                        ? const Color.fromARGB(255, 0, 255, 149)
+                        : Colors.red,
                   )
                 else
                   const _MetricPill(
@@ -516,18 +577,18 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 _MetricPill(
                   label: 'TOTAL CP',
                   value: live.compressionCount.toString(),
-                  color: const Color(0xFF00D4FF),
+                  color: const Color.fromARGB(255, 0, 4, 255),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 48,
               child: ElevatedButton(
                 onPressed: _endSession,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF4B4B),
+                  backgroundColor: const Color(0xFFE53935),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
@@ -569,16 +630,17 @@ class _MonitorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: theme.colorScheme.outline.withValues(alpha: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -590,27 +652,37 @@ class _MonitorCard extends StatelessWidget {
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5), size: 14),
+                Icon(icon,
+                    color: theme.textTheme.bodySmall?.color
+                        ?.withValues(alpha: 0.5),
+                    size: 14),
                 const SizedBox(width: 8),
               ],
               Text(
                 title,
                 style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
                 ),
               ),
               const Spacer(),
-              Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.2), size: 14),
+              Icon(Icons.more_vert,
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.2),
+                  size: 14),
             ],
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
             Text(
               subtitle!,
-              style: TextStyle(color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4), fontSize: 8),
+              style: TextStyle(
+                  color:
+                      theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4),
+                  fontSize: 8),
             ),
           ],
           const SizedBox(height: 12),

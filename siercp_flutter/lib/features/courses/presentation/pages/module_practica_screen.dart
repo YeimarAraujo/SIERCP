@@ -46,7 +46,8 @@ class ModulePracticaScreen extends ConsumerWidget {
         data: (sessions) {
           // Filtrar sesiones completadas de este curso y este alumno
           final courseSessions = sessions
-              .where((s) => s.courseId == courseId && s.status == SessionStatus.completed)
+              .where((s) =>
+                  s.courseId == courseId && s.status == SessionStatus.completed)
               .toList();
 
           return SingleChildScrollView(
@@ -60,11 +61,13 @@ class ModulePracticaScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: AppColors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(color: AppColors.red.withValues(alpha: 0.2)),
+                    border:
+                        Border.all(color: AppColors.red.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline_rounded, color: AppColors.red),
+                      const Icon(Icons.info_outline_rounded,
+                          color: AppColors.red),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -97,11 +100,13 @@ class ModulePracticaScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: AppColors.amber.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.amber.withValues(alpha: 0.2)),
+                      border: Border.all(
+                          color: AppColors.amber.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 18),
+                        const Icon(Icons.info_outline_rounded,
+                            color: AppColors.amber, size: 18),
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Text(
@@ -142,7 +147,8 @@ class ModulePracticaScreen extends ConsumerWidget {
                       req: req,
                       approvedCount: approvedCount,
                       isDone: isDone,
-                      onStart: () => _startSession(context, ref, req.scenarioId),
+                      onStart: () =>
+                          _startSession(context, ref, req.scenarioId),
                     );
                   }),
 
@@ -179,7 +185,8 @@ class ModulePracticaScreen extends ConsumerWidget {
 
   void _startSession(BuildContext context, WidgetRef ref, String scenarioId) {
     if (ConnectionGuard.checkConnection(context, ref)) {
-      context.push('/session?scenario=$scenarioId&courseId=$courseId');
+      context.push(
+          '/simulation/practical/session?scenario=$scenarioId&courseId=$courseId');
     }
   }
 
@@ -190,7 +197,8 @@ class ModulePracticaScreen extends ConsumerWidget {
       // Navegar a selección de escenario con el courseId para que la
       // sesión quede vinculada al curso aunque el módulo no tenga
       // escenarios configurados explícitamente.
-      context.push('/session?scenario=paroCardiaco&courseId=$courseId');
+      context.push(
+          '/simulation/practical/session?scenario=paroCardiaco&courseId=$courseId');
     }
   }
 }
@@ -213,7 +221,7 @@ class _RequirementCard extends StatelessWidget {
     final theme = Theme.of(context);
     final textP = theme.textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final textS = theme.textTheme.bodyMedium?.color ?? AppColors.textSecondary;
-    
+
     final label = _getScenarioLabel(req.scenarioId);
     final color = isDone ? AppColors.green : AppColors.brand;
 
@@ -224,7 +232,9 @@ class _RequirementCard extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: isDone ? AppColors.green.withValues(alpha: 0.3) : theme.colorScheme.outline,
+          color: isDone
+              ? AppColors.green.withValues(alpha: 0.3)
+              : theme.colorScheme.outline,
           width: isDone ? 1.5 : 0.5,
         ),
       ),
@@ -239,7 +249,9 @@ class _RequirementCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isDone ? Icons.check_circle_rounded : Icons.play_arrow_rounded,
+                  isDone
+                      ? Icons.check_circle_rounded
+                      : Icons.play_arrow_rounded,
                   color: color,
                   size: 20,
                 ),
@@ -249,7 +261,11 @@ class _RequirementCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: TextStyle(color: textP, fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text(label,
+                        style: TextStyle(
+                            color: textP,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15)),
                     Text(
                       'Mínimo: ${req.minScore}% de puntaje',
                       style: TextStyle(color: textS, fontSize: 12),
@@ -269,7 +285,8 @@ class _RequirementCard extends StatelessWidget {
                       fontFamily: 'SpaceMono',
                     ),
                   ),
-                  Text('aprobadas', style: TextStyle(color: textS, fontSize: 10)),
+                  Text('aprobadas',
+                      style: TextStyle(color: textS, fontSize: 10)),
                 ],
               ),
             ],

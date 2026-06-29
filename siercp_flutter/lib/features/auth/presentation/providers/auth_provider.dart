@@ -13,22 +13,26 @@ import 'package:siercp/core/services/firestore_service.dart';
 class AuthState {
   final UserModel? user;
   final bool isAuthenticated;
+  final bool isAnonymous;
   final String? error;
 
   const AuthState({
     this.user,
     this.isAuthenticated = false,
+    this.isAnonymous = false,
     this.error,
   });
 
   AuthState copyWith({
     UserModel? user,
     bool? isAuthenticated,
+    bool? isAnonymous,
     String? error,
   }) =>
       AuthState(
         user:            user ?? this.user,
         isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+        isAnonymous:     isAnonymous ?? this.isAnonymous,
         error:           error,
       );
 
@@ -72,13 +76,89 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   // ── Login ─────────────────────────────────────────────────────────────────
 
   Future<void> login(String email, String password) async {
-    state = const AsyncLoading();
     final authService = ref.read(firebaseAuthServiceProvider);
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await authService.login(email: email, password: password);
+      if (user.isAdmin || user.isSuperAdmin) {
+        await authService.logout();
+        throw Exception(
+            'Los administradores deben iniciar sesión desde la versión web.');
+      }
       await _postLoginSetup(user);
-      return AuthState(user: user, isAuthenticated: true);
-    });
+      state = AsyncData(AuthState(user: user, isAuthenticated: true, isAnonymous: false));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  // ── Demo (anónimo) ─────────────────────────────────────────────────────────
+
+  Future<void> loginAnonymously() async {
+    try {
+      debugPrint('[Demo] Step 1: signing in anonymously...');
+      final result = await FirebaseAuth.instance.signInAnonymously();
+      final uid = result.user!.uid;
+      debugPrint('[Demo] Step 2: signed in as uid=$uid');
+
+      debugPrint('[Demo] Step 3: checking if user doc exists...');
+      final doc = await FirebaseFirestore.instance
+          .collection(AppConstants.colUsers)
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        debugPrint('[Demo] Step 4: creating user doc...');
+        await FirebaseFirestore.instance
+            .collection(AppConstants.colUsers)
+            .doc(uid)
+            .set({
+          'id': uid,
+          'email': 'demo@siercp.app',
+          'firstName': 'Demo',
+          'lastName': 'Usuario',
+          'role': AppConstants.roleUsuario,
+          'isActive': true,
+          'institutionId': '',
+          'coursesCreated': 0,
+          'coursesCreatedThisMonth': 0,
+          'courseCreationMonth': '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('[Demo] Step 4: user doc created');
+      } else {
+        debugPrint('[Demo] Step 4: user doc already exists');
+      }
+
+      debugPrint('[Demo] Step 5: re-reading profile...');
+      final profileDoc = await FirebaseFirestore.instance
+          .collection(AppConstants.colUsers)
+          .doc(uid)
+          .get();
+      if (!profileDoc.exists) {
+        debugPrint('[Demo] ERROR: profile doc not found after create!');
+        await FirebaseAuth.instance.signOut();
+        throw Exception('No se pudo crear el perfil de demo.');
+      }
+      debugPrint('[Demo] Step 5: profile read OK');
+
+      debugPrint('[Demo] Step 6: parsing user model...');
+      final userModel = UserModel.fromFirestore(profileDoc);
+      debugPrint('[Demo] Step 6: userModel=${userModel.fullName} role=${userModel.role}');
+
+      debugPrint('[Demo] Step 7: post-login setup...');
+      await _postLoginSetup(userModel);
+      debugPrint('[Demo] Step 7: setup complete');
+
+      debugPrint('[Demo] Step 8: setting auth state...');
+      state = AsyncData(AuthState(user: userModel, isAuthenticated: true, isAnonymous: true));
+      debugPrint('[Demo] Step 8: auth state set successfully');
+    } catch (e, st) {
+      debugPrint('[Demo] ERROR in loginAnonymously: $e');
+      debugPrint('[Demo] Stack trace: $st');
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   // ── Registro ──────────────────────────────────────────────────────────────
@@ -95,7 +175,6 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     String? city,
     String? phoneNumber,
   }) async {
-    state = const AsyncLoading();
     final authService = ref.read(firebaseAuthServiceProvider);
     try {
       final user = await authService.register(
@@ -110,7 +189,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         city:           city,
         phoneNumber:    phoneNumber,
       );
-      state = AsyncData(AuthState(user: user, isAuthenticated: true));
+      state = AsyncData(AuthState(user: user, isAuthenticated: true, isAnonymous: false));
     } catch (e, st) {
       state = AsyncError(e, st);
       rethrow;
@@ -126,22 +205,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       await ref.read(firestoreServiceProvider).updateUserPresence(uid, false);
     }
 
-    // Orden crítico para evitar el spam de PERMISSION_DENIED al cerrar sesión:
-    // primero desmontamos el estado de sesión (auth + org) MIENTRAS el token
-    // sigue siendo válido. Esto hace que `currentUserProvider` pase a null, que
-    // todos los stream providers dependientes de la sesión (notifications,
-    // broadcasts, userStats, sessions…) se reconstruyan a streams vacíos y
-    // cancelen sus listeners de Firestore, y que el router navegue a login
-    // desmontando las pantallas autenticadas.
     ref.read(orgContextProvider.notifier).reset();
     state = const AsyncData(AuthState());
 
-    // Cedemos un frame para que Riverpod propague la disposición y se cancelen
-    // las suscripciones nativas antes de revocar el token de Firebase.
     await Future<void>.delayed(Duration.zero);
 
-    // Recién ahora revocamos el token. Para entonces ya no quedan listeners
-    // activos que puedan disparar PERMISSION_DENIED.
     await authService.logout();
   }
 
@@ -151,8 +219,6 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   // ── Helpers privados ──────────────────────────────────────────────────────
-
-  /// Obtiene el perfil del usuario y activa el OrgContext.
   Future<AuthState> _fetchAndActivate(String uid) async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -183,7 +249,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       }
 
       await _postLoginSetup(user);
-      return AuthState(user: user, isAuthenticated: true);
+      return AuthState(user: user, isAuthenticated: true, isAnonymous: FirebaseAuth.instance.currentUser?.isAnonymous ?? false);
     } catch (e) {
       debugPrint('[Auth] Error al obtener perfil: $e');
       return const AuthState(error: 'Error de conexión');

@@ -78,7 +78,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emailLabel => 'Correo electrónico';
 
   @override
-  String get emailHint => 'usuario@siercp.edu.co';
+  String get emailHint => 'usuario@sicap.edu.co';
 
   @override
   String get passwordLabel => 'Contraseña';
@@ -97,13 +97,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Ingresa tu correo para restablecer la contraseña.';
 
   @override
-  String get forgotPassSuccess => '📧 Correo de restablecimiento enviado.';
+  String get forgotPassSuccess => 'Correo de restablecimiento enviado.';
 
   @override
   String get registerTitle => 'Crear cuenta';
 
   @override
-  String get registerSubtitle => 'Únete a SIERCP y comienza tu entrenamiento';
+  String get registerSubtitle => 'Únete a SICAP y comienza tu entrenamiento';
 
   @override
   String get roleStudentLabel => 'Estudiante';
@@ -196,10 +196,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get manikinNotDetected =>
-      '⚠️ Maniquí no detectado. Verificar conexión del ESP32.';
+      'Maniquí no detectado. Verificar conexión del simulador.';
 
   @override
   String get adminDashboardTitle => 'Panel de Control';
+
+  @override
+  String get adminLoginWebOnly =>
+      'Los administradores deben iniciar sesión desde la versión web.';
 
   @override
   String welcomeName(String name) {
@@ -207,7 +211,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get adminSubtitle => 'Administrador SIERCP';
+  String get adminSubtitle => 'Administrador SICAP';
 
   @override
   String get instructorSubtitle => 'Instructor';
@@ -335,7 +339,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get studentsCedulaLabel => 'Estudiantes (cédulas)';
 
   @override
-  String get studentsCedulaHint => 'Ej: 1234567, 9876543...';
+  String get studentsCedulaHint => 'Ej: 1234567, 9876543..';
 
   @override
   String get createSuccess => 'Curso creado con éxito';
@@ -351,7 +355,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get enrollInfo =>
-      'El estudiante debe estar registrado en SIERCP con esa cédula.';
+      'El estudiante debe estar registrado en SICAP con esa cédula.';
 
   @override
   String get enrollBtn => 'Inscribir';
@@ -360,7 +364,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get enrollSuccess => 'Estudiante inscrito con éxito';
 
   @override
-  String get cprCertificate => 'Certificado SIERCP';
+  String get cprCertificate => 'Certificado SICAP';
 
   @override
   String get courseDetail => 'Detalle';
@@ -485,7 +489,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get exportBtn => 'Exportar';
 
   @override
-  String get globalAvg => 'Promedio global';
+  String get globalAvg => 'Prom. global';
 
   @override
   String get bestSession => 'Mejor sesión';
@@ -546,7 +550,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newBadge => 'Nuevo';
 
   @override
-  String get demoTitle1 => '🏠 Paro cardíaco en casa';
+  String get demoTitle1 => 'Paro cardíaco en casa';
 
   @override
   String get demoSub1 => 'Adulto · 52 años · Colapso repentino';
@@ -556,7 +560,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Familiar encuentra a la víctima inconsciente en el suelo. Sin pulso ni respiración.';
 
   @override
-  String get demoTitle2 => '🚗 Accidente de tránsito';
+  String get demoTitle2 => 'Accidente de tránsito';
 
   @override
   String get demoSub2 => 'Adulto · 35 años · Múltiples traumas';
@@ -566,7 +570,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Víctima encontrada en la vía, sin respuesta. Evalúa la escena antes de actuar.';
 
   @override
-  String get demoTitle3 => '🌊 Ahogamiento en piscina';
+  String get demoTitle3 => 'Ahogamiento en piscina';
 
   @override
   String get demoSub3 => 'Adulto · Sin respiración ni pulso';
@@ -691,11 +695,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String shareInviteText(String title, String code) {
-    return '¡Únete a mi curso de RCP en SIERCP!\nCurso: $title\nCódigo de invitación: $code\n\nO escanea el QR desde la app.';
+    return '¡Únete a mi curso de RCP en SICAP!\nCurso: $title\nCódigo de invitación: $code\n\nO escanea el QR desde la app.';
   }
 
   @override
-  String get shareInviteSubject => 'Invitación a curso SIERCP';
+  String get shareInviteSubject => 'Invitación a curso SICAP';
 
   @override
   String get shareInviteBtn => 'Compartir invitación';
@@ -756,7 +760,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get equipmentSectionTitle => 'Equipos y Conectividad';
 
   @override
-  String get manikinsLabel => 'Maniquíes SIERCP';
+  String get manikinsLabel => 'Maniquíes SICAP';
 
   @override
   String get disconnected => 'Desconectados';

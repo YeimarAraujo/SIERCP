@@ -32,6 +32,12 @@ import 'package:siercp/features/simulation/presentation/pages/quiz_result_screen
 import 'package:siercp/features/simulation/presentation/pages/practical_hub_screen.dart';
 import 'package:siercp/features/simulation/presentation/pages/ecg_simulation_list_screen.dart';
 import 'package:siercp/features/simulation/presentation/pages/ecg_monitor_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/aed_simulator_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/airway_simulator_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/acls_simulator_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/trauma_simulator_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/random_quiz_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/triage_screen.dart';
 import 'package:siercp/features/simulation/data/models/quiz_session.dart';
 import 'package:siercp/features/session/presentation/pages/live_instructor_screen.dart';
 import 'package:siercp/features/auth/presentation/pages/register_screen.dart';
@@ -62,20 +68,24 @@ import 'package:siercp/features/org/presentation/pages/no_org_screen.dart';
 import 'package:siercp/features/org/presentation/pages/org_switcher_screen.dart';
 import 'package:siercp/features/users/presentation/pages/instructor_apply_screen.dart';
 
-final rootNavigatorKey  = GlobalKey<NavigatorState>(debugLabel: 'root');
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 /// Garantiza que el splash (video de carga) se muestre un mínimo de tiempo
 /// antes de saltar a /login o /home, aunque la auth resuelva al instante.
 class _SplashGate extends ChangeNotifier {
+  bool _done = false;
+
+  bool get done => _done;
+
   _SplashGate() {
     Future.delayed(const Duration(milliseconds: 2800), () {
-      _done = true;
-      notifyListeners();
+      if (hasListeners) {
+        _done = true;
+        notifyListeners();
+      }
     });
   }
-  bool _done = false;
-  bool get done => _done;
 }
 
 final _splashGateProvider =
@@ -96,15 +106,21 @@ CourseModule? _moduleFromExtra(Object? raw) {
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final appListenable = _AppListenable(ref);
+
+  ref.onDispose(() {
+    appListenable.dispose();
+  });
+
   return GoRouter(
-    navigatorKey:      rootNavigatorKey,
-    initialLocation:   '/splash',
-    refreshListenable: _AppListenable(ref),
+    navigatorKey: rootNavigatorKey,
+    initialLocation: '/splash',
+    refreshListenable: appListenable,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
-      final isAuth    = authState.value?.isAuthenticated ?? false;
+      final isAuth = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
-      final location  = state.matchedLocation;
+      final location = state.matchedLocation;
 
       // ── 1. Splash: esperar carga inicial + tiempo mínimo del video ────────
       final splashDone = ref.read(_splashGateProvider).done;
@@ -117,12 +133,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // ── 2. Guard de autenticación ─────────────────────────────────────────
-      final isPublic = location == '/login' || location == '/register' || location == '/register-institution';
+      final isPublic = location == '/login' ||
+          location == '/register' ||
+          location == '/register-institution';
       if (!isAuth) return isPublic ? null : '/login';
-      if (isAuth && (location == '/login' || location == '/register')) return '/home';
+      if (isAuth && (location == '/login' || location == '/register'))
+        return '/home';
 
       final authValue = ref.read(authStateProvider).value;
-      final user      = ref.read(currentUserProvider);
+      final user = ref.read(currentUserProvider);
 
       // ── 4. Guard de contexto de organización ──────────────────────────────
       if (_orgFreeRoutes.contains(location)) return null;
@@ -144,7 +163,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // ── 6. Guard de rol instructor para rutas live y course-editor ────────
-      if (location.startsWith('/live/') || location.startsWith('/course-editor/')) {
+      if (location.startsWith('/live/') ||
+          location.startsWith('/course-editor/')) {
         // Permite si instructor por membership O por rol global.
         // La detección por asignación de curso (isInstructorOnCourseProvider) es
         // async y se verifica en la página; no bloqueamos aquí para no rechazar
@@ -163,14 +183,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/splash',   builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-      GoRoute(path: '/register-institution', builder: (_, __) => const InstitutionRegisterScreen()),
+      GoRoute(
+          path: '/register-institution',
+          builder: (_, __) => const InstitutionRegisterScreen()),
 
       // ── Pantallas de org (fuera del shell) ───────────────────────────────
-      GoRoute(path: '/no-org',    builder: (_, __) => const NoOrgScreen()),
-      GoRoute(path: '/org-select', builder: (_, __) => const OrgSwitcherScreen()),
+      GoRoute(path: '/no-org', builder: (_, __) => const NoOrgScreen()),
+      GoRoute(
+          path: '/org-select', builder: (_, __) => const OrgSwitcherScreen()),
 
       // ── Shell principal (botón nav bar) ──────────────────────────────────────
       ShellRoute(
@@ -179,37 +202,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
 
+          GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
+          GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
           GoRoute(
-            path: '/session',
-            builder: (_, state) => SessionScreen(
-              scenarioId: state.uri.queryParameters['scenario'],
-              courseId:   state.uri.queryParameters['courseId'],
-            ),
-          ),
-          GoRoute(
-            path: '/session-result/:id',
-            builder: (_, state) => SessionResultScreen(
-              sessionId: state.pathParameters['id']!,
-            ),
-          ),
-          GoRoute(
-            path: '/scenario-detail/:id',
-            builder: (_, state) => ScenarioDetailScreen(
-              scenarioId: state.pathParameters['id']!,
-            ),
-          ),
-          GoRoute(
-            path: '/scenario-guide',
-            builder: (_, state) => ScenarioGuideScreen(
-              scenarioId: state.uri.queryParameters['scenario'] ?? 'adulto',
-              courseId: state.uri.queryParameters['courseId'],
-            ),
-          ),
-
-          GoRoute(path: '/history',  builder: (_, __) => const HistoryScreen()),
-          GoRoute(path: '/courses',  builder: (_, __) => const CoursesScreen()),
-          GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
-          GoRoute(path: '/reports',  builder: (_, __) => const ReportsScreen()),
+              path: '/calendar', builder: (_, __) => const CalendarScreen()),
+          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
 
           // ── Simulación / Práctica ───────────────────────────────────────
           GoRoute(
@@ -220,28 +217,66 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'theoretical',
                 builder: (_, __) => const TheoreticalHubScreen(),
-              ),
-              GoRoute(
-                path: 'theoretical/evaluations/:topicId',
-                builder: (_, state) => QuizScreen(
-                  topicId: state.pathParameters['topicId']!,
-                ),
-              ),
-              GoRoute(
-                path: 'theoretical/result/:sessionId',
-                builder: (_, state) => QuizResultScreen(
-                  sessionId: state.pathParameters['sessionId']!,
-                  result:    state.extra as QuizSessionResult?,
-                ),
-              ),
-              GoRoute(
-                path: 'theoretical/cases',
-                builder: (_, __) => const TheoreticalCasesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'evaluations/:topicId',
+                    builder: (_, state) => QuizScreen(
+                      topicId: state.pathParameters['topicId']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'result/:sessionId',
+                    builder: (_, state) => QuizResultScreen(
+                      sessionId: state.pathParameters['sessionId']!,
+                      result: state.extra as QuizSessionResult?,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'cases',
+                    builder: (_, state) => TheoreticalCasesScreen(
+                      type: state.uri.queryParameters['type'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'random',
+                    builder: (_, __) => const RandomQuizScreen(),
+                  ),
+                  GoRoute(
+                    path: 'triage',
+                    builder: (_, __) => const TriageScreen(),
+                  ),
+                ],
               ),
               // Práctica con maniquí
               GoRoute(
                 path: 'practical',
                 builder: (_, __) => const PracticalHubScreen(),
+              ),
+              GoRoute(
+                path: 'practical/session',
+                builder: (_, state) => SessionScreen(
+                  scenarioId: state.uri.queryParameters['scenario'],
+                  courseId: state.uri.queryParameters['courseId'],
+                ),
+              ),
+              GoRoute(
+                path: 'practical/session-result/:id',
+                builder: (_, state) => SessionResultScreen(
+                  sessionId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'practical/scenario-detail/:id',
+                builder: (_, state) => ScenarioDetailScreen(
+                  scenarioId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'practical/scenario-guide',
+                builder: (_, state) => ScenarioGuideScreen(
+                  scenarioId: state.uri.queryParameters['scenario'] ?? 'adulto',
+                  courseId: state.uri.queryParameters['courseId'],
+                ),
               ),
               // Monitor ECG
               GoRoute(
@@ -254,6 +289,28 @@ final routerProvider = Provider<GoRouter>((ref) {
                   scenarioId: state.pathParameters['scenarioId']!,
                 ),
               ),
+              // Triage (legacy — ruta antigua en simulaciones)
+              GoRoute(
+                path: 'triage',
+                builder: (_, __) => const TriageScreen(),
+              ),
+
+              // AED Simulator (separada de /simulation para evitar conflictos de ruta)
+              GoRoute(
+                  path: 'aed-simulator',
+                  builder: (_, __) => const AedSimulatorScreen()),
+              // Vía Aérea Simulator
+              GoRoute(
+                  path: 'airway-simulator',
+                  builder: (_, __) => const AirwaySimulatorScreen()),
+              // RCP Avanzada (ACLS) Simulator
+              GoRoute(
+                  path: 'acls-simulator',
+                  builder: (_, __) => const AclsSimulatorScreen()),
+              // Trauma Prehospitalario Simulator
+              GoRoute(
+                  path: 'trauma-simulator',
+                  builder: (_, __) => const TraumaSimulatorScreen()),
             ],
           ),
 
@@ -263,19 +320,30 @@ final routerProvider = Provider<GoRouter>((ref) {
               builder: (_, __) => const ScenarioSelectScreen()),
 
           // ── Skill Passport (S2/S4) ───────────────────────────────────────
-          GoRoute(path: '/skills',                builder: (_, __) => const SkillWalletScreen()),
-          GoRoute(path: '/badges',                builder: (_, __) => const BadgesScreen()),
-          GoRoute(path: '/learning-paths',        builder: (_, __) => const LearningPathsScreen()),
-          GoRoute(path: '/ranking',               builder: (_, __) => const RankingScreen()),
+          GoRoute(
+              path: '/skills', builder: (_, __) => const SkillWalletScreen()),
+          GoRoute(path: '/badges', builder: (_, __) => const BadgesScreen()),
+          GoRoute(
+              path: '/learning-paths',
+              builder: (_, __) => const LearningPathsScreen()),
+          GoRoute(path: '/ranking', builder: (_, __) => const RankingScreen()),
 
           // ── Perfil ───────────────────────────────────────────────────────
-          GoRoute(path: '/profile',               builder: (_, __) => const ProfileScreen()),
-          GoRoute(path: '/profile/edit',          builder: (_, __) => const EditProfileScreen()),
-          GoRoute(path: '/profile/certificados',  builder: (_, __) => const CertificatesScreen()),
+          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(
+              path: '/profile/edit',
+              builder: (_, __) => const EditProfileScreen()),
+          GoRoute(
+              path: '/profile/certificados',
+              builder: (_, __) => const CertificatesScreen()),
 
           // ── Analytics ───────────────────────────────────────────────────
-          GoRoute(path: '/analytics',     builder: (_, __) => const AnalyticsDashboardScreen()),
-          GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+          GoRoute(
+              path: '/analytics',
+              builder: (_, __) => const AnalyticsDashboardScreen()),
+          GoRoute(
+              path: '/notifications',
+              builder: (_, __) => const NotificationsScreen()),
 
           // ── Instructor ───────────────────────────────────────────────────
           GoRoute(
@@ -315,9 +383,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>?;
               return StudentCourseDetailScreen(
-                courseId:       extra?['courseId'] ?? '',
-                studentId:      extra?['studentId'],
-                courseTitle:    extra?['courseTitle'],
+                courseId: extra?['courseId'] ?? '',
+                studentId: extra?['studentId'],
+                courseTitle: extra?['courseTitle'],
                 instructorName: extra?['instructorName'],
               );
             },
@@ -336,9 +404,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               final module = _moduleFromExtra(extra?['module']);
               if (extra == null || module == null) return const HomeScreen();
               return StudentModuleViewerScreen(
-                module:      module,
-                courseId:    extra['courseId'] as String,
-                studentId:   extra['studentId'] as String,
+                module: module,
+                courseId: extra['courseId'] as String,
+                studentId: extra['studentId'] as String,
                 isCompleted: extra['isCompleted'] as bool? ?? false,
               );
             },
@@ -350,7 +418,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               final module = _moduleFromExtra(extra?['module']);
               if (extra == null || module == null) return const HomeScreen();
               return ModulePracticaScreen(
-                module:   module,
+                module: module,
                 courseId: extra['courseId'] as String,
               );
             },
@@ -362,8 +430,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               final module = _moduleFromExtra(extra?['module']);
               if (extra == null || module == null) return const HomeScreen();
               return ModuleQuizScreen(
-                module:    module,
-                courseId:  extra['courseId'] as String,
+                module: module,
+                courseId: extra['courseId'] as String,
                 studentId: extra['studentId'] as String,
               );
             },
@@ -379,7 +447,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               final orgCtx = ref.read(orgContextProvider);
               return GuideListScreen(
                 courseId: state.pathParameters['courseId']!,
-                canEdit:  orgCtx.isAdmin || orgCtx.isInstructor,
+                canEdit: orgCtx.isAdmin || orgCtx.isInstructor,
               );
             },
           ),
@@ -415,12 +483,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
 
           // ── Instructor apply (USUARIO → independiente) ───────────────────
-          GoRoute(path: '/instructor-apply', builder: (_, __) => const InstructorApplyScreen()),
+          GoRoute(
+              path: '/instructor-apply',
+              builder: (_, __) => const InstructorApplyScreen()),
 
           // ── Admin ─────────────────────────────────────────────────────────
-          GoRoute(path: '/admin/users',       builder: (_, __) => const ManageUsersScreen()),
-          GoRoute(path: '/admin/devices',     builder: (_, __) => const DeviceStatusScreen()),
-          GoRoute(path: '/admin/create-user', builder: (_, __) => const CreateUserScreen()),
+          GoRoute(
+              path: '/admin/users',
+              builder: (_, __) => const ManageUsersScreen()),
+          GoRoute(
+              path: '/admin/devices',
+              builder: (_, __) => const DeviceStatusScreen()),
+          GoRoute(
+              path: '/admin/create-user',
+              builder: (_, __) => const CreateUserScreen()),
           GoRoute(
             path: '/admin/users/:id',
             builder: (_, state) => UserDetailScreen(
@@ -439,6 +515,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             const SizedBox(height: 12),
             Text('Ruta no encontrada: ${state.uri}',
                 style: const TextStyle(color: Colors.grey)),
+            Text('Ruta match: ${state.matchedLocation}',
+                style: const TextStyle(color: Colors.grey)),
           ],
         ),
       ),
@@ -452,7 +530,7 @@ class _AppListenable extends ChangeNotifier {
   _AppListenable(Ref ref) {
     _authSub = ref.listen(authStateProvider, (_, __) => notifyListeners());
     _splashSub = ref.listen(_splashGateProvider, (_, __) => notifyListeners());
-    _orgSub  = ref.listen(orgContextProvider, (prev, next) {
+    _orgSub = ref.listen(orgContextProvider, (prev, next) {
       // Solo notificar si cambia hasOrg o el activeOrgId (no en isLoading)
       if (prev?.hasOrg != next.hasOrg ||
           prev?.activeOrgId != next.activeOrgId) {

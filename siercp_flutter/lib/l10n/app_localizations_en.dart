@@ -96,7 +96,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgotPassErrorEmpty => 'Enter your email to reset your password.';
 
   @override
-  String get forgotPassSuccess => '📧 Reset email sent.';
+  String get forgotPassSuccess => 'Reset email sent.';
 
   @override
   String get registerTitle => 'Create Account';
@@ -194,10 +194,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manikinNotDetected =>
-      '⚠️ Manikin not detected. Check ESP32 connection.';
+      'Manikin not detected. Check Simulator connection.';
 
   @override
   String get adminDashboardTitle => 'Control Panel';
+
+  @override
+  String get adminLoginWebOnly =>
+      'Administrators must log in from the web version.';
 
   @override
   String welcomeName(String name) {

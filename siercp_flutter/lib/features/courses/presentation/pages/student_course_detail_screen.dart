@@ -648,7 +648,7 @@ class _SessionTile extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(session.scenarioTitle ?? 'Sesión RCP',
+                Text(session.scenarioTitle ?? 'Sesión de práctica',
                     style: TextStyle(
                         color: textP,
                         fontSize: 12,

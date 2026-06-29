@@ -8,9 +8,21 @@ import 'package:siercp/features/simulation/data/simulation_service.dart';
 /// Lee de userStats/{userId} vía [userStatsProvider].
 class XpStrip extends ConsumerWidget {
   final bool compact;
+
   const XpStrip({super.key, this.compact = false});
 
-  static const _thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500];
+  static const _thresholds = [
+    0,
+    100,
+    300,
+    600,
+    1000,
+    1500,
+    2200,
+    3000,
+    4000,
+    5500
+  ];
 
   static double levelProgress(int xp, int level) {
     if (level >= _thresholds.length) return 1.0;
@@ -45,6 +57,7 @@ class XpStrip extends ConsumerWidget {
     final textT = theme.textTheme.bodySmall?.color ?? AppColors.textTertiary;
     final cardBg = theme.colorScheme.surface;
     final border = theme.colorScheme.outline;
+    final accentColor = AppColors.accent;
 
     return Container(
       padding: compact
@@ -54,7 +67,6 @@ class XpStrip extends ConsumerWidget {
         color: cardBg,
         border: Border.all(color: border, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: isDark ? null : AppShadows.card(false),
       ),
       child: Row(
         children: [
@@ -62,14 +74,14 @@ class XpStrip extends ConsumerWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.brand.withValues(alpha: 0.12),
+              color: accentColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 '$level',
-                style: const TextStyle(
-                  color: AppColors.brand,
+                style: TextStyle(
+                  color: accentColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -90,8 +102,8 @@ class XpStrip extends ConsumerWidget {
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                     Text('$xp XP',
-                        style: const TextStyle(
-                            color: AppColors.brand,
+                        style: TextStyle(
+                            color: accentColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w700)),
                   ],
@@ -102,24 +114,21 @@ class XpStrip extends ConsumerWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 4,
-                    backgroundColor: AppColors.brand.withValues(alpha: 0.12),
-                    valueColor:
-                        const AlwaysStoppedAnimation(AppColors.brand),
+                    backgroundColor: accentColor.withValues(alpha: 0.12),
+                    valueColor: AlwaysStoppedAnimation(accentColor),
                   ),
                 ),
                 if (!compact) ...[
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.quiz_outlined,
-                          size: 11, color: textT),
+                      Icon(Icons.quiz_outlined, size: 11, color: textT),
                       const SizedBox(width: 3),
                       Text('$quizCount evaluaciones',
                           style: TextStyle(color: textT, fontSize: 10)),
                       if (toNext > 0) ...[
                         const SizedBox(width: 12),
-                        Icon(Icons.trending_up_rounded,
-                            size: 11, color: textT),
+                        Icon(Icons.trending_up_rounded, size: 11, color: textT),
                         const SizedBox(width: 3),
                         Text('$toNext XP para nivel ${level + 1}',
                             style: TextStyle(color: textT, fontSize: 10)),

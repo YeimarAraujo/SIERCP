@@ -101,8 +101,7 @@ class _AhaRow extends StatelessWidget {
                 style: TextStyle(
                   color: _color,
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'SpaceMono',
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 4),

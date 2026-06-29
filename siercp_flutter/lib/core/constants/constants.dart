@@ -60,6 +60,9 @@ class AppConstants {
   static const String colQuizQuestions         = 'quizQuestions';
   static const String colQuizSessions          = 'quizSessions';
   static const String colUserStats             = 'userStats';
+  static const String colUserSkills            = 'userSkills';
+  static const String colSkillVerifications    = 'skillVerifications';
+  static const String colXpTransactions        = 'xpTransactions';
   static const String colStudentProgress       = 'student_progress';
   static const String colCourseTemplates       = 'course_templates';
   static const String colCohorts               = 'cohorts';

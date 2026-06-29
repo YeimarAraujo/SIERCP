@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -26,33 +25,26 @@ import 'package:siercp/core/services/push_notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Firebase.apps.isEmpty) {
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } on FirebaseException catch (e) {
-      if (e.code != 'duplicate-app') rethrow;
-    }
-  }
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider:
-          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      appleProvider:
-          kDebugMode ? AppleProvider.debug : AppleProvider.deviceCheck,
-      webProvider:
-          ReCaptchaV3Provider('REEMPLAZA_CON_TU_RECAPTCHA_V3_SITE_KEY'),
-    );
-  } catch (e) {
-    debugPrint('App Check activation skipped: $e');
-  }
-
+  await Firebase.initializeApp(
+    name: 'siercp',
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   // Configuración global de Firestore
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+  // Pre-warm Firestore: triggers lazy init (SQLite persistence, gRPC, etc.)
+  // during splash instead of blocking the main thread on the first real query.
+  try {
+    await FirebaseFirestore.instance
+        .collection('_warmup')
+        .limit(1)
+        .get()
+        .timeout(const Duration(seconds: 3));
+  } catch (_) {
+    // Colección dummy que no existe — el objetivo es forzar la inicialización.
+  }
 
   // RTDB (Configurada exclusivamente vía --dart-define=RTDB_URL=...)
   if (Environment.isConfigured) {
@@ -69,12 +61,14 @@ void main() async {
   }
 
   // Notificaciones push (FCM) — recibir incluso con la app cerrada.
-  try {
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-      await PushNotificationService.instance.initialize();
+  Future<void> initNotifications() async {
+    try {
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await PushNotificationService.instance.initialize();
+      }
+    } catch (e) {
+      debugPrint('Error notificaciones: $e');
     }
-  } catch (e) {
-    debugPrint('Error al inicializar notificaciones: $e');
   }
 
   SystemChrome.setPreferredOrientations([
@@ -97,6 +91,7 @@ void main() async {
       child: const SiercpApp(),
     ),
   );
+  initNotifications();
 }
 
 class SiercpApp extends ConsumerWidget {
@@ -111,8 +106,7 @@ class SiercpApp extends ConsumerWidget {
     final currentLocale = ref.watch(localeControllerProvider);
 
     // Inicializar el servicio de sincronización
-    ref.watch(syncServiceProvider);
-
+    ref.read(syncServiceProvider);
     return LifecycleObserver(
       child: MaterialApp.router(
         scaffoldMessengerKey: PushNotificationService.messengerKey,
