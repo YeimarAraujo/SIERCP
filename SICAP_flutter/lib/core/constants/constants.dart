@@ -154,7 +154,7 @@ class AppConstants {
   // ── Backend Vercel (plan Spark: lógica de servidor en Vercel API routes, no
   //    en Cloud Functions). Endpoints autenticados con Firebase ID token. ──────
   /// Web publicada en Vercel. El dominio siercp.com no está activo.
-  static const String webBaseUrl = 'https://siercp-web.vercel.app';
+  static const String webBaseUrl = 'https://sicapco.vercel.app';
   static const String apiBaseUrl = '$webBaseUrl/api';
 
   /// Versión de la política de datos. Debe coincidir con

@@ -8,12 +8,13 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:siercp/core/theme/theme.dart';
 
+import 'package:siercp/core/constants/constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/user_skill.dart';
 import '../providers/skill_providers.dart';
 import '../widgets/skill_certificate_sheet.dart';
 
-const _kAppUrl = 'https://siercp.com';
+const _kAppUrl = AppConstants.webBaseUrl;
 
 /// Skill Wallet — competencias verificadas del usuario (S2/S3).
 /// Solo lectura: las skills las otorga el Competency Engine (Cloud Functions).
