@@ -7,6 +7,7 @@ import 'package:siercp/features/devices/data/ble_service.dart';
 import 'package:siercp/core/utils/rcp_engine.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/features/session/data/session_service.dart';
+import 'package:siercp/features/session/data/sim_bridge_service.dart';
 import 'package:siercp/core/services/audio_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
@@ -28,6 +29,11 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
   Timer? _timer;
   StreamSubscription<RcpTelemetry>? _telemetrySub;
   int _lastCount = 0;
+
+  /// Señal de la sesión en décimas de mm, para repetirla y recalcular métricas.
+  static const int _maxSeriesSamples = 72000; // 1 h a 20 Hz
+  final List<int> _depthSeries = [];
+  int? _lastSeriesMs;
   String? _rtdbInstitutionId;
   String? _rtdbCourseId;
   int _heartbeatTick = 0;
@@ -61,6 +67,9 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
   }
 
   Future<void> startSession(String scenarioId, {String? courseId}) async {
+    // Si el estudiante ya activó el simulador, esta sesión lo abre sola.
+    await ref.read(simBridgeProvider).load();
+
     final sessionService = ref.read(sessionServiceProvider);
     final user = ref.read(currentUserProvider);
     if (user == null) throw Exception('No hay usuario autenticado.');
@@ -88,6 +97,8 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
 
     engine.reset();
     _lastCount = 0;
+    _depthSeries.clear();
+    _lastSeriesMs = null;
 
     final session = await sessionService.startSession(
       studentId: user.id,
@@ -166,6 +177,12 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       }
     }
 
+    if (data.timestamp != _lastSeriesMs &&
+        _depthSeries.length < _maxSeriesSamples) {
+      _lastSeriesMs = data.timestamp;
+      _depthSeries.add((data.depthMm * 10).round());
+    }
+
     // Actualizar historial de profundidad para la onda
     final newHistory = [...state.depthHistory, data.depthMm];
     final trimmed = newHistory.length > 50
@@ -204,6 +221,12 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     );
 
     _writeTelemetryToRtdb(liveData);
+    final sessionId = state.session?.id;
+    if (sessionId != null) {
+      ref
+          .read(simBridgeProvider)
+          .addSample(sessionId, state.session?.scenarioId, liveData);
+    }
     state = state.copyWith(liveData: liveData, depthHistory: history);
   }
 
@@ -275,6 +298,10 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     if (currentSession == null) throw Exception('No hay sesión activa.');
 
     _cleanupRtdb(currentSession.id);
+    final lastLive = state.liveData;
+    if (lastLive != null) {
+      ref.read(simBridgeProvider).sessionEnded(currentSession.id, lastLive);
+    }
 
     final engine = ref.read(rcpEngineProvider);
     final sessionService = ref.read(sessionServiceProvider);
@@ -290,10 +317,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
         ? (engine.freqCorrectas / engine.compresionesTotales * 100)
         : 0;
 
-    // Chest Compression Fraction (CCF) - Simplificado para este MVP
-    double ccf = engine.pausasCount > 0
-        ? (1.0 - (engine.maxPausaSeg / 120.0)) * 100
-        : 100;
+    final ccf = engine.ccfPct(state.elapsed.inSeconds);
 
     final metrics = SessionMetrics(
       totalCompressions: engine.compresionesTotales,
@@ -312,7 +336,7 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
       recoilPct: recoilScore,
       interruptionCount: engine.pausasCount,
       maxPauseSeconds: engine.maxPausaSeg,
-      ccfPct: ccf.clamp(0, 100),
+      ccfPct: ccf,
       depthScore: depthScore,
       rateScore: rateScore,
       recoilScore: recoilScore,
@@ -331,6 +355,17 @@ class BleSessionNotifier extends Notifier<ActiveSessionState> {
     }
 
     try {
+      // La señal va antes de cerrar la sesión: con ella el servidor calcula la
+      // nota oficial al cerrar. Si falla, la sesión se guarda igual, sin nota oficial.
+      try {
+        // Sin conexión Firestore no confirma la escritura: no se espera más de 8 s.
+        await sessionService
+            .saveDepthSeries(currentSession.id, List<int>.of(_depthSeries))
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('No se guardó la señal: $e');
+      }
+
       final finished = await sessionService.endSession(
         currentSession.id,
         metrics,

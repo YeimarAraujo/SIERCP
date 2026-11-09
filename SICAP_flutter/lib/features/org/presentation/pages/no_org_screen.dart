@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:siercp/core/constants/constants.dart';
 import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/core/widgets/responsive_app_frame.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 
@@ -48,7 +50,7 @@ class NoOrgScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: ScrollableFill(child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             children: [
@@ -178,6 +180,19 @@ class NoOrgScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                // La compra de planes se hace en la web, con pago seguro por Wompi.
+                OutlinedButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse('${AppConstants.webBaseUrl}/planes'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon:  const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Ver planes en la web'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
 
               ElevatedButton.icon(
@@ -223,7 +238,7 @@ class NoOrgScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }

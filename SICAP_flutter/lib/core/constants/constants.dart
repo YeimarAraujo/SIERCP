@@ -132,6 +132,16 @@ class AppConstants {
   static const double ahaExcellentScore = 85.0;
   static const double passScore         = 70.0;
 
+  // Aprobación del curso y del certificado. Lo decidió el usuario el
+  // 2026-11-09; debe validarlo un instructor certificado. Igual que
+  // COURSE_PASS_AVERAGE y COURSE_PART_MIN_PCT en la web.
+  /// Promedio mínimo de notas oficiales; también es la nota mínima por defecto del curso.
+  static const int coursePassAverage = 80;
+  /// Porcentaje mínimo de compresiones correctas en profundidad, retroceso y ritmo, cada uno.
+  static const int coursePartMinPct = 70;
+  /// Nota mínima que trae un curso o módulo si el instructor no define otra.
+  static const int courseDefaultMinScore = coursePassAverage;
+
   // ── SharedPreferences Keys ────────────────────────────────────────────────
   static const String prefThemeMode  = 'theme_mode';
   static const String prefLastCourse = 'last_course';
@@ -143,6 +153,13 @@ class AppConstants {
 
   // ── Backend Vercel (plan Spark: lógica de servidor en Vercel API routes, no
   //    en Cloud Functions). Endpoints autenticados con Firebase ID token. ──────
-  static const String webBaseUrl = 'https://siercp.com';
+  /// Web publicada en Vercel. El dominio siercp.com no está activo.
+  static const String webBaseUrl = 'https://siercp-web.vercel.app';
   static const String apiBaseUrl = '$webBaseUrl/api';
+
+  /// Versión de la política de datos. Debe coincidir con
+  /// PRIVACY_POLICY_VERSION en SICAP-WEB/src/lib/privacy.ts: al cambiarla, todos
+  /// vuelven a aceptar.
+  static const String privacyPolicyVersion = '2026-11-07';
+  static const String privacyPolicyUrl = '$webBaseUrl/privacidad';
 }

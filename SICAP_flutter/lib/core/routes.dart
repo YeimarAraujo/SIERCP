@@ -67,6 +67,9 @@ import 'package:siercp/features/calendar/presentation/pages/calendar_screen.dart
 import 'package:siercp/features/org/presentation/pages/no_org_screen.dart';
 import 'package:siercp/features/org/presentation/pages/org_switcher_screen.dart';
 import 'package:siercp/features/users/presentation/pages/instructor_apply_screen.dart';
+import 'package:siercp/features/privacy/presentation/pages/consent_gate_screen.dart';
+import 'package:siercp/features/privacy/presentation/pages/privacy_center_screen.dart';
+import 'package:siercp/features/simulation/presentation/pages/vr_practice_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -143,6 +146,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authValue = ref.read(authStateProvider).value;
       final user = ref.read(currentUserProvider);
 
+      // ── 3. Autorización de datos (Ley 1581): sin constancia vigente no se
+      //       usa la plataforma. Cubre cuentas nuevas, creadas por terceros e
+      //       importadas, y a todos cuando cambia la política.
+      final needsConsent = user != null &&
+          user.privacyPolicyVersion != AppConstants.privacyPolicyVersion;
+      if (needsConsent) return location == '/privacy-consent' ? null : '/privacy-consent';
+      if (location == '/privacy-consent') return '/home';
+
       // ── 4. Guard de contexto de organización ──────────────────────────────
       if (_orgFreeRoutes.contains(location)) return null;
 
@@ -192,6 +203,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // ── Pantallas de org (fuera del shell) ───────────────────────────────
       GoRoute(path: '/no-org', builder: (_, __) => const NoOrgScreen()),
+      GoRoute(path: '/privacy-consent', builder: (_, __) => const ConsentGateScreen()),
+      GoRoute(path: '/privacy', builder: (_, __) => const PrivacyCenterScreen()),
       GoRoute(
           path: '/org-select', builder: (_, __) => const OrgSwitcherScreen()),
 
@@ -257,7 +270,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) => SessionScreen(
                   scenarioId: state.uri.queryParameters['scenario'],
                   courseId: state.uri.queryParameters['courseId'],
+                  vrMinutes: int.tryParse(state.uri.queryParameters['vr'] ?? ''),
                 ),
+              ),
+              GoRoute(
+                path: 'practical/vr',
+                builder: (_, __) => const VrPracticeScreen(),
               ),
               GoRoute(
                 path: 'practical/session-result/:id',
@@ -530,6 +548,9 @@ class _AppListenable extends ChangeNotifier {
   _AppListenable(Ref ref) {
     _authSub = ref.listen(authStateProvider, (_, __) => notifyListeners());
     _splashSub = ref.listen(_splashGateProvider, (_, __) => notifyListeners());
+    _consentSub = ref.listen(
+        currentUserProvider.select((u) => u?.privacyPolicyVersion),
+        (_, __) => notifyListeners());
     _orgSub = ref.listen(orgContextProvider, (prev, next) {
       // Solo notificar si cambia hasOrg o el activeOrgId (no en isLoading)
       if (prev?.hasOrg != next.hasOrg ||
@@ -542,11 +563,13 @@ class _AppListenable extends ChangeNotifier {
   late final ProviderSubscription _authSub;
   late final ProviderSubscription _orgSub;
   late final ProviderSubscription _splashSub;
+  late final ProviderSubscription _consentSub;
 
   @override
   void dispose() {
     _authSub.close();
     _orgSub.close();
+    _consentSub.close();
     _splashSub.close();
     super.dispose();
   }

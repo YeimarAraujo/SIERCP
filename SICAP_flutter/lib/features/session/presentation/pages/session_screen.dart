@@ -9,13 +9,20 @@ import 'package:siercp/core/widgets/compression_wave.dart';
 import 'package:siercp/core/widgets/depth_gauge.dart';
 import 'package:siercp/core/widgets/rate_gauge.dart';
 import 'package:siercp/features/devices/data/ble_service.dart';
+import 'package:siercp/features/session/data/sim_bridge_service.dart';
+import 'package:siercp/features/session/presentation/widgets/sim_bridge_sheet.dart';
+import 'package:siercp/core/services/vr_launcher.dart';
 import 'package:siercp/core/providers/connectivity_provider.dart';
 import 'dart:async';
 
 class SessionScreen extends ConsumerStatefulWidget {
   final String? scenarioId;
   final String? courseId;
-  const SessionScreen({super.key, this.scenarioId, this.courseId});
+
+  /// Práctica con gafas: minutos que dura. La sesión abre SICAP VR y termina
+  /// sola, porque con el teléfono en las gafas no se puede tocar la pantalla.
+  final int? vrMinutes;
+  const SessionScreen({super.key, this.scenarioId, this.courseId, this.vrMinutes});
 
   @override
   ConsumerState<SessionScreen> createState() => _SessionScreenState();
@@ -29,6 +36,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   String? _error;
   int _lastCompressionCount = 0;
   Timer? _dataTimeout;
+  Timer? _vrTimer;
+  bool get _isVr => (widget.vrMinutes ?? 0) > 0;
   bool _sensorBannerShown = false;
   String _feedbackMessage = 'Inicia las compresiones';
   Color _feedbackColor = const Color(0xFF00D4FF);
@@ -67,6 +76,19 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       final audioService = ref.read(audioServiceProvider);
       await audioService.init();
 
+      // Gafas: SICAP VR recibe la sesión en este teléfono y se abre ahora, para
+      // que el estudiante se ponga las gafas durante la cuenta regresiva.
+      if (_isVr) {
+        final bridge = ref.read(simBridgeProvider);
+        await bridge.load();
+        bridge.setLocalSimulator(true);
+        if (!bridge.enabled) await bridge.configure(enabled: true, target: bridge.target);
+        await VrLauncher.keepAlive(true);
+        if (!await VrLauncher.launch()) {
+          throw Exception('No se pudo abrir SICAP VR. Verifica que esté instalada.');
+        }
+      }
+
       // 2. Iniciar el contador de preparación y cuenta regresiva
       setState(() {
         _starting = false;
@@ -97,6 +119,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             courseId: widget.courseId,
           );
 
+      if (_isVr) {
+        _vrTimer = Timer(Duration(minutes: widget.vrMinutes!), _finishSession);
+      }
+
       // Timeout de detección: si tras 8s no hay datos, alertar al usuario
       _dataTimeout?.cancel();
       _dataTimeout = Timer(const Duration(seconds: 8), () {
@@ -121,7 +147,25 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   @override
   void dispose() {
     _dataTimeout?.cancel();
+    _vrTimer?.cancel();
+    if (_isVr) _stopVrSupport();
     super.dispose();
+  }
+
+  void _stopVrSupport() {
+    VrLauncher.keepAlive(false);
+    ref.read(simBridgeProvider).setLocalSimulator(false);
+  }
+
+  Future<void> _openSimBridgeSheet() async {
+    final bridge = ref.read(simBridgeProvider);
+    await bridge.load();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SimBridgeSheet(bridge: bridge),
+    );
   }
 
   Future<void> _endSession() async {
@@ -150,6 +194,13 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     );
 
     if (confirm != true || !mounted) return;
+    await _finishSession();
+  }
+
+  /// Cierra y guarda la sesión. En la práctica con gafas lo llama el temporizador.
+  Future<void> _finishSession() async {
+    if (!mounted) return;
+    _vrTimer?.cancel();
 
     // Mostrar loading mientras se guarda
     setState(() => _starting = true);
@@ -342,13 +393,16 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                     children: [
                       Icon(Icons.sensors_off_rounded, color: Colors.white, size: 14),
                       SizedBox(width: 8),
-                      Text(
-                        'SENSOR DE PROFUNDIDAD NO DISPONIBLE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                      Flexible(
+                        child: Text(
+                          'SENSOR DE PROFUNDIDAD NO DISPONIBLE',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
                         ),
                       ),
                     ],
@@ -388,8 +442,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   Widget _buildModernHeader(
       dynamic session, dynamic live, String elapsedStr, Color scoreColor) {
     final theme = Theme.of(context);
+    final compact = MediaQuery.sizeOf(context).width < 380;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 16, 20, 16),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(4, 8, 8, 8)
+          : const EdgeInsets.fromLTRB(12, 16, 20, 16),
       child: Row(
         children: [
           // Back/abort button
@@ -398,6 +455,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             color: AppColors.red.withValues(alpha: 0.8),
             tooltip: 'Finalizar sesión',
             onPressed: _endSession,
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.cast_outlined,
+              size: 22,
+              color: ref.watch(simBridgeProvider).enabled
+                  ? AppColors.brand
+                  : null,
+            ),
+            tooltip: 'Simulador en PC',
+            onPressed: _openSimBridgeSheet,
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -434,7 +502,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
 
           // CRITICAL TIMER CARD
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 16, vertical: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF00D4FF).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
@@ -445,12 +513,12 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               children: [
                 const Icon(Icons.timer_outlined,
                     color: Color(0xFF00D4FF), size: 20),
-                const SizedBox(width: 12),
+                SizedBox(width: compact ? 6 : 12),
                 Text(
                   elapsedStr,
                   style: GoogleFonts.spaceMono(
                     color: const Color(0xFF00D4FF),
-                    fontSize: 22,
+                    fontSize: compact ? 18 : 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -601,16 +669,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final theme = Theme.of(context);
     final mode = ref.watch(sessionModeProvider);
 
+    final compact = MediaQuery.sizeOf(context).height < 720;
     return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.only(top: compact ? 4 : 12),
+      padding: EdgeInsets.all(compact ? 6 : 20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
             top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5))),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 20, vertical: compact ? 6 : 16),
         child: Column(
           children: [
             Row(

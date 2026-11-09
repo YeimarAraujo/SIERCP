@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+*.log
+
+# Service account de Firebase — NUNCA subir a Git
+*.json
+service-account.json

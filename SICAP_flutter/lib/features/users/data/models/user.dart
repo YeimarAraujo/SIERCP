@@ -120,6 +120,15 @@ class UserModel {
   /// Certificate verification tier.
   final CertVerificationStatus certVerification;
 
+  /// Versión de la política de datos que aceptó (null: no hay constancia).
+  final String? privacyPolicyVersion;
+
+  /// Autorización opcional para recibir publicidad.
+  final bool marketingConsent;
+
+  /// Fecha de nacimiento AAAA-MM-DD.
+  final String? birthDate;
+
   const UserModel({
     required this.id,
     required this.email,
@@ -142,6 +151,9 @@ class UserModel {
     this.coursesCreatedThisMonth = 0,
     this.courseCreationMonth,
     this.certVerification = CertVerificationStatus.none,
+    this.privacyPolicyVersion,
+    this.marketingConsent = false,
+    this.birthDate,
   });
 
   UserModel copyWith({
@@ -166,6 +178,9 @@ class UserModel {
     int? coursesCreatedThisMonth,
     String? courseCreationMonth,
     CertVerificationStatus? certVerification,
+    String? privacyPolicyVersion,
+    bool? marketingConsent,
+    String? birthDate,
   }) =>
       UserModel(
         id: id ?? this.id,
@@ -189,6 +204,9 @@ class UserModel {
         coursesCreatedThisMonth: coursesCreatedThisMonth ?? this.coursesCreatedThisMonth,
         courseCreationMonth: courseCreationMonth ?? this.courseCreationMonth,
         certVerification: certVerification ?? this.certVerification,
+        privacyPolicyVersion: privacyPolicyVersion ?? this.privacyPolicyVersion,
+        marketingConsent: marketingConsent ?? this.marketingConsent,
+        birthDate: birthDate ?? this.birthDate,
       );
 
   // ── Alias canónico (alineado con Web: field 'identification') ────────────
@@ -285,6 +303,9 @@ class UserModel {
       courseCreationMonth: d['courseCreationMonth'] as String?,
       certVerification:
           CertVerificationStatusExt.fromString(d['certVerification']),
+      privacyPolicyVersion: (d['privacy'] as Map?)?['policyVersion'] as String?,
+      marketingConsent: (d['privacy'] as Map?)?['marketing'] == true,
+      birthDate: d['birthDate'] as String?,
     );
   }
 

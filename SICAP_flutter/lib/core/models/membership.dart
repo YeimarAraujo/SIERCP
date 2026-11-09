@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MembershipStatus { pending, approved, rejected, suspended }
+/// invited: la institución invitó a alguien que ya tenía cuenta; entra cuando acepta.
+enum MembershipStatus { pending, approved, rejected, suspended, invited }
 
 enum PlanType {
   pyme,         // Corporativo: 15 users, 1 sede, 3 cursos, 50 certs/mes
@@ -235,6 +236,7 @@ class MembershipModel {
       case 'approved':  return MembershipStatus.approved;
       case 'rejected':  return MembershipStatus.rejected;
       case 'suspended': return MembershipStatus.suspended;
+      case 'invited':   return MembershipStatus.invited;
       default:          return MembershipStatus.pending;
     }
   }

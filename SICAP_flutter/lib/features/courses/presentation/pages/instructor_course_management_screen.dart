@@ -9,7 +9,6 @@ import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/features/session/data/session_service.dart';
-import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
 import 'package:siercp/core/services/firestore_service.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
@@ -762,29 +761,20 @@ class _StudentsManagementTabState
                       setSt(() => loading = true);
                       try {
                         final db = ref.read(firestoreServiceProvider);
-                        final currentUser = ref.read(currentUserProvider);
                         // Buscar usuario por cédula
-                        final usersSnap = await FirebaseFirestore.instance
-                            .collection('users')
-                            .where('identification', isEqualTo: cedula)
-                            .limit(1)
-                            .get();
-
-                        if (usersSnap.docs.isEmpty) {
+                        final student = await db.getUserByIdentificacion(cedula);
+                        if (student == null) {
                           throw Exception('No se encontró usuario con esa cédula');
                         }
 
-                        final userData = usersSnap.docs.first.data();
-                        final studentId = usersSnap.docs.first.id;
-                        final studentName =
-                            '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'
-                                .trim();
+                        final studentId = student.id;
+                        final studentName = student.fullName;
 
                         await db.enrollStudent(
                           courseId: widget.courseId,
                           studentId: studentId,
                           studentName: studentName,
-                          studentEmail: userData['email'] ?? '',
+                          studentEmail: student.email,
                           identificacion: cedula,
                         );
 

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/core/utils/course_approval.dart';
 
 enum SessionStatus { pending, active, completed, aborted }
 enum PatientType   { adult, pediatric, infant }
@@ -20,6 +21,9 @@ class SessionModel {
   final String? courseId;
   final LiveSessionData? liveMetrics;
 
+  /// Nota calculada por el servidor; null si aún no existe o no hubo señal.
+  final OfficialGrade? officialGrade;
+
   const SessionModel({
     required this.id,
     required this.studentId,
@@ -34,6 +38,7 @@ class SessionModel {
     this.metrics,
     this.courseId,
     this.liveMetrics,
+    this.officialGrade,
   });
 
   Duration get duration {
@@ -66,6 +71,7 @@ class SessionModel {
       liveMetrics:    d['liveMetrics'] != null
           ? LiveSessionData.fromMap(d['liveMetrics'] as Map<String, dynamic>)
           : null,
+      officialGrade:  OfficialGrade.fromMap(d['officialGrade']),
     );
   }
 

@@ -95,6 +95,11 @@ class SessionService {
     }
   }
 
+  Future<void> saveDepthSeries(String sessionId, List<int> depthTenthsMm) async {
+    if (depthTenthsMm.isEmpty) return;
+    await _db.saveDepthSeries(sessionId, depthTenthsMm);
+  }
+
   Future<SessionModel> endSession(
     String sessionId,
     SessionMetrics metrics,

@@ -32,7 +32,14 @@ class RcpEngine extends ChangeNotifier {
   static const double ahaMaxDepthMm = 60.0;
   static const int ahaMinRateCpm = 100;
   static const int ahaMaxRateCpm = 120;
-  static const double ahaRecoilThresholdKg = 2.5;
+
+  /// Profundidad residual máxima para contar la liberación como completa.
+  /// Provisional: el filtro del firmware deja ~4–7 mm tras una liberación total
+  /// y ~13 mm con 10 mm reales de residual. Calibrar con el maniquí.
+  static const double ahaRecoilResidualMm = 10.0;
+
+  /// Sin compresiones durante más de este tiempo se considera una pausa.
+  static const Duration pausaMinima = Duration(seconds: 2);
 
   // Detection Constants (Sincronizados con Firmware v2.5)
   static const double detectStartMm = 15.0;  // Umbral de inicio
@@ -61,13 +68,21 @@ class RcpEngine extends ChangeNotifier {
   
   int pausasCount = 0;
   double maxPausaSeg = 0.0;
+  double totalPausaSeg = 0.0;
+
+  /// Reloj inyectable para las pruebas.
+  DateTime Function() clock = DateTime.now;
+  DateTime? _ultimaCompresion;
+
+  /// Menor profundidad vista desde la última compresión contada.
+  double _valleProfundidad = double.infinity;
   
   double sumProfundidad = 0.0;
   double sumFuerza = 0.0;
   double sumBpm = 0.0;
   
-  // Filtro EMA (Sincronizado con Hardware 0.35)
-  static const double emaAlpha = 0.35;
+  // Filtro EMA (Sincronizado con el firmware)
+  static const double emaAlpha = 0.5;
 
   bool recoilOk = false;
   bool compresionCorrecta = false;
@@ -100,8 +115,12 @@ class RcpEngine extends ChangeNotifier {
       // Acumular ritmo para promedio de reporte
       sumBpm += bpm.toDouble(); 
 
-      // 3. Validar Recoil (Liberación)
+      // 3. Validar Recoil: el tórax debe volver casi a cero antes de esta compresión.
+      recoilOk = _valleProfundidad <= ahaRecoilResidualMm;
       if (recoilOk) recoilCorrectos++;
+      _valleProfundidad = double.infinity;
+
+      _registrarPausa();
 
       lastCompresionCorrecta = profOk && freqOk && recoilOk;
       compresionCorrecta = lastCompresionCorrecta;
@@ -117,9 +136,30 @@ class RcpEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _registrarPausa() {
+    final ahora = clock();
+    final anterior = _ultimaCompresion;
+    _ultimaCompresion = ahora;
+    if (anterior == null) return;
+
+    final pausa = ahora.difference(anterior);
+    if (pausa <= pausaMinima) return;
+
+    final segundos = pausa.inMilliseconds / 1000;
+    pausasCount++;
+    totalPausaSeg += segundos;
+    if (segundos > maxPausaSeg) maxPausaSeg = segundos;
+  }
+
+  /// Fracción de compresión: % del tiempo de la sesión con compresiones activas.
+  double ccfPct(int duracionSeg) {
+    if (duracionSeg <= 0 || compresionesTotales == 0) return 0;
+    return ((1 - totalPausaSeg / duracionSeg) * 100).clamp(0, 100).toDouble();
+  }
+
   bool evaluate(RcpTelemetry data) {
-    recoilOk = data.forceKg < ahaRecoilThresholdKg;
-    
+    if (data.depthMm < _valleProfundidad) _valleProfundidad = data.depthMm;
+
     // Rastreamos el pico de esta compresión para evaluarlo cuando el hardware cuente
     if (data.depthMm > picoProfundidad) picoProfundidad = data.depthMm;
     if (data.forceKg > picoFuerza) picoFuerza = data.forceKg;
@@ -140,6 +180,9 @@ class RcpEngine extends ChangeNotifier {
     freqCorrectas = 0;
     pausasCount = 0;
     maxPausaSeg = 0.0;
+    totalPausaSeg = 0.0;
+    _ultimaCompresion = null;
+    _valleProfundidad = double.infinity;
     sumProfundidad = 0.0;
     sumFuerza = 0.0;
     sumBpm = 0.0;

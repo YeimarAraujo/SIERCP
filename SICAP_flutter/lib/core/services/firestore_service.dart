@@ -10,6 +10,7 @@ import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/devices/data/models/maniqui.dart';
 import 'package:siercp/features/notifications/data/models/notification.dart';
+import 'package:siercp/core/services/people_service.dart';
 
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
   return FirestoreService();
@@ -69,25 +70,9 @@ class FirestoreService {
     }
   }
 
-  Future<UserModel?> getUserByEmail(String email) async {
-    try {
-      final snap = await _users
-          .where('email', isEqualTo: email.trim())
-          .limit(1)
-          .get(const GetOptions(source: Source.serverAndCache))
-          .timeout(const Duration(seconds: 3));
-      if (snap.docs.isEmpty) return null;
-      return UserModel.fromFirestore(snap.docs.first);
-    } catch (e) {
-      debugPrint('Error obteniendo usuario por email (usando caché): $e');
-      final snap = await _users
-          .where('email', isEqualTo: email.trim())
-          .limit(1)
-          .get(const GetOptions(source: Source.cache));
-      if (snap.docs.isNotEmpty) return UserModel.fromFirestore(snap.docs.first);
-      return null;
-    }
-  }
+  /// Busca en el servidor: las reglas no dejan consultar todos los usuarios.
+  Future<UserModel?> getUserByEmail(String email) =>
+      PeopleService().findByEmail(email.trim());
 
   Stream<UserModel?> watchUser(String uid) {
     return _users.doc(uid).snapshots().map((doc) {
@@ -125,12 +110,11 @@ class FirestoreService {
     return snap.docs.map(UserModel.fromFirestore).toList();
   }
 
-  Future<UserModel?> getUserByIdentificacion(String cedula) async {
-    final snap =
-        await _users.where('identificacion', isEqualTo: cedula).limit(1).get();
-    if (snap.docs.isEmpty) return null;
-    return UserModel.fromFirestore(snap.docs.first);
-  }
+  /// Busca en el servidor: las reglas no dejan leer perfiles de otras
+  /// instituciones. Revisa los dos nombres de campo usados ('identification'
+  /// en la web e 'identificacion' en la app).
+  Future<UserModel?> getUserByIdentificacion(String cedula) =>
+      PeopleService().findByIdentification(cedula);
 
   Future<List<UserModel>> getUsersByEmails(List<String> emails) async {
     if (emails.isEmpty) return [];
@@ -697,6 +681,21 @@ class FirestoreService {
     return ref.id;
   }
 
+  /// Guarda la señal de profundidad (décimas de mm, ~20 Hz). Un solo documento
+  /// basta: incluso una hora de sesión cabe dentro del límite de Firestore.
+  Future<void> saveDepthSeries(String sessionId, List<int> depthTenthsMm) async {
+    await _sessions
+        .doc(sessionId)
+        .collection(AppConstants.subColCompressions)
+        .doc('serie')
+        .set({
+      'depthTenthsMm': depthTenthsMm,
+      'sampleHz': 20,
+      'sampleCount': depthTenthsMm.length,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> completeSession(
     String sessionId,
     SessionMetrics metrics,
@@ -727,13 +726,18 @@ class FirestoreService {
     return SessionModel.fromFirestore(doc);
   }
 
+  /// Sesiones de un estudiante. El instructor o admin debe pasar [courseId]:
+  /// las reglas solo le muestran las sesiones de sus cursos o institución.
   Future<List<SessionModel>> getStudentSessions(
     String studentId, {
     int limit = 30,
+    String? courseId,
   }) async {
     try {
-      final snap = await _sessions
-          .where('studentId', isEqualTo: studentId)
+      Query query = _sessions
+          .where('studentId', isEqualTo: studentId);
+      if (courseId != null) query = query.where('courseId', isEqualTo: courseId);
+      final snap = await query
           .orderBy('startedAt', descending: true)
           .limit(limit)
           .get();
@@ -828,7 +832,7 @@ class FirestoreService {
     required String instructorName,
     required String inviteCode,
     required String certification,
-    double requiredScore = 85.0,
+    double requiredScore = AppConstants.courseDefaultMinScore * 1.0,
     String? institutionId, // requerido para tenant isolation
   }) async {
     final ref = _courses.doc();

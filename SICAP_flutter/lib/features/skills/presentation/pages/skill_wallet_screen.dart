@@ -11,6 +11,7 @@ import 'package:siercp/core/theme/theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/user_skill.dart';
 import '../providers/skill_providers.dart';
+import '../widgets/skill_certificate_sheet.dart';
 
 const _kAppUrl = 'https://siercp.com';
 
@@ -65,7 +66,10 @@ class SkillWalletScreen extends ConsumerWidget {
                       const _EmptyState()
                     else
                       ...skills.expand((s) => [
-                        _SkillCard(skill: s),
+                        _SkillCard(
+                          skill: s,
+                          holderName: ref.watch(currentUserProvider)?.fullName ?? '',
+                        ),
                         const SizedBox(height: 12)
                       ]),
                   ],
@@ -213,8 +217,9 @@ class _PassportHeaderState extends ConsumerState<_PassportHeader> {
 }
 
 class _SkillCard extends StatelessWidget {
-  const _SkillCard({required this.skill});
+  const _SkillCard({required this.skill, required this.holderName});
   final UserSkill skill;
+  final String holderName;
 
   Color _levelColor(BuildContext ctx) => switch (skill.levelOrder) {
         >= 4 => const Color(0xFF14B8A6),
@@ -226,7 +231,10 @@ class _SkillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => SkillCertificateSheet.show(context, skill, holderName),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
@@ -265,6 +273,7 @@ class _SkillCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

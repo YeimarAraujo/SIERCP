@@ -98,19 +98,20 @@ class UserOrgRepository {
         return InviteResult.alreadyMember(existing, existingMembership);
       }
 
-      // 3. No es miembro todavía — solo crear la membership
+      // 3. Ya tiene cuenta: se le invita y entra cuando acepta (Ley 1581).
       final membership = await _tenant.createMembership(
         userId:     existing.id,
         role:       role,
         approvedBy: approvedBy,
+        invite:     true,
       );
 
       await _db.createNotification(
         NotificationModel(
           id:        '',
           userId:    existing.id,
-          title:     'Acceso a nueva organización',
-          message:   'Has sido añadido a una nueva organización en SIERCP.',
+          title:     'Invitación a una organización',
+          message:   'Una organización te invitó a SICAP. Acéptala o recházala desde el inicio.',
           createdAt: DateTime.now(),
           type:      NotificationType.systemAlert,
         ),

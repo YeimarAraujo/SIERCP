@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:siercp/core/widgets/responsive_app_frame.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -20,7 +21,7 @@ class PracticalHubScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
+        child: ScrollableFill(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header ────────────────────────────────────────────────────
@@ -86,6 +87,17 @@ class PracticalHubScreen extends ConsumerWidget {
                       disabledLabel: loc.practicalDeviceRequired,
                     ),
                     const SizedBox(height: 18),
+                    // Práctica con gafas: el teléfono va en el soporte de las gafas.
+                    _MenuCard(
+                      icon: Icons.vrpano_outlined,
+                      title: 'Práctica en realidad virtual',
+                      description:
+                          'Pon el teléfono en unas gafas y vive el caso mirando a tu alrededor.',
+                      color: AppColors.brand,
+                      comingSoon: false,
+                      onTap: () => context.push('/simulation/practical/vr'),
+                    ),
+                    const SizedBox(height: 18),
                     // ECG — evaluación práctica, sólo informativa por ahora.
                     _MenuCard(
                       icon: Icons.monitor_heart_outlined,
@@ -113,7 +125,7 @@ class PracticalHubScreen extends ConsumerWidget {
               ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

@@ -156,7 +156,8 @@ class FirebaseAuthService {
   }
 
   Future<void> sendPasswordReset(String email) async {
-    await _auth.sendPasswordResetEmail(email: email.trim());
+    await _auth.setLanguageCode('es');
+    await _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
   }
 
   /// Obtiene el perfil completo del usuario actual desde Firestore.

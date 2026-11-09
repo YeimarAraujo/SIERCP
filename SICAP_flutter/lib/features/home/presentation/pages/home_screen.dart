@@ -16,6 +16,7 @@ import 'package:siercp/features/notifications/presentation/providers/notificatio
 import 'package:siercp/features/devices/data/ble_service.dart';
 import 'package:siercp/core/providers/connectivity_provider.dart';
 import 'package:siercp/core/widgets/xp_strip.dart';
+import 'package:siercp/features/privacy/presentation/widgets/invitations_banner.dart';
 import 'package:siercp/features/users/data/admin_service.dart';
 import 'package:siercp/core/providers/org_context_provider.dart';
 import 'package:siercp/features/home/presentation/providers/mission_provider.dart';
@@ -58,6 +59,7 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           children: [
             const _ConnectivityBanner(),
+            const InvitationsBanner(),
             // ── Fixed Header ────────────────────────────────────────────────────
             _DashboardHeader(user: user),
             Expanded(

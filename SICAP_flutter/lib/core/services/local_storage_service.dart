@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:siercp/features/session/data/models/session.dart';
 import 'package:siercp/features/courses/data/models/alert_course.dart';
 import 'package:siercp/features/users/data/models/user.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
   return LocalStorageService();
@@ -66,7 +67,7 @@ class LocalStorageService {
             totalModules INTEGER NOT NULL DEFAULT 0,
             completedModules INTEGER NOT NULL DEFAULT 0,
             certification TEXT NOT NULL DEFAULT '',
-            requiredScore REAL NOT NULL DEFAULT 85.0,
+            requiredScore REAL NOT NULL DEFAULT ${AppConstants.courseDefaultMinScore}.0,
             studentCount INTEGER,
             description TEXT,
             createdAt TEXT
@@ -555,7 +556,7 @@ class LocalStorageService {
         totalModules: r['totalModules'] as int? ?? 0,
         completedModules: r['completedModules'] as int? ?? 0,
         certification: r['certification'] as String? ?? '',
-        requiredScore: (r['requiredScore'] as num? ?? 85).toDouble(),
+        requiredScore: (r['requiredScore'] as num? ?? AppConstants.courseDefaultMinScore).toDouble(),
         studentCount: r['studentCount'] as int?,
         description: r['description'] as String?,
         createdAt: r['createdAt'] != null

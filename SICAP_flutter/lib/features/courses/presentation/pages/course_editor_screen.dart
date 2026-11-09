@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:siercp/features/courses/data/models/course_module.dart';
 import 'package:siercp/features/courses/data/course_service.dart';
 import 'package:siercp/core/theme/theme.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 class CourseEditorScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -315,7 +316,7 @@ class _AddModuleSheetState extends ConsumerState<_AddModuleSheet> {
   final _pdfUrlCtrl = TextEditingController();
   final _videoUrlCtrl = TextEditingController();
   final _textCtrl = TextEditingController();
-  int _passingScore = 80;
+  int _passingScore = AppConstants.courseDefaultMinScore;
   final List<QuizQuestion> _questions = [];
   final List<RequiredSession> _requiredSessions = [];
   bool _saving = false;
@@ -1202,7 +1203,7 @@ class _PracticaConfigState extends State<_PracticaConfig> {
       OutlinedButton.icon(
         onPressed: () {
           setState(() => _sessions.add(const RequiredSession(
-              scenarioId: 'adulto', count: 1, minScore: 70)));
+              scenarioId: 'adulto', count: 1, minScore: AppConstants.courseDefaultMinScore)));
           widget.onChanged(_sessions);
         },
         icon: const Icon(Icons.add_rounded, size: 16),

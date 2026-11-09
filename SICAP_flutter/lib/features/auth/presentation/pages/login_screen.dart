@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:siercp/core/theme/theme.dart';
@@ -101,26 +102,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _forgotPassword() async {
-    final loc = AppLocalizations.of(context)!;
-    if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _error = loc.forgotPassErrorEmpty);
-      return;
-    }
-    try {
-      await ref
-          .read(authStateProvider.notifier)
-          .sendPasswordReset(_emailCtrl.text.trim());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.forgotPassSuccess),
-            backgroundColor: AppColors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _error = FirebaseAuthService.parseAuthError(e));
-    }
+    final sent = await showDialog<String>(
+      context: context,
+      builder: (_) => _ForgotPasswordDialog(
+        initialEmail: _emailCtrl.text.trim(),
+        onSend: (email) => ref
+            .read(authStateProvider.notifier)
+            .sendPasswordReset(email),
+      ),
+    );
+    if (sent == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Si $sent tiene una cuenta, te enviamos un enlace. Revisa también spam.'),
+        backgroundColor: AppColors.green,
+      ),
+    );
   }
 
   @override
@@ -144,8 +142,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(minHeight: constraints.maxHeight - 48),
+              constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - 48).clamp(0, double.infinity)),
               child: IntrinsicHeight(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -325,6 +323,100 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Pide el correo y envía el enlace. Devuelve el correo al cerrar con éxito.
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog({
+    required this.initialEmail,
+    required this.onSend,
+  });
+
+  final String initialEmail;
+  final Future<void> Function(String email) onSend;
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  late final TextEditingController _email =
+      TextEditingController(text: widget.initialEmail);
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final email = _email.text.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      setState(() => _error = AppLocalizations.of(context)!.forgotPassErrorEmpty);
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await widget.onSend(email);
+      if (mounted) Navigator.of(context).pop(email);
+    } catch (e) {
+      final message = FirebaseAuthService.parseAuthError(e);
+      // Un correo no registrado no se revela: se responde igual que con éxito.
+      if (e is FirebaseAuthException && e.code == 'user-not-found') {
+        if (mounted) Navigator.of(context).pop(email);
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _error = message;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Recuperar contraseña'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Escribe tu correo y te enviaremos un enlace.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            autofocus: widget.initialEmail.isEmpty,
+            enabled: !_sending,
+            onSubmitted: (_) => _send(),
+            decoration: InputDecoration(
+              labelText: 'Correo electrónico',
+              errorText: _error,
+              errorMaxLines: 3,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _sending ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _sending ? null : _send,
+          child: Text(_sending ? 'Enviando…' : 'Enviar enlace'),
+        ),
+      ],
     );
   }
 }

@@ -24,6 +24,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- Práctica con gafas: la sesión sigue activa mientras SICAP VR ocupa la pantalla -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <application
         android:label="Sicap"
         android:name="${applicationName}"
@@ -64,9 +68,15 @@
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
             android:value="false" />
+        <service
+            android:name=".SessionKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
     </application>
 
     <queries>
+        <!-- SICAP VR (práctica con gafas) -->
+        <package android:name="com.sicap.vr" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

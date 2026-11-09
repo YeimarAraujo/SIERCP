@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 enum ModuleType {
   teoria,
@@ -84,7 +85,7 @@ class RequiredSession {
   factory RequiredSession.fromMap(Map<String, dynamic> m) => RequiredSession(
         scenarioId: m['scenarioId'] ?? 'adulto',
         count: m['count'] ?? 1,
-        minScore: m['minScore'] ?? 70,
+        minScore: m['minScore'] ?? AppConstants.courseDefaultMinScore,
       );
 
   Map<String, dynamic> toMap() => {
@@ -122,7 +123,7 @@ class CourseModule {
     this.pdfUrl,
     this.videoUrl,
     this.textContent,
-    this.passingScore = 80,
+    this.passingScore = AppConstants.courseDefaultMinScore,
     this.questions = const [],
     this.requiredSessions = const [],
   });
@@ -144,7 +145,7 @@ class CourseModule {
       textContent: cfg['textContent'],
 
       // Quiz
-      passingScore: cfg['passingScore'] ?? 80,
+      passingScore: cfg['passingScore'] ?? AppConstants.courseDefaultMinScore,
       questions: (cfg['questions'] as List<dynamic>? ?? [])
           .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
           .toList(),
@@ -163,7 +164,7 @@ class CourseModule {
     final type    = _parseType(m['type'] as String?);
     final cType   = m['contentType'] as String? ?? '';
     final cUrl    = m['contentUrl']  as String? ?? '';
-    final score   = (m['passingScore'] as num?)?.toInt() ?? 70;
+    final score   = (m['passingScore'] as num?)?.toInt() ?? AppConstants.courseDefaultMinScore;
 
     final String? pdfUrl     = cType == 'pdf'      ? cUrl : null;
     final String? videoUrl   = cType == 'video'    ? cUrl : null;
@@ -221,7 +222,7 @@ class CourseModule {
         pdfUrl: m['pdfUrl'],
         videoUrl: m['videoUrl'],
         textContent: m['textContent'],
-        passingScore: (m['passingScore'] as num?)?.toInt() ?? 80,
+        passingScore: (m['passingScore'] as num?)?.toInt() ?? AppConstants.courseDefaultMinScore,
         questions: (m['questions'] as List<dynamic>? ?? [])
             .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
             .toList(),

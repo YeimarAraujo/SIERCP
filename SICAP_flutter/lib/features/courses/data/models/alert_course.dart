@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 enum AlertType { ok, warning, error, info }
 
@@ -290,7 +291,7 @@ class CourseModel {
     required this.certification,
     this.nextDeadline,
     this.nextDeadlineTitle,
-    this.requiredScore = 85.0,
+    this.requiredScore = AppConstants.courseDefaultMinScore * 1.0,
     this.studentCount,
     this.guideIds = const [],
     this.requiredGuideCount = 0,
@@ -327,7 +328,7 @@ class CourseModel {
       certification: d['certification'] ?? '',
       nextDeadline: (d['nextDeadline'] as Timestamp?)?.toDate(),
       nextDeadlineTitle: d['nextDeadlineTitle'],
-      requiredScore: (d['requiredScore'] ?? 85).toDouble(),
+      requiredScore: (d['requiredScore'] ?? AppConstants.courseDefaultMinScore).toDouble(),
       studentCount: d['studentCount'] as int?,
       guideIds: guideList,
       requiredGuideCount: d['requiredGuideCount'] ?? 0,

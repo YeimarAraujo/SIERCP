@@ -201,12 +201,6 @@ class BleService extends ChangeNotifier {
     }
   }
 
-  Future<void> triggerAudio(int track) async {
-    if (_audioChar != null) {
-      await _audioChar!.write([track], withoutResponse: true);
-    }
-  }
-
   void _scheduleReconnect(BluetoothDevice device) {
     if (_retryCount >= _maxRetries) {
       debugPrint("BLE: máximo de reintentos alcanzado ($_maxRetries)");

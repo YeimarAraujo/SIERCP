@@ -8,6 +8,8 @@ import 'package:siercp/features/session/data/models/session.dart';
 
 import 'package:siercp/features/session/presentation/providers/session_provider.dart';
 import 'package:siercp/core/widgets/section_label.dart';
+import 'package:siercp/core/utils/course_approval.dart';
+import 'package:siercp/core/constants/constants.dart';
 
 /// Pantalla de detalle de curso para ESTUDIANTES.
 /// Muestra requisitos, progreso individual, sesiones y reglas de aprobación.
@@ -79,14 +81,19 @@ class StudentCourseDetailScreen extends ConsumerWidget {
                 .fold(0.0, (a, b) => a + b) /
             courseSessions.where((s) => s.metrics != null).length;
 
-    // Regla de aprobación
+    // Regla de aprobación del curso: promedio oficial ≥ nota mínima (80 por
+    // defecto) y ≥ 70 % en profundidad, retroceso y ritmo.
+    final approval = CourseApproval.evaluate(
+      courseSessions.map((s) => s.officialGrade).whereType<OfficialGrade>(),
+      courseMinScore: course.requiredScore,
+    );
 
     final remaining =
         (requiredSessions - approvedSessions).clamp(0, requiredSessions);
 
     // Estado del curso
     final CourseStatus status;
-    if (approvedSessions >= requiredSessions) {
+    if (approvedSessions >= requiredSessions && approval.approved) {
       status = CourseStatus.completed;
     } else if (totalSessions > 0) {
       status = CourseStatus.inProgress;
@@ -335,10 +342,19 @@ class StudentCourseDetailScreen extends ConsumerWidget {
                     children: [
                       _RequirementRow(
                         icon: Icons.sports_score_outlined,
-                        label: 'Calificación mínima de aprobación',
-                        value: '${course.requiredScore.toStringAsFixed(0)}%',
-                        met: avgScore >= course.requiredScore ||
-                            totalSessions == 0,
+                        label: 'Promedio oficial (mínimo ${approval.minScore.toStringAsFixed(0)})',
+                        value: approval.sessionCount == 0
+                            ? 'Sin notas oficiales'
+                            : approval.averageScore.toStringAsFixed(0),
+                        met: approval.sessionCount > 0 &&
+                            approval.averageScore >= approval.minScore,
+                      ),
+                      Divider(color: border, height: 20),
+                      _RequirementRow(
+                        icon: Icons.tune_rounded,
+                        label: '${AppConstants.coursePartMinPct} % en profundidad, retroceso y ritmo',
+                        value: '${approval.depthPct.toStringAsFixed(0)} · ${approval.recoilPct.toStringAsFixed(0)} · ${approval.ratePct.toStringAsFixed(0)} %',
+                        met: approval.sessionCount > 0 && approval.partsMet,
                       ),
                       Divider(color: border, height: 20),
                       _RequirementRow(
@@ -382,8 +398,10 @@ class StudentCourseDetailScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           remaining > 0
-                              ? 'Te faltan $remaining sesión(es) aprobada(s) con mínimo ${course.requiredScore.toStringAsFixed(0)}% para completar este curso.'
-                              : '¡Has completado todos los requisitos de este curso!',
+                              ? 'Te faltan $remaining sesión(es) aprobada(s) para completar este curso.'
+                              : !approval.approved
+                                  ? approval.missing.first
+                                  : '¡Has completado todos los requisitos de este curso!',
                           style: TextStyle(color: textP, fontSize: 12),
                         ),
                       ),

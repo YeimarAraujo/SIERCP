@@ -242,6 +242,65 @@ service cloud.firestore {
     }
 
 
+    // ¿Gestiona el curso? Su instructor o un admin de la institución dueña.
+    function canManageCourse(courseId) {
+      let d = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return isInstructorOfCourse(courseId) || (
+        d.get('institutionId', '') is string &&
+        d.get('institutionId', '') != '' &&
+        isAdminOf(d.get('institutionId', ''))
+      );
+    }
+
+    function hasText(d, field) {
+      return d.get(field, '') is string && d.get(field, '') != '';
+    }
+
+    // Personal que puede ver el registro de un estudiante (sesión, certificado):
+    // solo el de SU institución o el de SU curso. El rol global no basta
+    // (aislamiento entre instituciones y Ley 1581: acceso restringido).
+    function isStaffFor(d) {
+      return isSuperAdmin()
+        || (hasText(d, 'institutionId') && isInstructorOf(d.institutionId))
+        || (hasText(d, 'courseId') && canManageCourse(d.courseId));
+    }
+
+    // ¿La cuenta se creó dentro de esta institución?
+    function userBelongsTo(userId, institutionId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.get('institutionId', '') == institutionId;
+    }
+
+    // Una persona que ya tiene cuenta solo entra a otra institución si acepta la
+    // invitación (Ley 1581: la nueva institución trataría sus datos). Las cuentas
+    // creadas por la propia institución entran aprobadas.
+    function validMembershipStart(d) {
+      return (d.status in ['approved', 'pending'] && d.isActive == true && userBelongsTo(d.userId, d.institutionId))
+        || (d.status == 'invited' && d.isActive == false);
+    }
+
+    // Personal de la institución de la persona (por su institución principal o
+    // por membresía aprobada en la institución activa de quien consulta).
+    function isStaffForUser(userId, d) {
+      return isSuperAdmin() ||
+        (hasText(d, 'institutionId') && isInstructorOf(d.institutionId)) ||
+        (
+          hasText(callerDoc(), 'institutionId') &&
+          isInstructorOf(callerDoc().institutionId) &&
+          exists(membershipPath(userId, callerDoc().institutionId)) &&
+          get(membershipPath(userId, callerDoc().institutionId)).data.get('status', '') == 'approved'
+        );
+    }
+
+    function canSeeUser(userId) {
+      return isOwner(userId) ||
+        isStaffForUser(userId, get(/databases/$(database)/documents/users/$(userId)).data);
+    }
+
+    function isAdminFor(d) {
+      return isSuperAdmin() || (hasText(d, 'institutionId') && isAdminOf(d.institutionId));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // §5. HELPERS DE VALIDACIÓN DE DOCUMENTOS
     // ─────────────────────────────────────────────────────────────────────────
@@ -250,7 +309,8 @@ service cloud.firestore {
     // institutionId incluido: evita que un usuario se asigne a otra institución vía
     // self-update y use el Caso C de membership CREATE para escalar privilegios.
     function sensitiveUserFields() {
-      return ['role', 'certVerification', 'isActive', 'accountStatus', 'isSuperAdmin', 'institutionId'];
+      // 'privacy' es la constancia de la autorización (Ley 1581): solo la escribe el servidor.
+      return ['role', 'certVerification', 'isActive', 'accountStatus', 'isSuperAdmin', 'institutionId', 'privacy'];
     }
 
     // Campos de plan en membership — solo Cloud Functions (Admin SDK) los modifican.
@@ -301,10 +361,12 @@ service cloud.firestore {
     match /users/{userId} {
 
       // ── READ ───────────────────────────────────────────────────────────────
-      // Propio usuario, admins e instructores pueden leer perfiles.
-      // Un USUARIO no puede consultar perfiles de otros usuarios arbitrariamente.
+      // Propio usuario y personal de SU institución (Ley 1581: acceso
+      // restringido). Antes cualquier admin o instructor leía perfiles de todas
+      // las instituciones. Lo que cruza instituciones (inscribir por cédula,
+      // alumnos de un curso independiente) pasa por /api/people en el servidor.
       allow read: if isAuth() && (
-        isOwner(userId) || isAdminRole() || isInstructorRole()
+        isOwner(userId) || isStaffForUser(userId, resource.data)
       );
 
       // ── CREATE ─────────────────────────────────────────────────────────────
@@ -318,7 +380,7 @@ service cloud.firestore {
           && isNonEmptyString(request.resource.data.lastName)
           // SEC A-2: el usuario no puede auto-otorgarse campos de confianza al crear:
           // ni flags de cuenta, ni credencial verificada, ni contadores de ranking.
-          && !request.resource.data.keys().hasAny(['isSuperAdmin', 'accountStatus', 'skillsCount', 'publicProfile', 'publicSlug'])
+          && !request.resource.data.keys().hasAny(['isSuperAdmin', 'accountStatus', 'skillsCount', 'publicProfile', 'publicSlug', 'privacy'])
           && request.resource.data.get('certVerification', 'NONE') == 'NONE'
           && (
             // Caso A: registro normal
@@ -371,9 +433,8 @@ service cloud.firestore {
       // Alertas en tiempo real enviadas al instructor durante una sesión BLE.
       // Escritas por el estudiante propietario o por instructores en tiempo real.
       match /alerts/{alertId} {
-        allow read: if isAuth() && (isOwner(userId) || isInstructorRole());
-        allow create: if isAuth() && (isOwner(userId) || isInstructorRole());
-        allow update, delete: if isAdminRole() || isInstructorRole();
+        allow read, create: if isAuth() && canSeeUser(userId);
+        allow update, delete: if isAuth() && !isOwner(userId) && canSeeUser(userId);
       }
     }
 
@@ -640,8 +701,7 @@ service cloud.firestore {
         request.resource.data.role != 'SUPER_ADMIN' &&
         (request.resource.data.role != 'ADMIN' || isAdminOf(request.resource.data.institutionId)) &&
         !request.resource.data.keys().hasAny(serverOnlyMembershipFields()) &&
-        request.resource.data.status in ['approved', 'pending'] &&
-        request.resource.data.isActive == true
+        validMembershipStart(request.resource.data)
       ) || (
         // Caso C: admin sin membership propia pero con institutionId coincidente
         isAdminRole() &&
@@ -650,8 +710,7 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.userId) &&
         request.resource.data.role in ['INSTRUCTOR', 'USUARIO', 'USUARIO_SST', 'USUARIO_PROFESIONAL'] &&
         !request.resource.data.keys().hasAny(serverOnlyMembershipFields()) &&
-        request.resource.data.status in ['approved', 'pending'] &&
-        request.resource.data.isActive == true
+        validMembershipStart(request.resource.data)
       ) || (
         // Caso B: Checkout web corporativo (fallback cuando CF no disponible)
         isAuth()
@@ -687,13 +746,27 @@ service cloud.firestore {
         notChanging(serverOnlyMembershipFields()) &&
         request.resource.data.role != 'SUPER_ADMIN' &&
         resource.data.institutionId == request.resource.data.institutionId &&
-        resource.data.userId != uid()
+        resource.data.userId != uid() &&
+        // Una invitación solo la acepta la persona invitada.
+        (resource.data.get('status', '') != 'invited' ||
+          (request.resource.data.status == 'invited' && request.resource.data.isActive == false))
+      ) || (
+        // La persona acepta la invitación sin tocar el rol ni nada más.
+        isAuth() &&
+        resource.data.userId == uid() &&
+        resource.data.status == 'invited' &&
+        request.resource.data.status == 'approved' &&
+        request.resource.data.isActive == true &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'isActive', 'acceptedAt', 'updatedAt'])
       );
 
       // ── DELETE ─────────────────────────────────────────────────────────────
       // Preferir deactivate (isActive=false) sobre delete físico.
       allow delete: if isSuperAdmin() || (
         isAdminRole() && isAdminOf(resource.data.institutionId)
+      ) || (
+        // La persona rechaza la invitación.
+        isAuth() && resource.data.userId == uid() && resource.data.status == 'invited'
       );
     }
 
@@ -772,6 +845,7 @@ service cloud.firestore {
                 'studentId', 'enrolledAt',
                 'attendanceRate', 'attendancePresent', 'attendanceTotal', 'attendanceExcused',
                 'avgScoreServer', 'scoreSource', 'scoreUpdatedAt',
+                'courseApproved', 'courseApproval',
               ]));
 
         allow delete: if isSuperAdmin()
@@ -867,16 +941,7 @@ service cloud.firestore {
       // instructor autenticado (no contienen datos institucionales sensibles).
       // CRIT-05 corregido: isInstructorRole() reemplazado por isInstructorOf() con scope.
       allow read: if isAuth() && (
-        resource.data.studentId == uid() ||
-        isAdminRole() ||
-        (
-          isInstructorRole() && (
-            !('institutionId' in resource.data) ||
-            resource.data.institutionId == null ||
-            resource.data.institutionId == '' ||
-            isInstructorOf(resource.data.institutionId)
-          )
-        )
+        resource.data.studentId == uid() || isStaffFor(resource.data)
       );
 
       // CREATE:
@@ -890,18 +955,17 @@ service cloud.firestore {
       // historial. La aplicación de límites de plan se hace a nivel de panel/cuotas,
       // no bloqueando la captura de datos de entrenamiento.
       allow create: if isAuth() &&
-        request.resource.data.studentId == uid();
+        request.resource.data.studentId == uid() &&
+        !request.resource.data.keys().hasAny(['officialGrade', 'statsProcessed']);
 
       // UPDATE: dueño puede completar/abortar su sesión. Admin/instructor pueden actualizar.
       // studentId e institutionId son inmutables.
       allow update: if isAuth() && (
-        resource.data.studentId == uid() ||
-        isAdminRole() ||
-        isInstructorRole()
-      ) && notChanging(['studentId', 'institutionId', 'createdAt']);
+        resource.data.studentId == uid() || isStaffFor(resource.data)
+      ) && notChanging(['studentId', 'institutionId', 'createdAt', 'officialGrade', 'statsProcessed']);
 
-      // DELETE: solo admin o SuperAdmin.
-      allow delete: if isSuperAdmin() || isAdminRole();
+      // DELETE: SuperAdmin o admin de la institución de la sesión.
+      allow delete: if isAdminFor(resource.data);
 
       // ── SUBCOLLECCIÓN: sessions/{sessionId}/compressions ───────────────────
       // Datos BLE de cada compresión (profundidad, fuerza, ritmo).
@@ -910,12 +974,13 @@ service cloud.firestore {
       match /compressions/{compressionId} {
         allow read: if isAuth() && (
           get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid() ||
-          isAdminRole() || isInstructorRole()
+          isStaffFor(get(/databases/$(database)/documents/sessions/$(sessionId)).data)
         );
         allow create: if isAuth() &&
           get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid();
-        // Inmutable: solo SA/admin pueden corregir un dato erróneo en producción.
-        allow update, delete: if isSuperAdmin() || isAdminRole();
+        // Inmutable: es la evidencia de la nota oficial. Solo SA/admin de la
+        // institución corrigen un dato erróneo.
+        allow update, delete: if isAdminFor(get(/databases/$(database)/documents/sessions/$(sessionId)).data);
       }
 
       // ── SUBCOLLECCIÓN: sessions/{sessionId}/alerts ─────────────────────────
@@ -923,11 +988,11 @@ service cloud.firestore {
       match /alerts/{alertId} {
         allow read: if isAuth() && (
           get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid() ||
-          isAdminRole() || isInstructorRole()
+          isStaffFor(get(/databases/$(database)/documents/sessions/$(sessionId)).data)
         );
         allow create: if isAuth() &&
           get(/databases/$(database)/documents/sessions/$(sessionId)).data.studentId == uid();
-        allow update, delete: if isSuperAdmin() || isAdminRole() || isInstructorRole();
+        allow update, delete: if isStaffFor(get(/databases/$(database)/documents/sessions/$(sessionId)).data);
       }
     }
 
@@ -945,9 +1010,10 @@ service cloud.firestore {
 
     match /certificates/{certId} {
 
+      // Dueño o personal de su institución/curso. Certificados antiguos sin
+      // institutionId solo los ve el dueño y el SuperAdmin.
       allow read: if isAuth() && (
-        resource.data.userId == uid() ||
-        isAdminRole() || isInstructorRole()
+        resource.data.userId == uid() || isStaffFor(resource.data)
       );
 
       // ── S6.2 · RETIRO de certificados Tipo A (logro) ───────────────────────
@@ -979,7 +1045,7 @@ service cloud.firestore {
     match /user_certificates/{certId} {
 
       allow read: if isAuth() && (
-        isSuperAdmin() || isAdminRole() || resource.data.userId == uid()
+        isSuperAdmin() || resource.data.userId == uid()
       );
 
       // Cualquier usuario autenticado puede subir su propio certificado.
@@ -1060,7 +1126,7 @@ service cloud.firestore {
     // ═════════════════════════════════════════════════════════════════════════
 
     match /course_limits/{userId} {
-      allow read: if isOwner(userId) || isAdminRole();
+      allow read: if isAuth() && canSeeUser(userId);
 
       // El usuario crea el doc al crear su primer curso. Contador inicia en 1.
       allow create: if isOwner(userId) &&
@@ -1073,7 +1139,7 @@ service cloud.firestore {
         isOwner(userId) &&
         request.resource.data.monthlyCreated == resource.data.monthlyCreated + 1 &&
         notChanging(['lastReset'])
-      ) || isAdminRole();
+      ) || isSuperAdmin();
 
       allow delete: if isSuperAdmin();
     }
@@ -1109,7 +1175,7 @@ service cloud.firestore {
 
     match /guideProgress/{progressId} {
       allow read: if isAuth() && (
-        isAdminRole() || isInstructorRole() || resource.data.userId == uid()
+        resource.data.userId == uid() || canSeeUser(resource.data.userId)
       );
 
       allow create: if isAuth() &&
@@ -1134,7 +1200,7 @@ service cloud.firestore {
         // El dueño lee su propio progreso; staff (instructor/admin) lo lee para
         // los paneles de seguimiento de estudiantes.
         allow read: if isAuth() && (
-          progressId == uid() || isAdminRole() || isInstructorRole()
+          progressId == uid() || canSeeUser(progressId)
         );
         // Solo el dueño escribe su propio progreso de lectura de guías.
         allow create, update: if isAuth() && progressId == uid();
@@ -1152,13 +1218,13 @@ service cloud.firestore {
 
     match /enrollments/{enrollmentId} {
       allow read: if isAuth() && (
-        isAdminRole() || isInstructorRole() ||
-        resource.data.userId == uid() ||
-        resource.data.studentId == uid()
+        resource.data.get('userId', '') == uid() ||
+        resource.data.get('studentId', '') == uid() ||
+        isStaffFor(resource.data)
       );
       // Escritura directa solo por admins. Los enrollments de cursos
       // se hacen vía courses/{id}/enrollments subcollection.
-      allow write: if isAdminRole();
+      allow write: if isAdminFor(request.resource.data);
     }
 
     // ── ENROLLMENTS COLLECTION GROUP ──────────────────────────────────────────
@@ -1169,10 +1235,10 @@ service cloud.firestore {
     // específicas para cada subcollección.
     match /{path=**}/enrollments/{enrollmentId} {
       allow read: if isAuth() && (
-        isAdminRole() ||
-        isInstructorRole() ||
-        resource.data.studentId == uid() ||
-        resource.data.userId == uid()
+        // Consultas por grupo: solo las propias (el personal consulta por curso).
+        isSuperAdmin() ||
+        resource.data.get('studentId', '') == uid() ||
+        resource.data.get('userId', '') == uid()
       );
       allow write: if false;
     }
@@ -1208,12 +1274,12 @@ service cloud.firestore {
         (
           resource.data.userId == uid() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
-        ) || isAdminRole()
+        ) || isSuperAdmin()
       );
 
       // Usuario puede borrar sus propias notificaciones.
       allow delete: if isAuth() && (
-        resource.data.userId == uid() || isAdminRole()
+        resource.data.userId == uid() || isSuperAdmin()
       );
     }
 
@@ -1224,9 +1290,9 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       allow read: if isAuth() && (
-        isAdminRole() || isInstructorRole() || resource.data.studentId == uid()
+        resource.data.get('studentId', '') == uid() || isStaffFor(resource.data)
       );
-      allow write: if isAdminRole() || isInstructorRole();
+      allow write: if isAuth() && isStaffFor(request.resource.data);
     }
 
 
@@ -1236,9 +1302,9 @@ service cloud.firestore {
 
     match /records/{recordId} {
       allow read: if isAuth() && (
-        isAdminRole() || isInstructorRole() || resource.data.userId == uid()
+        resource.data.get('userId', '') == uid() || isStaffFor(resource.data)
       );
-      allow create, update: if isAdminRole();
+      allow create, update: if isAuth() && isAdminFor(request.resource.data);
       allow delete: if isSuperAdmin();
     }
 
@@ -1252,7 +1318,7 @@ service cloud.firestore {
 
     match /supportTickets/{ticketId} {
       allow read: if isAuth() && (
-        isSuperAdmin() || isAdminRole() || resource.data.userId == uid()
+        isSuperAdmin() || resource.data.userId == uid()
       );
 
       // Cualquier autenticado puede abrir un ticket.
@@ -1284,6 +1350,22 @@ service cloud.firestore {
   allow read: if isSuperAdmin();
   allow create, update, delete: if false;
 }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // AUTORIZACIONES Y SOLICITUDES DE DATOS (Ley 1581 de 2012)
+    // Las escribe solo el servidor (/api/privacy) con fecha e IP. El titular
+    // las consulta; nadie las edita.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    match /consents/{consentId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow write: if false;
+    }
+
+    match /privacy_requests/{requestId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow write: if false;
+    }
 
     match /audit_logs/{logId} {
       allow read: if isSuperAdmin();
@@ -1357,9 +1439,7 @@ service cloud.firestore {
     match /quizSessions/{sessionId} {
       // Dueño, instructores y admins pueden leer.
       allow read: if isAuth() && (
-        resource.data.userId == uid() ||
-        isAdminRole() ||
-        isInstructorRole()
+        resource.data.userId == uid() || isStaffFor(resource.data)
       );
 
       // El estudiante crea su propia quiz session. userId debe ser su uid.
@@ -1370,10 +1450,8 @@ service cloud.firestore {
       // El estudiante puede actualizar su sesión (respuestas, score). Inmutable post-grade.
       // Admin/instructor pueden corregir datos erróneos.
       allow update: if isAuth() && (
-        resource.data.userId == uid() ||
-        isAdminRole() ||
-        isInstructorRole()
-      );
+        resource.data.userId == uid() || isStaffFor(resource.data)
+      ) && notChanging(['userId', 'institutionId']);
 
       allow delete: if isSuperAdmin();
     }
@@ -1393,9 +1471,7 @@ service cloud.firestore {
     // ═════════════════════════════════════════════════════════════════════════
 
     match /userStats/{userId} {
-      allow read: if isAuth() && (
-        isOwner(userId) || isAdminRole() || isInstructorRole()
-      );
+      allow read: if isAuth() && canSeeUser(userId);
       allow create, update: if isOwner(userId);
       allow delete: if isSuperAdmin();
     }
@@ -1413,7 +1489,7 @@ service cloud.firestore {
       // El estudiante dueño o admins pueden leer.
       allow read: if isAuth() && (
         resource.data.userId == uid() ||
-        isAdminRole()
+        isAdminFor(resource.data)
       );
 
       // Escritura reservada a Cloud Functions (Admin SDK bypasses rules).
@@ -1518,9 +1594,9 @@ service cloud.firestore {
     match /transactions/{txId} {
       // El propietario puede leer su propia transacción (para mostrar estado de pago)
       allow read: if isAuth() && (
-        isSuperAdmin() ||
-        isAdminRole() ||
-        resource.data.user_id == uid()
+        resource.data.get('user_id', '') == uid() ||
+        resource.data.get('userId', '') == uid() ||
+        isAdminFor(resource.data)
       );
       // Escritura exclusiva por Admin SDK — el cliente nunca crea transacciones
       allow create, update, delete: if false;
@@ -1548,9 +1624,7 @@ service cloud.firestore {
     // Órdenes — creadas post-pago (CF o client-side fallback)
     match /orders/{orderId} {
       allow read: if isAuth() && (
-        isSuperAdmin() ||
-        isAdminRole() ||
-        resource.data.userId == uid()
+        resource.data.get('userId', '') == uid() || isAdminFor(resource.data)
       );
       // El propio usuario crea su orden, pero NUNCA marcada como pagada.
       // SECURITY: antes podía crear la orden con cualquier `status` (incl. 'paid')
@@ -1670,7 +1744,7 @@ service cloud.firestore {
     // ═════════════════════════════════════════════════════════════════════════
 
     match /userStats/{userId} {
-      allow read: if isAuth() && (isOwner(userId) || isAdminRole() || isInstructorRole());
+      allow read: if isAuth() && canSeeUser(userId);
       allow write: if isAuth() && isOwner(userId);
     }
 
@@ -1751,9 +1825,7 @@ service cloud.firestore {
 
     match /course_certificates/{certId} {
       allow read: if isAuth() && (
-        resource.data.studentId == uid() ||
-        isAdminRole() ||
-        isInstructorRole()
+        resource.data.studentId == uid() || isStaffFor(resource.data)
       );
       // El estudiante emite su propio certificado: id = '{uid}_{courseId}',
       // studentId == uid, y debe tener matrícula en el curso (o ser su

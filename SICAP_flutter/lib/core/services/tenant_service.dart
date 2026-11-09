@@ -234,6 +234,7 @@ class TenantService {
     required String role,
     required String approvedBy,
     PlanType planType = PlanType.pyme,
+    bool invite = false,
   }) async {
     // ID determinístico requerido por Firestore Security Rules (§9):
     // las reglas hacen exists/get sobre '{userId}_{institutionId}' directamente.
@@ -244,8 +245,8 @@ class TenantService {
       userId:        userId,
       institutionId: institutionId,
       role:          role,
-      status:        MembershipStatus.approved,
-      isActive:      true,
+      status:        invite ? MembershipStatus.invited : MembershipStatus.approved,
+      isActive:      !invite,
       approvedBy:    approvedBy,
       createdAt:     DateTime.now(),
       planType:      planType,

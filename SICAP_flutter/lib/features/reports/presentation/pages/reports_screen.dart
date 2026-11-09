@@ -146,7 +146,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         for (final st in students) {
           final sid = st['studentId'] as String? ?? '';
           if (sid.isNotEmpty) {
-            final sessions = await firestoreSvc.getStudentSessions(sid);
+            final sessions = await firestoreSvc.getStudentSessions(sid, courseId: courseId);
             final courseSessions =
                 sessions.where((s) => s.courseId == courseId).toList();
             studentSessionsMap[sid] = courseSessions;
@@ -170,7 +170,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         );
       } else if (type == 'student' && studentId != null && courseId != null) {
         // Reporte individual de estudiante en un curso
-        final sessions = await firestoreSvc.getStudentSessions(studentId);
+        final sessions = await firestoreSvc.getStudentSessions(studentId, courseId: courseId);
         final courseSessions =
             sessions.where((s) => s.courseId == courseId).toList();
         await localSvc.saveSessions(courseSessions);
@@ -321,7 +321,7 @@ class _GenerateTab extends ConsumerWidget {
           for (final st in students) {
             final sid = st['studentId'] as String? ?? '';
             if (sid.isNotEmpty) {
-              final sessions = await firestoreSvc.getStudentSessions(sid);
+              final sessions = await firestoreSvc.getStudentSessions(sid, courseId: courseId);
               studentSessionsMap[sid] =
                   sessions.where((s) => s.courseId == courseId).toList();
             }
@@ -338,7 +338,7 @@ class _GenerateTab extends ConsumerWidget {
         reportData = cache.getStudentReport(studentId!, courseId);
         if (reportData == null) {
           final firestoreSvc = ref.read(firestoreServiceProvider);
-          final sessions = await firestoreSvc.getStudentSessions(studentId);
+          final sessions = await firestoreSvc.getStudentSessions(studentId, courseId: courseId);
           final courseSessions =
               sessions.where((s) => s.courseId == courseId).toList();
           reportData = StudentReportData.fromSessions(

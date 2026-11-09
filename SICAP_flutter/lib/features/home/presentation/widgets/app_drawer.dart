@@ -114,12 +114,7 @@ class AppDrawer extends ConsumerWidget {
                     isDark: isDark,
                     onTap:  () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:  Text('Ajustes próximamente'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                      context.push('/profile/edit');
                     },
                   ),
                   _DrawerItem(
@@ -148,6 +143,15 @@ class AppDrawer extends ConsumerWidget {
                     onTap:  () {
                       Navigator.pop(context);
                       context.push('/profile/certificados');
+                    },
+                  ),
+                  _DrawerItem(
+                    icon:   Icons.privacy_tip_outlined,
+                    label:  'Privacidad y datos',
+                    isDark: isDark,
+                    onTap:  () {
+                      Navigator.pop(context);
+                      context.push('/privacy');
                     },
                   ),
                   const Divider(height: 24),

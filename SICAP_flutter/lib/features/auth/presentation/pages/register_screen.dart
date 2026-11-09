@@ -58,7 +58,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _loading = true;
       _error = null;
     });
-
     try {
       await ref.read(authStateProvider.notifier).register(
             email: _emailCtrl.text.trim(),
@@ -68,10 +67,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             role: AppConstants.roleUsuario,
             identificacion: _idCtrl.text.trim(),
             documentType: _docType,
-            department: _department.isEmpty ? null : _department,
-            city: _city.isEmpty ? null : _city,
-            phoneNumber:
-                _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+            department: _department,
+            city: _city,
+            phoneNumber: _phoneCtrl.text.trim(),
           );
       if (mounted) {
         context.go('/home');
@@ -213,9 +211,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: loc.firstName,
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? loc.requiredField
-                          : null,
+                      validator: (v) {
+                        final t = v?.trim() ?? '';
+                        if (t.isEmpty) return loc.requiredField;
+                        if (t.length < 3) return 'Mínimo 3 caracteres';
+                        if (t.length > 30) return 'Máximo 30 caracteres';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -227,9 +229,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: loc.lastName,
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? loc.requiredField
-                          : null,
+                      validator: (v) {
+                        final t = v?.trim() ?? '';
+                        if (t.isEmpty) return loc.requiredField;
+                        if (t.length < 3) return 'Mínimo 3 caracteres';
+                        if (t.length > 30) return 'Máximo 30 caracteres';
+                        return null;
+                      },
                     ),
                   ),
                 ]),
@@ -288,6 +294,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     _department = v ?? '';
                     _city = '';
                   }),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Selecciona un departamento' : null,
                 ),
                 const SizedBox(height: 14),
 
@@ -302,48 +310,70 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onChanged: _department.isEmpty
                       ? null
                       : (v) => setState(() => _city = v ?? ''),
+                  validator: (v) => (_department.isEmpty || v == null || v.isEmpty)
+                      ? 'Selecciona un municipio'
+                      : null,
                 ),
                 const SizedBox(height: 14),
 
-                // ── Teléfono (opcional) ──────────────────────────────────────
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]'))
+                // ── Teléfono + Email ───────────────────────────────────────
+                Row(
+                  children: [
+                    // Teléfono
+                    Expanded(
+                      child: TextFormField(
+                        controller: _phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[0-9+\-\s()]'),
+                          ),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Teléfono',
+                          hintText: '+57 300 000 0000',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                        validator: (v) {
+                          final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                          if (digits.length != 10) {
+                            return 'El teléfono debe tener 10 dígitos';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+
+                    // Email
+                    Expanded(
+                      child: TextFormField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: loc.emailLabel,
+                          hintText: loc.emailHint,
+                          prefixIcon: const Icon(Icons.email_outlined),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return loc.requiredField;
+                          }
+
+                          if (!RegExp(
+                            r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$',
+                          ).hasMatch(v.trim())) {
+                            return loc.invalidEmail;
+                          }
+
+                          return null;
+                        },
+                      ),
+                    ),
                   ],
-                  decoration: const InputDecoration(
-                    labelText: 'Teléfono',
-                    hintText: '+57 300 000 0000',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return null;
-                    final digits = v.replaceAll(RegExp(r'\D'), '');
-                    if (digits.length < 7) return 'Mínimo 7 dígitos';
-                    return null;
-                  },
                 ),
-                const SizedBox(height: 14),
 
-                // ── Email ────────────────────────────────────────────────────
-                TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: loc.emailLabel,
-                    hintText: loc.emailHint,
-                    prefixIcon: const Icon(Icons.email_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return loc.requiredField;
-                    if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$')
-                        .hasMatch(v.trim())) {
-                      return loc.invalidEmail;
-                    }
-                    return null;
-                  },
-                ),
                 const SizedBox(height: 14),
 
                 // ── Contraseña ───────────────────────────────────────────────
@@ -408,7 +438,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return _PasswordStrengthBar(password: val.text);
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // ── Política de privacidad ───────────────────────────────────
                 Row(children: [
