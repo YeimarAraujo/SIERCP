@@ -1,0 +1,492 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:siercp/features/session/data/models/session.dart';
+import 'package:siercp/features/devices/data/ble_service.dart';
+import 'package:siercp/core/utils/rcp_engine.dart';
+import 'package:siercp/features/auth/presentation/providers/auth_provider.dart';
+import 'package:siercp/features/session/data/session_service.dart';
+import 'package:siercp/features/session/data/sim_bridge_service.dart';
+import 'package:siercp/core/services/audio_service.dart';
+import 'package:siercp/features/session/presentation/providers/session_provider.dart';
+import 'package:siercp/core/providers/org_context_provider.dart';
+import 'package:siercp/core/services/leaderboard_service.dart';
+import 'package:siercp/core/services/firestore_service.dart';
+import 'package:siercp/core/constants/constants.dart';
+import 'package:siercp/features/courses/data/models/alert_course.dart';
+import 'package:siercp/features/home/data/daily_missions.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+enum SessionMode { training, evaluation }
+
+final sessionModeProvider =
+    StateProvider<SessionMode>((ref) => SessionMode.training);
+final rcpEngineProvider = Provider((ref) => RcpEngine.instance);
+
+class BleSessionNotifier extends Notifier<ActiveSessionState> {
+  Timer? _timer;
+  StreamSubscription<RcpTelemetry>? _telemetrySub;
+  int _lastCount = 0;
+
+  /// Señal de la sesión en décimas de mm, para repetirla y recalcular métricas.
+  static const int _maxSeriesSamples = 72000; // 1 h a 20 Hz
+  final List<int> _depthSeries = [];
+  int? _lastSeriesMs;
+  String? _rtdbInstitutionId;
+  String? _rtdbCourseId;
+  int _heartbeatTick = 0;
+  DateTime? _lastTelemetryPush;
+
+  @override
+  ActiveSessionState build() {
+    // Escuchar cambios en el servicio BLE para actualizar el estado de conexión
+    ref.listen(bleServiceProvider, (previous, next) {
+      if (state.isConnected != next.isConnected) {
+        state = state.copyWith(isConnected: next.isConnected);
+      }
+      if (!next.sensorOk &&
+          !state.alerts.any((a) => a.message.contains('Sensor'))) {
+        state = state.copyWith(alerts: [
+          AlertModel(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            sessionId: state.session?.id ?? '',
+            type: AlertType.error,
+            title: 'Error de Sensor',
+            message:
+                'El sensor de profundidad láser no funciona. Verifica el cableado del maniquí.',
+            timestamp: DateTime.now(),
+          ),
+          ...state.alerts,
+        ].take(5).toList());
+      }
+    });
+
+    return const ActiveSessionState();
+  }
+
+  Future<void> startSession(String scenarioId, {String? courseId}) async {
+    // Si el estudiante ya activó el simulador, esta sesión lo abre sola.
+    await ref.read(simBridgeProvider).load();
+
+    final sessionService = ref.read(sessionServiceProvider);
+    final user = ref.read(currentUserProvider);
+    if (user == null) throw Exception('No hay usuario autenticado.');
+
+    final bleService = ref.read(bleServiceProvider);
+    final engine = ref.read(rcpEngineProvider);
+
+    // Obtener institutionId: primero del contexto de org activa;
+    // si el estudiante no tiene membership (solo enrollment), leerlo
+    // directamente del documento del curso para registrar la sesión
+    // en el path RTDB correcto (institutionId/courseId/sessionId).
+    var institutionId = ref.read(orgContextProvider).activeOrgId ?? '';
+    if (institutionId.isEmpty && courseId != null && courseId.isNotEmpty) {
+      try {
+        final courseDoc = await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(courseId)
+            .get();
+        if (courseDoc.exists) {
+          institutionId =
+              (courseDoc.data()?['institutionId'] as String?) ?? '';
+        }
+      } catch (_) {}
+    }
+
+    engine.reset();
+    _lastCount = 0;
+    _depthSeries.clear();
+    _lastSeriesMs = null;
+
+    final session = await sessionService.startSession(
+      studentId: user.id,
+      studentName: user.fullName,
+      scenarioId: scenarioId,
+      courseId: courseId,
+      institutionId: institutionId,
+    );
+
+    final audioService = ref.read(audioServiceProvider);
+    await audioService.init();
+
+    state = state.copyWith(
+      session: session,
+      isConnected: bleService.isConnected,
+      elapsed: Duration.zero,
+      depthHistory: [],
+    );
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      state =
+          state.copyWith(elapsed: state.elapsed + const Duration(seconds: 1));
+    });
+
+    _registerLiveSessionInRtdb(session, courseId, institutionId);
+
+    _telemetrySub?.cancel();
+    _telemetrySub = bleService.telemetryStream.listen((data) {
+      _processBleTelemetry(data, audioService);
+    });
+  }
+
+  void _processBleTelemetry(RcpTelemetry data, AudioService audioService) {
+    final engine = ref.read(rcpEngineProvider);
+    final mode = ref.read(sessionModeProvider);
+
+    engine.evaluate(data);
+    bool nuevaComp = false;
+
+    // Detectar si el hardware incrementó el contador
+    if (engine.compresionesTotales > _lastCount) {
+      nuevaComp = true;
+      _lastCount = engine.compresionesTotales;
+    }
+
+    // Audio Feedback local instantáneo (sólo en modo entrenamiento)
+    if (nuevaComp && mode == SessionMode.training) {
+      // Si la compresión fue incorrecta, dar feedback más seguido (cada 3)
+      // Si fue excelente, dar feedback cada 10 para no saturar
+      final bool isCorrect = engine.lastCompresionCorrecta;
+      final int interval = isCorrect ? 10 : 3;
+
+      if (engine.compresionesTotales % interval == 0) {
+        if (!isCorrect) {
+          // Prioridad 1: Profundidad (Crítico)
+          if (engine.lastPicoProfundidad < RcpEngine.ahaMinDepthMm) {
+            audioService.playFeedback('mas_profundo');
+          } else if (engine.lastPicoProfundidad > RcpEngine.ahaMaxDepthMm) {
+            audioService.playFeedback('menos_profundo');
+          }
+          // Prioridad 2: Frecuencia
+          else if (engine.lastBpm < RcpEngine.ahaMinRateCpm) {
+            audioService.playFeedback('mas_rapido');
+          } else if (engine.lastBpm > RcpEngine.ahaMaxRateCpm) {
+            audioService.playFeedback('mas_lento');
+          }
+          // Prioridad 3: Recoil (Si profundidad y frecuencia están bien pero falló algo, suele ser recoil)
+          else if (!engine.recoilOk) {
+            // No hay audio específico para recoil en AudioService aún,
+            // pero podríamos añadirlo o simplemente no decir nada.
+          }
+        } else {
+          audioService.playFeedback('excelente');
+        }
+      }
+    }
+
+    if (data.timestamp != _lastSeriesMs &&
+        _depthSeries.length < _maxSeriesSamples) {
+      _lastSeriesMs = data.timestamp;
+      _depthSeries.add((data.depthMm * 10).round());
+    }
+
+    // Actualizar historial de profundidad para la onda
+    final newHistory = [...state.depthHistory, data.depthMm];
+    final trimmed = newHistory.length > 50
+        ? newHistory.sublist(newHistory.length - 50)
+        : newHistory;
+
+    // Actualizar UI periódicamente (o si hay nueva compresión)
+    // Siempre actualizamos el estado para que los contadores del hardware se reflejen de inmediato
+    _updateMetricsState(engine, data, trimmed);
+  }
+
+  void _updateMetricsState(
+      RcpEngine engine, RcpTelemetry data, List<double> history) {
+    double correctPct = engine.compresionesTotales > 0
+        ? (engine.compresionesCorrectas / engine.compresionesTotales) * 100
+        : 0;
+
+    double recoilPct = engine.compresionesTotales > 0
+        ? (engine.recoilCorrectos / engine.compresionesTotales) * 100
+        : 100;
+
+    final liveData = LiveSessionData(
+      depthMm: data.depthMm,
+      ratePerMin: engine.currentCpm,
+      forceKg: data.forceKg,
+      compressionCount: engine.compresionesTotales,
+      correctCompressionCount: engine.compresionesCorrectas,
+      correctPct: correctPct,
+      sessionScore: _calculateTempScore(engine),
+      decompressedFully: engine.recoilOk,
+      recoilPct: recoilPct,
+      pauseCount: engine.pausasCount,
+      maxPauseSec: engine.maxPausaSeg,
+      sensorOk: ref.read(bleServiceProvider).sensorOk,
+      calibrated: true,
+    );
+
+    _writeTelemetryToRtdb(liveData);
+    final sessionId = state.session?.id;
+    if (sessionId != null) {
+      ref
+          .read(simBridgeProvider)
+          .addSample(sessionId, state.session?.scenarioId, liveData);
+    }
+    state = state.copyWith(liveData: liveData, depthHistory: history);
+  }
+
+  void _updateLeaderboard(double sessionScore) {
+    final user = ref.read(currentUserProvider);
+    final institutionId = ref.read(orgContextProvider).activeOrgId;
+    if (user == null || institutionId == null) return;
+
+    final prevTotal = user.stats?.totalSessions ?? 0;
+    final prevAvg   = user.stats?.averageScore  ?? 0.0;
+    final newTotal  = prevTotal + 1;
+    final newAvg    = ((prevAvg * prevTotal) + sessionScore) / newTotal;
+
+    ref.read(leaderboardServiceProvider).updateEntry(
+      uid:           user.id,
+      institutionId: institutionId,
+      displayName:   user.fullName,
+      averageScore:  newAvg,
+      totalSessions: newTotal,
+    ).catchError((e) {
+      debugPrint('[Leaderboard] Error al actualizar: $e');
+    });
+  }
+
+  void _awardSessionXp(SessionMetrics metrics, PatientType patientType) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    final db = ref.read(firestoreServiceProvider);
+
+    final xp = (metrics.score / 10).round().clamp(0, 10);
+    unawaited(db.addXpTransaction(user.id, xp, 'Sesión práctica'));
+
+    if (metrics.score >= AppConstants.ahaExcellentScore && metrics.totalCompressions >= 30) {
+      final code = switch (patientType) {
+        PatientType.adult => 'RCP_ADULTO',
+        PatientType.pediatric => 'RCP_PEDIATRICO',
+        PatientType.infant => 'RCP_LACTANTE',
+      };
+      unawaited(db.issueSkill(user.id, code));
+    }
+
+    final mission = _todayMission();
+    if (mission.condition(metrics)) {
+      unawaited(db.addXpTransaction(user.id, mission.xpReward, 'Misión: ${mission.title}'));
+    }
+  }
+
+  Mission _todayMission() {
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final index = Random(seed).nextInt(missionCatalogue.length);
+    return missionCatalogue[index];
+  }
+
+  double _calculateTempScore(RcpEngine engine) {
+    if (engine.compresionesTotales == 0) return 0;
+    double score = 0;
+    score += (engine.compresionesCorrectas / engine.compresionesTotales) * 40;
+    score += (engine.recoilCorrectos / engine.compresionesTotales) * 30;
+    score += (engine.freqCorrectas / engine.compresionesTotales) * 30;
+    return score.clamp(0, 100);
+  }
+
+  Future<({SessionModel session, bool synced})> endSession() async {
+    _timer?.cancel();
+    _telemetrySub?.cancel();
+
+    final currentSession = state.session;
+    if (currentSession == null) throw Exception('No hay sesión activa.');
+
+    _cleanupRtdb(currentSession.id);
+    final lastLive = state.liveData;
+    if (lastLive != null) {
+      ref.read(simBridgeProvider).sessionEnded(currentSession.id, lastLive);
+    }
+
+    final engine = ref.read(rcpEngineProvider);
+    final sessionService = ref.read(sessionServiceProvider);
+
+    // Calcular métricas finales
+    double depthScore = engine.compresionesTotales > 0
+        ? (engine.compresionesCorrectas / engine.compresionesTotales * 100)
+        : 0;
+    double recoilScore = engine.compresionesTotales > 0
+        ? (engine.recoilCorrectos / engine.compresionesTotales * 100)
+        : 100;
+    double rateScore = engine.compresionesTotales > 0
+        ? (engine.freqCorrectas / engine.compresionesTotales * 100)
+        : 0;
+
+    final ccf = engine.ccfPct(state.elapsed.inSeconds);
+
+    final metrics = SessionMetrics(
+      totalCompressions: engine.compresionesTotales,
+      correctCompressions: engine.compresionesCorrectas,
+      averageDepthMm: engine.compresionesTotales > 0
+          ? (engine.sumProfundidad / engine.compresionesTotales)
+          : 0,
+      averageRatePerMin: engine.compresionesTotales > 0
+          ? (engine.sumBpm / engine.compresionesTotales)
+          : 0,
+      correctCompressionsPct: depthScore,
+      averageForceKg: engine.compresionesTotales > 0
+          ? (engine.sumFuerza /
+              (state.depthHistory.isNotEmpty ? state.depthHistory.length : 1))
+          : 0,
+      recoilPct: recoilScore,
+      interruptionCount: engine.pausasCount,
+      maxPauseSeconds: engine.maxPausaSeg,
+      ccfPct: ccf,
+      depthScore: depthScore,
+      rateScore: rateScore,
+      recoilScore: recoilScore,
+      score: _calculateTempScore(engine),
+      approved: _calculateTempScore(engine) >= 70,
+      violations: [],
+    );
+
+    // Mandar el RESET al hardware de inmediato tras capturar los datos
+    // para que el maniquí esté en 0 para el siguiente estudiante
+    // sin esperar a que termine la sincronización con la nube.
+    try {
+      ref.read(bleServiceProvider).resetHardwareCounters();
+    } catch (e) {
+      debugPrint("⚠️ No se pudo resetear hardware: $e");
+    }
+
+    try {
+      // La señal va antes de cerrar la sesión: con ella el servidor calcula la
+      // nota oficial al cerrar. Si falla, la sesión se guarda igual, sin nota oficial.
+      try {
+        // Sin conexión Firestore no confirma la escritura: no se espera más de 8 s.
+        await sessionService
+            .saveDepthSeries(currentSession.id, List<int>.of(_depthSeries))
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('No se guardó la señal: $e');
+      }
+
+      final finished = await sessionService.endSession(
+        currentSession.id,
+        metrics,
+        state.elapsed.inSeconds,
+      );
+
+      await sessionService.updateCourseProgressAfterSession(
+          currentSession.studentId, metrics,
+          courseId: currentSession.courseId);
+      state = state.copyWith(session: finished, isConnected: false);
+
+      // Actualizar leaderboard institucional (fire-and-forget, no bloquea UI)
+      _updateLeaderboard(metrics.score);
+
+      // Gamificación local: XP por sesión + skills
+      _awardSessionXp(metrics, currentSession.patientType);
+
+      debugPrint("Sesión guardada profesionalmente: ${finished.id}");
+      return (session: finished, synced: true);
+    } catch (e) {
+      debugPrint("Error al finalizar sesión (guardando localmente): $e");
+      final localFinished =
+          currentSession.copyWithEnd(metrics: metrics, endedAt: DateTime.now());
+      state = state.copyWith(session: localFinished, isConnected: false);
+      return (session: localFinished, synced: false);
+    } finally {
+      // Forzar la actualización del historial siempre
+      ref.invalidate(sessionsHistoryProvider);
+    }
+  }
+  void _registerLiveSessionInRtdb(
+      SessionModel session, String? courseId, String institutionId) {
+    if (session.id.startsWith('offline_') || session.id.startsWith('error_')) {
+      return;
+    }
+    _rtdbInstitutionId = institutionId.isEmpty ? 'no_org' : institutionId;
+    _rtdbCourseId = (courseId != null && courseId.isNotEmpty) ? courseId : 'free';
+    _heartbeatTick = 0;
+    _lastTelemetryPush = null;
+
+    final liveRef = FirebaseDatabase.instance
+        .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/${session.id}');
+
+    liveRef.set({
+      'studentId':     session.studentId,
+      'studentName':   session.studentName,
+      'scenarioId':    session.scenarioId    ?? '',
+      'scenarioTitle': session.scenarioTitle ?? '',
+      'manikinId':     session.manikinId     ?? '',
+      'courseId':      _rtdbCourseId,
+      'institutionId': _rtdbInstitutionId,
+      'status':        'active',
+      'startedAt':     ServerValue.timestamp,
+      'heartbeat':     ServerValue.timestamp,
+    }).catchError((e) => debugPrint('[RTDB] Error registrando sesión: $e'));
+
+    // Limpieza automática si la app muere sin llamar endSession
+    liveRef.onDisconnect().remove().catchError((_) {});
+  }
+
+  void _writeTelemetryToRtdb(LiveSessionData data) {
+    final sessionId = state.session?.id;
+    if (sessionId == null ||
+        sessionId.startsWith('offline_') ||
+        sessionId.startsWith('error_')) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTelemetryPush != null &&
+        now.difference(_lastTelemetryPush!).inMilliseconds < 200) {
+      return;
+    }
+    _lastTelemetryPush = now;
+
+    FirebaseDatabase.instance.ref('telemetry/$sessionId').update({
+      'depthMm':                data.depthMm,
+      'ratePerMin':             data.ratePerMin,
+      'forceKg':                data.forceKg,
+      'compressionCount':       data.compressionCount,
+      'correctCompressionCount': data.correctCompressionCount,
+      'correctPct':             data.correctPct,
+      'sessionScore':           data.sessionScore,
+      'decompressedFully':      data.decompressedFully,
+      'recoilPct':              data.recoilPct,
+      'pauseCount':             data.pauseCount,
+      'maxPauseSec':            data.maxPauseSec,
+      'sensorOk':               data.sensorOk,
+      'calibrated':             data.calibrated,
+      'updatedAt':              ServerValue.timestamp,
+    }).catchError((e) => debugPrint('[RTDB] Error telemetría: $e'));
+
+    _heartbeatTick++;
+    if (_heartbeatTick % 30 == 0 &&
+        _rtdbInstitutionId != null &&
+        _rtdbCourseId != null) {
+      FirebaseDatabase.instance
+          .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/$sessionId/heartbeat')
+          .set(ServerValue.timestamp)
+          .catchError((_) {});
+    }
+  }
+
+  void _cleanupRtdb(String sessionId) {
+    if (sessionId.startsWith('offline_') || sessionId.startsWith('error_')) {
+      return;
+    }
+    if (_rtdbInstitutionId != null && _rtdbCourseId != null) {
+      FirebaseDatabase.instance
+          .ref('live_sessions/$_rtdbInstitutionId/$_rtdbCourseId/$sessionId')
+          .remove()
+          .catchError((_) {});
+    }
+    FirebaseDatabase.instance
+        .ref('telemetry/$sessionId')
+        .remove()
+        .catchError((_) {});
+    _rtdbInstitutionId = null;
+    _rtdbCourseId = null;
+  }
+}
+
+final bleActiveSessionProvider =
+    NotifierProvider<BleSessionNotifier, ActiveSessionState>(
+        BleSessionNotifier.new);

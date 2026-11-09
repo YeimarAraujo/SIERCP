@@ -1,0 +1,127 @@
+Formulario,Campo,Tipo de Clase,Condicion,Validez,Valor ejemplo,Origen
+REGISTRO USUARIO (Flutter),Nombre,Requerido,No vacio tras trim,VAlida,Yeimar,register_screen.dart L216
+REGISTRO USUARIO (Flutter),Nombre,Vacio,Vacio o solo espacios,INVAlida,'' o '   ',register_screen.dart L216
+REGISTRO USUARIO (Flutter),Apellido,Requerido,No vacio tras trim,VAlida,Araujo,register_screen.dart L230
+REGISTRO USUARIO (Flutter),Apellido,Vacio,Vacio o solo espacios,INVAlida,'' o '   ',register_screen.dart L230
+REGISTRO USUARIO (Flutter),Tipo documento,Valido,"Pertenece a {CC,CE,TI,PP,NIT,DIE}",VAlida,CC,register_screen.dart L252
+REGISTRO USUARIO (Flutter),Tipo documento,Vacio,Nulo o vacio,INVAlida,'',register_screen.dart L252
+REGISTRO USUARIO (Flutter),Numero documento (CC/TI),Valido,Solo digitos y longitud >= 4,VAlida,1001234567,colombia_geo / L263-275
+REGISTRO USUARIO (Flutter),Numero documento (CC/TI),Corto,Menos de 4 caracteres,INVAlida,'123',register_screen.dart L271
+REGISTRO USUARIO (Flutter),Numero documento (CC/TI),No numerico,Contiene letras o simbolos,INVAlida,'ABC123',FilteringTextInputFormatter.digitsOnly
+REGISTRO USUARIO (Flutter),Departamento,Opcional,Puede estar vacio,VAlida,'',L280-291
+REGISTRO USUARIO (Flutter),Ciudad,Opcional,Puede estar vacio (reseteada si cambia depto),VAlida,'',L295-305
+REGISTRO USUARIO (Flutter),Telefono,Opcional,Puede estar vacio,VAlida,'',register_screen.dart L326
+REGISTRO USUARIO (Flutter),Telefono,Valido,Solo digitos minimo 7 tras limpiar no digitos,VAlida,3001234567,register_screen.dart L329-333
+REGISTRO USUARIO (Flutter),Telefono,Corto,Menos de 7 digitos,INVAlida,'12345',register_screen.dart L329
+REGISTRO USUARIO (Flutter),Telefono,Formato,Permite + - () espacios (input formatter),VAlida,'+57 300 123 45 67',register_screen.dart L318
+REGISTRO USUARIO (Flutter),Email,Valido,"Coincide regex ^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$",VAlida,yeimar@correo.com,register_screen.dart L357
+REGISTRO USUARIO (Flutter),Email,Invalido,No cumple regex,VAlida,'yeimar@correo' o 'correo.com' o 'a@@b.com',register_screen.dart L357
+REGISTRO USUARIO (Flutter),Email,Vacio,Campo vacio,INVAlida,'',register_screen.dart L352
+REGISTRO USUARIO (Flutter),Contrasena,Valida,Longitud >= 10 y contiene mayuscula y numero,VAlida,'Yeimar12345',register_screen.dart L389-396
+REGISTRO USUARIO (Flutter),Contrasena,Corta,Menos de 10 caracteres,INVAlida,'Yeimar1',register_screen.dart L389
+REGISTRO USUARIO (Flutter),Contrasena,Sin mayuscula,Falta [A-Z],INVAlida,'yeimar12345',register_screen.dart L392
+REGISTRO USUARIO (Flutter),Contrasena,Sin numero,Falta [0-9],INVAlida,'YeimarABCDE',register_screen.dart L392
+REGISTRO USUARIO (Flutter),Confirmar contrasena,Coincide,Igual a contrasena,VAlida,'Yeimar12345',register_screen.dart L417
+REGISTRO USUARIO (Flutter),Confirmar contrasena,Difiere,Diferente a contrasena,INVAlida,'OtraClave123',register_screen.dart L417
+REGISTRO USUARIO (Flutter),Checkbox privacidad,Aceptado,Checkbox marcado,VAlida,true,register_screen.dart L53
+REGISTRO USUARIO (Flutter),Checkbox privacidad,No aceptado,Checkbox sin marcar,INVAlida,false,register_screen.dart L53
+LOGIN (Flutter),Email,Requerido,Texto no vacio,VAlida,yeimar@correo.com,login_screen.dart L47
+LOGIN (Flutter),Email,Vacio,Campo vacio,INVAlida,'',login_screen.dart L47
+LOGIN (Flutter),Contrasena,Requerido,Texto no vacio,VAlida,'Yeimar12345',login_screen.dart L47
+LOGIN (Flutter),Contrasena,Vacio,Campo vacio,INVAlida,'',login_screen.dart L47
+REGISTRO INSTITUCION (Flutter),Nombre org,Requerido,No vacio tras trim,VAlida,'Clínica Salud Colombia',institution_register_screen.dart L198
+REGISTRO INSTITUCION (Flutter),Nombre org,Vacio,Vacio o solo espacios,INVAlida,'' o '   ',institution_register_screen.dart L198
+REGISTRO INSTITUCION (Flutter),NIT,Opcional,Puede estar vacio (digitos only),VAlida,'900000000',L205-215
+REGISTRO INSTITUCION (Flutter),Tipo org,Valido,String enum InstitutionType,VAlida,clinica,drop L218-229
+REGISTRO INSTITUCION (Flutter),Email contacto,Valido,Contiene @,VAlida,contacto@correo.com,L235-247
+REGISTRO INSTITUCION (Flutter),Email contacto,Invalido,No contiene @,INVAlida,'correo.sin.arroba',L235-247
+REGISTRO INSTITUCION (Flutter),Admin nombre,Requerido,No vacio,VAlida,Yeimar,L296-304
+REGISTRO INSTITUCION (Flutter),Admin nombre,Vacio,Vacio,INVAlida,'',L296-304
+REGISTRO INSTITUCION (Flutter),Admin apellido,Requerido,No vacio,VAlida,Araujo,L307-317
+REGISTRO INSTITUCION (Flutter),Admin apellido,Vacio,Vacio,INVAlida,'',L307-317
+REGISTRO INSTITUCION (Flutter),Admin email,Valido,Contiene @,VAlida,admin@correo.com,L322-334
+REGISTRO INSTITUCION (Flutter),Admin email,Invalido,No contiene @,INVAlida,'sin@arroba no',L322-334
+REGISTRO INSTITUCION (Flutter),Admin contrasena,Valida,Longitud >= 6,VAlida,'Clave12',L337-352
+REGISTRO INSTITUCION (Flutter),Admin contrasena,Corta,Menos de 6 caracteres,INVAlida,'Clave',L337-352
+CREAR USUARIO ADMIN (Flutter),Rol,Valido,"En {USUARIO,INSTRUCTOR,USUARIO_SST,USUARIO_PROFESIONAL}",VAlida,INSTRUCTOR,create_user_screen.dart L489
+CREAR USUARIO ADMIN (Flutter),Rol,Prohibido,SUPER_ADMIN no asignable desde cliente,INVAlida,SUPER_ADMIN,create_user_use_case.dart L14
+CREAR USUARIO ADMIN (Flutter),Email,Valido,Coincide regex email,VAlida,usuario@correo.com,L467-473
+CREAR USUARIO ADMIN (Flutter),Email,Invalido,No cumple regex o no contiene @,INVAlida,'usuario@invalido',L467-473
+CREAR USUARIO ADMIN (Flutter),Nombre,Valido,Requerido si usuario no existe,VAlida,Nombre,L198-209
+CREAR USUARIO ADMIN (Flutter),Apellido,Valido,Requerido si usuario no existe,VAlida,Apellido,L213-224
+CREAR USUARIO ADMIN (Flutter),Contrasena temporal,Valida,Longitud >= 10,VAlida,'ContrasenaTemp12',L243-260
+CREAR USUARIO ADMIN (Flutter),Contrasena temporal,Corta,Menos de 10 caracteres,INVAlida,'corta',L243-260
+EDITAR PERFIL (Flutter),Nombre,Requerido,No vacio,VAlida,Yeimar,edit_profile_screen.dart L195-205
+EDITAR PERFIL (Flutter),Nombre,Vacio,Vacio,INVAlida,'',edit_profile_screen.dart L195
+EDITAR PERFIL (Flutter),Apellido,Requerido,No vacio,VAlida,Araujo,L205
+EDITAR PERFIL (Flutter),Apellido,Vacio,Vacio,INVAlida,'',L205
+EDITAR PERFIL (Flutter),Identificacion,Requerido,No vacio (sin limite largo),VAlida,1001234567,L205
+EDITAR PERFIL (Flutter),Identificacion,Vacio,Vacio,INVAlida,'',L205
+LOGIN/REGISTRO (WEB),Email,Valido,type email nativo,VAlida,usuario@correo.com,login/page.tsx L108
+LOGIN (WEB),Contrasena,Requerido,No vacio (type password),VAlida,'Clave123!',login/page.tsx L128
+LOGIN (WEB),Contrasena,Vacio,Vacio,INVAlida,'',login/page.tsx L128
+REGISTRO WEB Paso1,Nombre,Requerido,Obligatorio ,VAlida,Yeimar,register/page.tsx L54
+REGISTRO WEB Paso1,Apellido,Requerido,Obligatorio,VAlida,Araujo,register/page.tsx L54
+REGISTRO WEB Paso1,Identificacion,Requerido,Obligatorio,VAlida,1001234567,register/page.tsx L54
+REGISTRO WEB Paso1,Telefono/Depto/Ciudad/Direccion,Opcional,Puede estar vacio,VAlida,'',register/page.tsx L54-61
+REGISTRO WEB Paso2,Password,Valida,usePasswordStrength valida (min 8 + may + min + num + simbolo + no comun + no contiene nombre/email),VAlida,'Yeimar2026#',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Corta,Menos de 8 caracteres,INVAlida,'Yeima1',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Sin mayuscula,Falta [A-Z],INVAlida,'yeimar2026#',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Sin minuscula,Falta [a-z],INVAlida,'YEIMAR2026#',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Sin numero,Falta [0-9],INVAlida,'YeimarCasa#',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Sin simbolo,Falta caracter especial,INVAlida,'Yeimar2026',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Comun,En lista COMMON_PASSWORDS,INVAlida,'password' o '12345678' o 'admin123',usePasswordStrength.ts
+REGISTRO WEB Paso2,Password,Contiene nombre/email,Incluye prefix del nombre o email (>=3 chars),INVAlida,password='Yeimar12!' si nombre=Yeimar,usePasswordStrength.ts
+REGISTRO WEB Paso2,Confirmar password,Coincide,Igual a password,VAlida,'Yeimar2026#',register/page.tsx L63
+REGISTRO WEB Paso2,Confirmar password,Difiere,Diferente a password,INVAlida,'OtraClave2026#',register/page.tsx L63
+CHECKOUT (WEB) Plan,Email,Valido,Regex ^[^\s@]+@[^\s@]+\.[^\s@]+$,VAlida,contacto@correo.com,checkout/_lib validateEmail
+CHECKOUT (WEB) Plan,Email,Invalido,No cumple regex,INVAlida,'correo@invalido',checkout/_lib validateEmail
+CHECKOUT (WEB) Plan,Telefono,Valido,Regex ^(57)?3\d{9}$ (10 digitos inician 3),VAlida,3001234567,checkout/_lib validatePhone
+CHECKOUT (WEB) Plan,Telefono,Invalido,No cumple patron colombiano,INVAlida,'5001234567' o '30123',checkout/_lib validatePhone
+CHECKOUT (WEB) Plan,NIT,Valido,9-10 digitos,VAlida,'900000000',checkout/_lib validateNIT
+CHECKOUT (WEB) Plan,NIT,Invalido,No son 9-10 digitos,INVAlida,'123' o '9000000000000',checkout/_lib validateNIT
+CHECKOUT (WEB) Plan,Cedula,Valido,6-12 digitos,VAlida,1001234567,checkout/_lib validateCedula
+CHECKOUT (WEB) Plan,Cedula,Invalido,Menor de 6 o mayor de 12 digitos,INVAlida,'123' o '100123456789123',checkout/_lib validateCedula
+CHECKOUT (WEB) Admin,Contrasena,Valida,min 8 + letras+numeros + caracter especial,VAlida,'Clave123!',checkout/_components validateAccount
+CHECKOUT (WEB) Admin,Contrasena,Invalida,No cumple requisitos,VAlida,'12345678' (sin letras) o 'letras' (sin num) o 'letras123' (sin simbolo),validateAccount
+CHECKOUT (WEB) Admin,Confirmar contrasena,Coincide,Igual a contrasena,VAlida,'Clave123!',validateAccount
+CHECKOUT (WEB) Admin,Confirmar contrasena,Difiere,Diferente,INVAlida,'Otra123!',validateAccount
+CHECKOUT (WEB) Admin,Acepta terminos,Maracado,Aceptado,VAlida,true,validateAccount
+CHECKOUT (WEB) Admin,Acepta terminos,Sin marcar,No aceptado,INVAlida,false,validateAccount
+PAGO TARJETA (WEB) CardForm,Numero tarjeta,Valido,Cumple 15-16 digitos y algoritmo de Luhn,VAlida,'4242424242424242',CardForm.tsx Luhn
+PAGO TARJETA (WEB) CardForm,Numero tarjeta,Invalido,Falla Luhn o longitud incorrecta,INVAlida,'4242424242424241',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Titular,Requerido,No vacio,VAlida,'YEIMAR ARAUJO',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Titular,Vacio,Vacio,INVAlida,'',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Vencimiento,Valido,Regex MM/AA con mes valido y no vencida,VAlida,'08/28',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Vencimiento,Invalido,Mes fuera de 01-12,INVAlida,'13/28',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Vencimiento,Invalido,Tarjeta vencida,INVAlida,'08/20',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,CVV,Valido,3-4 digitos,VAlida,'123' o '1234',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,CVV,Invalido,No son 3-4 digitos,INVAlida,'12' o '12345' o 'abc',CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Cedula titular,Valido,5-15 digitos,VAlida,1001234567,CardForm.tsx
+PAGO TARJETA (WEB) CardForm,Cedula titular,Invalido,No son 5-15 digitos,INVAlida,'123' o '1234567890123456',CardForm.tsx
+PAGO PSE (WEB) PSEForm,Banco,Requerido,Seleccionar banco,VAlida,'Bancolombia',PSEForm.tsx
+PAGO PSE (WEB) PSEForm,Banco,Vacio,Sin seleccion,INVAlida,'',PSEForm.tsx
+PAGO PSE (WEB) PSEForm,Numero documento,Valido,5-15 digitos,VAlida,1001234567,PSEForm.tsx
+PAGO PSE (WEB) PSEForm,Numero documento,Invalido,No son 5-15 digitos,INVAlida,'12' o '123456789012345',PSEForm.tsx
+SEDES (WEB),Nombre,Requerido,No vacio,VAlida,'Sede Principal',sedes/page.tsx L56
+SEDES (WEB),Nombre,Vacio,Vacio,INVAlida,'',sedes/page.tsx L56
+SEDES (WEB),Ciudad,Requerido,No vacio,VAlida,Bogota,sedes/page.tsx L56
+SEDES (WEB),Ciudad,Vacio,Vacio,INVAlida,'',sedes/page.tsx L56
+SEDES (WEB),Direccion,Opcional,Puede estar vacio,VAlida,'',sedes/page.tsx L56
+DISPOSITIVOS (WEB),Nombre nodo,Requerido,No vacio,VAlida,'Nodo-01',devices/new/page.tsx
+DISPOSITIVOS (WEB),Nombre nodo,Vacio,Vacio,INVAlida,'',devices/new/page.tsx
+DISPOSITIVOS (WEB),MAC,Valido,Solo HEX y dos puntos (normalizado uppercase),VAlida,'A1:B2:C3:D4:E5:F6',devices/new/page.tsx L38
+DISPOSITIVOS (WEB),MAC,Invalido,Contiene caracteres no HEX,INVAlida,'A1:B2:C3:D4:E5:G7',devices/new/page.tsx L38
+CURSOS (WEB),Titulo modulo,Requerido,No vacio,VAlida,'RCP Basico',course/module-form-card.tsx
+CURSOS (WEB),Titulo modulo,Vacio,Vacio,INVAlida,'',course/module-form-card.tsx
+CURSOS (WEB),Nota de aprobacion,Valido,Numero 1-100 (default 70),VAlida,85,module-form-card.tsx L405
+CURSOS (WEB),Nota de aprobacion,Invalido,Fuera de 1-100,INVAlida,0 o 101,module-form-card.tsx L405
+CURSOS (WEB) curso,minScore,Valido,Numero default 85,VAlida,85,courses/new L165
+CURSOS (WEB) curso,minAttendance,Valido,Clamp a 0-100,VAlida,80,courses edit L190
+INSTITUCIONES (WEB) super-admin,Codigo,Requerido,Sin mayusculas (se guarda uppercase),VAlida,CLINICA1,institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Codigo,Vacio,Vacio,INVAlida,'',institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Nombre,Requerido,No vacio,VAlida,'Clinica Norte',institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Depto+Ciudad,Requerido,Deben seleccionarse,VAlida,"'Cundinamarca,Bogota'",institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Email admin,Requerido,type email,VAlida,admin@correo.com,institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Password admin,Requerido,Debe coincidir con confirmacion,VAlida,'Clave123!',institutions/page.tsx L564
+INSTITUCIONES (WEB) super-admin,Password admin,Difiere,No coincide,VAlida,'OtraClave!',institutions/page.tsx L564

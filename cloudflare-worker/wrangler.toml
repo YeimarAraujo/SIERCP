@@ -1,0 +1,19 @@
+name = "siercp-push"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables públicas (NO secretas). Secrets vía wrangler secret put:
+#   npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
+#   npx wrangler secret put CRON_SECRET   (mismo valor que CRON_SECRET en Vercel)
+[vars]
+PROJECT_ID = "siercp"
+APP_URL = "https://siercp.com"
+
+# Cron Triggers gratuitos (plan Spark + Vercel Hobby — sin Vercel Pro):
+#   */5 * * * *  recordatorios push
+#   0 * * * *    métricas de plataforma  -> Vercel /api/cron/platform-metrics
+#   0 9 * * *    vencimientos plan/SST    -> Vercel /api/cron/plan-expiry
+#   0 3 1 * *    reset mensual de uso     -> Vercel /api/cron/reset-usage
+[triggers]
+crons = ["*/5 * * * *", "0 * * * *", "0 9 * * *", "0 3 1 * *"]
